@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# editbench.sh - Simple Docker wrapper with dynamic environment variables
-# Just run: ./editbench.sh
+# run_heb.sh - Simple Docker wrapper with dynamic environment variables
+# Just run: ./run_heb.sh
 
 set -e
 
 PROJECT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-CONFIG_FILE="$PROJECT_DIR/editbench.config"
+CONFIG_FILE="$PROJECT_DIR/HEB.config"
 
 # Colors for output
 RED='\033[0;31m'
@@ -17,14 +17,14 @@ NC='\033[0m' # No Color
 
 # Default values
 TESTING_SCRIPT="run_script.py"
-IMAGE_NAME="editbench:latest"
+IMAGE_NAME="heb:latest"
 PYTHON_VERSION="3.12"
 
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
         source "$CONFIG_FILE"
     else
-        echo -e "${RED} editbench.config file not found. Please create a editbench.config and run again.${NC}"
+        echo -e "${RED} HEB.config file not found. Please create a HEB.config and run again.${NC}"
         exit 1
     fi
 }
@@ -165,28 +165,26 @@ case "${1:-}" in
         echo "$ENV_FLAGS" | sed 's/--env /\n  • /g' | tail -n +2
         ;;
     "help"|"--help"|"-h")
-        echo "EditBench Docker Wrapper"
+        echo "HumanEditBench Docker Wrapper"
         echo ""
         echo "Simple usage:"
-        echo "  ./editbench.sh              # Run default script (auto-builds if needed)"
+        echo "  ./run_heb.sh              # Run default script (auto-builds if needed)"
         echo ""
         echo "Advanced usage:"
-        echo "  ./editbench.sh shell        # Interactive shell"
-        echo "  ./editbench.sh build        # Force rebuild"
-        echo "  ./editbench.sh run [script] # Run specific script"
-        echo "  ./editbench.sh env          # Show environment variables from config"
+        echo "  ./run_heb.sh shell        # Interactive shell"
+        echo "  ./run_heb.sh build        # Force rebuild"
+        echo "  ./run_heb.sh run [script] # Run specific script"
+        echo "  ./run_heb.sh env          # Show environment variables from config"
         echo ""
         echo "First time setup:"
-        echo "  1. Run: ./editbench.sh"
-        echo "  2. Edit: editbench.config"
-        echo "  3. Run: ./editbench.sh"
+        echo "  1. Run: ./run_heb.sh"
         echo ""
         echo "Dynamic environment variables:"
-        echo "  All variables in editbench.config are automatically passed to the container!"
+        echo "  All variables in HEB.config are automatically passed to the container!"
         ;;
     *)
         echo -e "${RED}Unknown command: $1${NC}"
-        echo "Run './editbench.sh help' for usage"
+        echo "Run './run_heb.sh help' for usage"
         exit 1
         ;;
 esac

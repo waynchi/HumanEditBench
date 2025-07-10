@@ -1,4 +1,4 @@
-from editbench.evaluation import generate_editbench, test_editbench
+from human_edit_bench.evaluation import generate_files, test_heb
 
 def some_generation_function_for_your_model(prompt):
     # query the model with the prompt ....
@@ -21,7 +21,7 @@ def generate_from_prompt(prompt):
 
 
 # 2: generate the code snippets for the EVAL_MODEL, store in generations folder
-generate_editbench(generate_from_prompt, "prompts/python_whole_file.txt", js_only=True)
+generate_files(generate_from_prompt, "prompts/python_whole_file.txt")
 
 # Evaluate code snippets and put results in output file (in this case: output.json)
-test_editbench("output.json")
+test_heb("output.json")

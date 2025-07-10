@@ -83,7 +83,7 @@ def create_question_folders(js_only=False):
                 f.write(file_content)
 
 
-def generate_editbench(generation_function, prompt_file, js_only=False):
+def generate_files(generation_function, prompt_file, js_only=False):
     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
     data = load_dataset("copilot-arena/EditBench", split="test")
     with open(prompt_file, "r") as f:
@@ -119,7 +119,7 @@ def generate_editbench(generation_function, prompt_file, js_only=False):
 #########################################################################################
 
 
-def test_editbench(output_file, js_only=False):
+def test_heb(output_file, js_only=False):
     create_question_folders(js_only=js_only)
     run_tests()
     parse_results(output_file)

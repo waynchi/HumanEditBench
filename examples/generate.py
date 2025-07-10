@@ -1,4 +1,4 @@
-from editbench.evaluation import generate_editbench
+from human_edit_bench.evaluation import generate_files
 
 
 def some_generation_function_for_your_model(prompt):
@@ -22,4 +22,4 @@ def generate_from_prompt(prompt):
 
 
 # 2: generate the code snippets for the EVAL_MODEL, store in generations folder
-generate_editbench(generate_from_prompt, "prompts/python_whole_file.txt", js_only=False)
+generate_files(generate_from_prompt, "prompts/python_whole_file.txt")

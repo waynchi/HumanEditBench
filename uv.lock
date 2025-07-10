@@ -215,7 +215,7 @@ wheels = [
 ]
 
 [[package]]
-name = "editbench"
+name = "human_edit_bench"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

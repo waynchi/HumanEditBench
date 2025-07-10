@@ -1,4 +1,4 @@
-# EditBench
+# HumanEditBench
 
 [![X (formerly Twitter) Follow](https://img.shields.io/twitter/follow/iamwaynechi?style=flat-square&logo=x&label=Wayne%20Chi)](https://twitter.com/iamwaynechi)
 [![GitHub](https://img.shields.io/badge/waynchi-181717?style=flat-square&logo=github&logoColor=white)](https://github.com/waynchi)
@@ -15,19 +15,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
-EditBench is a code editing benchmark built on real code edits from [Copilot Arena](https://github.com/lmarena/copilot-arena).  
+HumanEditBench is a code editing benchmark built on real code edits from [Copilot Arena](https://github.com/lmarena/copilot-arena).  
 The dataset can be found in [HuggingFace](https://huggingface.co/datasets/copilot-arena/EditBench).
 
 ## Overview
 
-The EditBench repository provides a simple method for generating code snippets and evaluating them in an isolated Docker container. 
+The HumanEditBench repository provides a simple method for generating code snippets and evaluating them in an isolated Docker container. 
 
 ### Quick Setup
 
 To run with our pregenerated results for `gpt-o3-mini`, simply run:
 
 ```bash
-bash run_editbench.sh
+bash run_heb.sh
 ```
 
 You should see the results in `output.json`
@@ -38,7 +38,7 @@ TODO
 
 ## Configuration
 
-All configuration and environment variables are defined in the `editbench.config` file. 
+All configuration and environment variables are defined in the `HEB.config` file. 
 To run new generations, please set the following variables:
 
 | Variable | Description |
@@ -48,31 +48,31 @@ To run new generations, please set the following variables:
 
 ## Running Experiments
 
-All experiments are executed using the `run_editbench.sh` shell script, which serves as the main command-line interface for the framework.
+All experiments are executed using the `run_heb.sh` shell script, which serves as the main command-line interface for the framework.
 
 ### Available Commands
 
 ```bash
 # Build Docker container and run TESTING_SCRIPT
-bash ./run_editbench
+bash ./run_heb
 
 # Force rebuild the Docker container
-bash ./run_editbench build
+bash ./run_heb build
 
 # Create an interactive session (useful for debugging)
-bash ./run_editbench shell
+bash ./run_heb shell
 ```
 
 ## Writing Code
 
-Experiments run inside Docker containers, and the `editbench` package provides convenient functions for running experiments. The two main functions are:
+Experiments run inside Docker containers, and the `human_edit_bench` package provides convenient functions for running experiments. The two main functions are:
 
-- **`generate_editbench`** - Generates code files for the specified model
-- **`test_editbench`** - Runs tests for the specified model's generations
+- **`generate_files`** - Generates code files for the specified model
+- **`test_heb`** - Runs tests for the specified model's generations
 
 ### Generating Code with Your Model
 
-The `generate_editbench(fn, prompt_file)` function handles code generation for your model.
+The `generate_files(fn, prompt_file)` function handles code generation for your model.
 
 #### Generated File Organization
 - All generated code snippets are stored in `generations/`
@@ -89,11 +89,11 @@ The prompt can incorporate the following variables:
 - `instruction` - User instructions for the highlighted section
 
 #### Usage Example
-Call `generate_editbench` with your generation function and prompt file to create all generations in `generations/{your_model}`. See `generate_only_example.py` for a complete implementation example.
+Call `generate_files` with your generation function and prompt file to create all generations in `generations/{your_model}`. See `generate_only_example.py` for a complete implementation example.
 
 ### Running Tests
 
-The `test_editbench(out_file)` function runs comprehensive tests on your model's generations.
+The `test_heb(out_file)` function runs comprehensive tests on your model's generations.
 
 #### Prerequisites
 - All generations for `EVAL_MODEL` must be present in the `generations/` directory
@@ -109,7 +109,7 @@ The function automatically:
 
 #### Usage
 ```python
-test_editbench("results.json")
+test_heb("results.json")
 ```
 
 This will process all generations for your specified model and output comprehensive evaluation results.
@@ -132,7 +132,7 @@ This project is licensed under the Apache 2.0 License.
 
 ## Acknowledgments
 
-- Thanks to all contributors who have helped shape EditBench
+- Thanks to all contributors who have helped shape HumanEditBench
 - Special thanks to the open source community for continuous support
 
 ## Contact
