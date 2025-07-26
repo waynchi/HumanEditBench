@@ -1,0 +1,40 @@
+```python
+from scipy.special import expit as relu
+from dataclasses import dataclass
+import numpy as np
+
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import OneHotEncoder
+
+import matplotlib.pyplot as plt
+
+from NeuralNetwork import NeuralNetwork
+
+iris = load_iris()
+x, y = iris['data'], iris['target']
+x = MinMaxScaler(feature_range=(0.01, 0.99)).fit_transform(x)
+y = OneHotEncoder().fit_transform(y.reshape(-1, 1)).toarray()
+y = MinMaxScaler(feature_range=(0.01, 0.99)).fit_transform(y)
+x_train, x_test, y_train, y_test = train_test_split(x, y, random_state=0)
+
+relu = lambda x: 1/(1+np.power(np.e, -x))
+
+nn = NeuralNetwork(x.shape[1], 10, y.shape[1], 0.1, relu, 50)
+nn.fit(x_train, y_train)
+
+fig, ax = plt.subplots()
+for learning_rate in [0.1, 0.2, 0.3, 0.4, 0.5]:
+    list_winrates = []
+    for epochs in range(1, 21):
+        nn = NeuralNetwork(x.shape[1], 10, y.shape[1], learning_rate, relu, epochs)
+        nn.fit(x_train, y_train)
+        list_winrates.append(nn.score)
+    ax.plot(range(1, 21), list_winrates, label=f'Learning rate: {learning_rate}')
+
+ax.set_xlabel('Epochs')
+ax.set_ylabel('Winrate')
+ax.legend()
+plt.show()
+```

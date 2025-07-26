@@ -1,0 +1,81 @@
+```python
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+# from selenium.common.exceptions import TimeoutException
+from checker import Checker
+import time
+
+
+class GoogleDriver:
+    __enter_button_xpath = (
+        '//*[@id="__next"]/div[1]/header/div[1]/div[3]/div/div'
+    )
+    __cpf_field_xpath = '//*[@id="cpf"]'
+    __password_field_xpath = '//*[@id="password"]'
+    __login_button_xpath = (
+        '/html/body/div[5]/div[3]/div/div[1]/div/div[1]/div[3]/button'
+    )
+    __open_form_js = '''
+        document.querySelectorAll('button.MuiIconButton-root')[1].click();
+
+        setTimeout(() => {
+        document.querySelectorAll('li.MuiMenuItem-root')[1].click();
+        }, 500);
+    '''
+
+    def __init__(self) -> None:
+        self.driver = webdriver.Chrome()
+
+    def setRoot(self) -> None:
+        self.driver.get("https://kmdevantagens.com.br")
+
+    def checker(self, login: str, password: str) -> Checker:
+        # Click enter button
+        enter_button = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, self.__enter_button_xpath))
+        )
+        enter_button.click()
+
+        # Input CPF
+        cpf_field = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, self.__cpf_field_xpath))
+        )
+        cpf_field.send_keys(login)
+
+        # Input Password
+        password_field = WebDriverWait(self.driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, self.__password_field_xpath))
+        )
+        password_field.send_keys(password)
+
+        # Click login button, fazer tentar várias vezes
+        login_button = WebDriverWait(self.driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, self.__login_button_xpath))
+        )
+        login_button.click()
+        
+        # Wait until the second button with class 'MuiIconButton-root' is present
+        WebDriverWait(self.driver, 10).until(
+            lambda d: len(d.find_elements(By.CSS_SELECTOR, "button.MuiIconButton-root")) > 1
+        )
+        
+        self.driver.execute_script(self.__open_form_js)
+        time.sleep(1)
+
+        name = self.driver.find_element(By.ID, ':re:').get_attribute('value')
+        email = self.driver.find_element(By.ID, 'email').get_attribute('value')
+        state = self.driver.find_element(By.ID, 'address.state').text
+        span_text = self.driver.find_element(
+            By.CSS_SELECTOR,
+            '.MuiTypography-root.MuiTypography-body1.css-1irt9x2'
+        ).text
+        time.sleep(5)
+        print(name, email, state, span_text)
+
+        return Checker(name, email, state, span_text)
+
+    def exit(self) -> None:
+        self.driver.quit()
+```

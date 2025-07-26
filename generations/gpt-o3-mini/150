@@ -1,0 +1,45 @@
+```javascript
+import React, { useEffect } from 'react';
+import styles from './GameUI.module.css';
+import { useLocation } from 'react-router-dom';
+import MockChild from '../../components/mock-child/MockChild';
+
+const GameUI = () => {
+  const location = useLocation();
+  const frontPageState = location.state;
+
+  const character = frontPageState?.character;
+  const map = frontPageState?.map;
+
+  useEffect(() => {
+    console.log('Character data:', character);
+    console.log('Map data:', map);
+  }, [character, map]);
+
+  if (!character || !map) {
+    console.log('Character or map is undefined');
+    return <div>Loading...</div>;
+  }
+
+  const mapData = map.image || `${process.env.PUBLIC_URL}/assets/images/map/Map_S0001.jpg`;
+
+  return (
+    <div className={styles.gameContainer}>
+      {console.log('Rendering GameUI')}
+      <MockChild componentName="CharacterStatUI" width="1200px" height="308px" backgroundColor="gray" componentState={frontPageState} />
+      <div className={styles.mapContainer}>
+        <img src={mapData} alt="Game Map" className={styles.mapImage} />
+      </div>
+      <div className={styles.actionButtonsContainer}>
+        <button className={styles.actionButton}>1</button>
+        <button className={styles.actionButton}>2</button>
+        <button className={styles.actionButton}>3</button>
+        <button className={styles.actionButton}>4</button>
+        <button className={styles.actionButton}>5</button>
+      </div>
+    </div>
+  );
+};
+
+export default GameUI;
+```
