@@ -18,7 +18,7 @@ TEST_DIR = Path("/root/editbench_sandboxes")
 
 
 def create_question_folders(js_only=False):
-    data = load_dataset("copilot-arena/EditBench", split="test")
+    data = load_dataset("copilot-arena/HumanEditBench", split="test")
     generation_folder = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
 
     for question in tqdm(data, desc="Creating testing sandboxes"):
@@ -45,13 +45,13 @@ def create_question_folders(js_only=False):
             with open(curr_dir / "original_code.py", "w") as f:
                 f.write(question["original_code"])
             with open(curr_dir / "implementation1.py", "w") as f:
-                f.write(generated_code)
+                f.write(generated_code.split("```python")[-1].split("```")[0].strip())
 
         elif question["programming_language"] == "javascript":
             with open(curr_dir / "original_code.js", "w") as f:
                 f.write(question["original_code"])
             with open(curr_dir / "implementation1.js", "w") as f:
-                f.write(generated_code)
+                f.write(generated_code.split("```javascript")[-1].split("```")[0].strip())
 
             test_folder = curr_dir / "tests"
             test_folder.mkdir(exist_ok=True)
@@ -62,7 +62,7 @@ def create_question_folders(js_only=False):
             with open(curr_dir / "original_code.jsx", "w") as f:
                 f.write(question["original_code"])
             with open(curr_dir / "implementation1.jsx", "w") as f:
-                f.write(generated_code)
+                f.write(generated_code.split("```javascript")[-1].split("```")[0].strip())
 
             test_folder = curr_dir / "tests"
             test_folder.mkdir(exist_ok=True)
@@ -85,7 +85,7 @@ def create_question_folders(js_only=False):
 
 def generate_files(generation_function, prompt_file, js_only=False):
     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
-    data = load_dataset("copilot-arena/EditBench", split="test")
+    data = load_dataset("copilot-arena/HumanEditBench", split="test")
     with open(prompt_file, "r") as f:
         prompt_template = f.read()
 
@@ -121,7 +121,7 @@ def generate_files(generation_function, prompt_file, js_only=False):
 
 def test_heb(output_file, js_only=False):
     create_question_folders(js_only=js_only)
-    run_tests()
+    run_tests(js_only=js_only)
     parse_results(output_file)
 
 
@@ -176,16 +176,17 @@ def get_python_commands(dir, python_version):
 
 def get_javascript_commands(dir):
     install_cmd = ["npm", "install"]
+    sleep_cmd = ["sleep", "1"]
     test_cmd = ["npm", "test"]
 
-    return [install_cmd, test_cmd]
+    return [install_cmd, sleep_cmd, test_cmd]
 
 
 def run_sandbox_test(dir, lang, python_version, print_output=False, timeout=600):
     """Run tests for a single sandbox"""
     if lang == "python":
         commands = get_python_commands(dir, python_version)
-    elif lang == "javascript":
+    elif lang == "javascript" or lang == "javascript/react":
         commands = get_javascript_commands(dir)
 
     try:
@@ -218,7 +219,7 @@ def run_sandbox_test(dir, lang, python_version, print_output=False, timeout=600)
                 if output.stderr:
                     print(f"=== Command error ===\n{output.stderr}")
         return f"Ran tests for {str(dir)}"
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         if "install" in str(e):
             # Handle pytest errors
             return f"Error installing dependencies in {str(dir)}: {e}"
@@ -261,16 +262,19 @@ def run_sandbox_test(dir, lang, python_version, print_output=False, timeout=600)
 #     return True
 
 
-def run_tests(max_workers=4):
+def run_tests(max_workers=4, js_only=False):
     """Run tests in parallel using ThreadPoolExecutor"""
     futures_dict = {}
     errored_out = []
 
-    questions = load_dataset("copilot-arena/EditBench", split="test")
+    questions = load_dataset("copilot-arena/HumanEditBench", split="test")
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all jobs to the executor
         for question in tqdm(questions, desc="Creating test threads"):
             dir = TEST_DIR / str(question["problem_id"])
+
+            if js_only and question["programming_language"] == "python":
+                continue
 
             future = executor.submit(
                 run_sandbox_test,
