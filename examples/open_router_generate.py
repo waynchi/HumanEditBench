@@ -1,6 +1,16 @@
 from human_edit_bench.evaluation import generate_files, test_heb
 from openai import OpenAI
 from os import getenv
+import re
+
+
+def parse_code_snippet(response):
+    # Remove opening ```[language]\n pattern (includes special chars like /)
+    result = re.sub(r'^```[\w/\-+.]*\n', '', response)
+    # Remove closing \n``` pattern  
+    result = result.replace('\n```', '')
+    return result
+
 
 def generate_openrouter(prompt):
     # query the model with the prompt ....
@@ -26,7 +36,7 @@ def generate_openrouter(prompt):
 def generate_from_prompt(prompt):
     response = generate_openrouter(prompt)
     # Returned code should be a valid Python code snippet
-    return response.replace("```python\n", "").replace("\n```", "")
+    return parse_code_snippet(response)
 
 
 # 2: generate the code snippets for the EVAL_MODEL, store in generations folder
