@@ -14,32 +14,19 @@ def parse_code_snippet(response):
 
 def generate_openrouter(prompt):
     # query the model with the prompt ....
-    tries = 3
-    while tries > 0:
-        try:
-            client = OpenAI(
-                base_url="https://openrouter.ai/api/v1",
-                api_key=getenv("VAL_OPENROUTER"),
-            )
-            completion = client.chat.completions.create(
-                model="openai/gpt-oss-20b:free",
-                messages=[
-                    {
-                    "role": "user",
-                    "content": prompt
-                    }
-                ]
-            )
-            break
-
-        except Exception as e:
-            if tries > 0:
-                tries -= 1
-                print(f"Error occurred: {e}. Retrying... ({tries} tries left)")
-            else:
-                print("Max retries reached. Exiting.")
-                raise e
-
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=getenv("VAL_OPENROUTER"),
+    )
+    completion = client.chat.completions.create(
+        model="mistralai/mistral-small-3.2-24b-instruct:free",
+        messages=[
+            {
+            "role": "user",
+            "content": prompt
+            }
+        ]
+    )
     return completion.choices[0].message.content
 
 
@@ -53,4 +40,4 @@ def generate_from_prompt(prompt):
 
 # 2: generate the code snippets for the EVAL_MODEL, store in generations folder
 generate_files(generate_from_prompt, "prompts/whole_file.txt")
-test_heb("results/whole_file/gpt-oss-20b.json")
+test_heb("results/whole_file/mistral-small-3.2-24b-instruct.json")
