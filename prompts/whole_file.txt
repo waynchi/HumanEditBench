@@ -2,7 +2,7 @@ Generate a new implementation of the following code based on the user instructio
 
 The Original code (to be modified):
 
-```python
+```{lang}
 {original_code}
 ```
 
@@ -10,10 +10,10 @@ The user instruction is:
 {instruction}
 
 And they highlighted this section to be changed:
-```python
+```{lang}
 {highlighted_code}
 ```
 
 Please only change the highlighted section and leave the rest of the code unchanged.
 Please output the entire code file.
-Respond only in a python code block beginning with ```python.
+Respond only in a python code block beginning with ```{lang}.

@@ -85,22 +85,27 @@ def create_question_folders(js_only=False):
 
 def generate_files(generation_function, prompt_file, js_only=False):
     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
+    output_dir.mkdir(parents=True, exist_ok=True)
     data = load_dataset("copilot-arena/HumanEditBench", split="test")
     with open(prompt_file, "r") as f:
         prompt_template = f.read()
 
-    disable_progress_bar()
+
+    # disable_progress_bar()
     for question in tqdm(data, desc="Generating code for questions"):
         id = question["problem_id"]
 
+        file_name = output_dir / str(id)
+        if file_name.exists():
+            continue
         prompt = prompt_template.format(
             original_code=question["original_code"],
             highlighted_code=question["highlighted_code"],
             instruction=question["instruction"],
+            lang=question["programming_language"]
         )
         generated_code = generation_function(prompt)
 
-        file_name = output_dir / str(id)
         if question["programming_language"] == "python":
             if js_only:
                 continue
@@ -113,7 +118,7 @@ def generate_files(generation_function, prompt_file, js_only=False):
             with open(file_name, "w") as f:
                 f.write(generated_code)
 
-    enable_progress_bar()
+    # enable_progress_bar()
 
 
 #########################################################################################
@@ -155,6 +160,8 @@ def parse_results(output_file):
     print(f"{num_perfect} perfect")
     print(f"{num_perfect / n_tests * 100:.2f}% pass rate")
 
+    out_path = Path(output_file).parent
+    out_path.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w") as f:
         json.dump(results, f, indent=4, sort_keys=True)
 
