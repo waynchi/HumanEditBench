@@ -4,7 +4,7 @@ from os import getenv
 import re
 
 
-def parse_code_snippet(response):
+def parse_code_snippet(response):    
     # Remove opening ```[language]\n pattern (includes special chars like /)
     result = re.sub(r'^```[\w/\-+.]*\n', '', response)
     # Remove closing \n``` pattern  
@@ -14,19 +14,31 @@ def parse_code_snippet(response):
 
 def generate_openrouter(prompt):
     # query the model with the prompt ....
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=getenv("VAL_OPENROUTER"),
-    )
-    completion = client.chat.completions.create(
-        model="openai/gpt-oss-20b:free",
-        messages=[
-            {
-            "role": "user",
-            "content": prompt
-            }
-        ]
-    )
+    tries = 3
+    while tries > 0:
+        try:
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=getenv("VAL_OPENROUTER"),
+            )
+            completion = client.chat.completions.create(
+                model="openai/gpt-oss-20b:free",
+                messages=[
+                    {
+                    "role": "user",
+                    "content": prompt
+                    }
+                ]
+            )
+            break
+
+        except Exception as e:
+            if tries > 0:
+                tries -= 1
+                print(f"Error occurred: {e}. Retrying... ({tries} tries left)")
+            else:
+                print("Max retries reached. Exiting.")
+                raise e
 
     return completion.choices[0].message.content
 
