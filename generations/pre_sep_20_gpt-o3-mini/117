@@ -1,0 +1,71 @@
+```python
+import tkinter as tk
+from tkinter import ttk
+
+def on_button_click():
+    user_input = entry.get()
+    print(f"User Input: {user_input}")
+
+def on_second_button_click():
+    user_input2 = entry2.get()
+    print(f"User Input 2: {user_input2}")
+
+# Create the main window
+root = tk.Tk()
+root.title("Modern GUI Example")
+root.geometry("300x220")
+root.resizable(False, False)
+
+# Style the window
+style = ttk.Style()
+
+style.configure('TFrame', background='#f0f0f0')
+
+style.configure('TLabel', background='#f0f0f0', font=('Helvetica', 12)) 
+
+style.configure('TEntry', font=('Helvetica', 12))
+
+
+# Custom button style
+style.configure('Custom.TButton', 
+                font=('Helvetica', 12),
+                background='#4287f5',
+                foreground='black')
+
+# Create and place the frame
+frame = ttk.Frame(root, padding=(20, 20, 20, 20))
+frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+
+# Create and place the label
+label = ttk.Label(frame, text="Enter Text:")
+label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+
+# Create and place the entry widget
+entry = ttk.Entry(frame, width=20)
+entry.grid(row=0, column=1, padx=5, pady=5, sticky=(tk.W, tk.E))
+
+# Create and place the button with custom style
+button = ttk.Button(frame, text="Submit", command=on_button_click, style='Custom.TButton')
+button.grid(row=1, column=0, columnspan=2, pady=10)
+
+# Added second text box and second button
+label2 = ttk.Label(frame, text="Enter More:")
+label2.grid(row=2, column=0, padx=5, pady=5, sticky=tk.W)
+
+entry2 = ttk.Entry(frame, width=20)
+entry2.grid(row=2, column=1, padx=5, pady=5, sticky=(tk.W, tk.E))
+
+button2 = ttk.Button(frame, text="Submit 2", command=on_second_button_click, style='Custom.TButton')
+button2.grid(row=3, column=0, columnspan=2, pady=10)
+
+# Configure grid weights
+frame.columnconfigure(0, weight=1)
+frame.columnconfigure(1, weight=1)
+frame.rowconfigure(0, weight=1)
+frame.rowconfigure(1, weight=1)
+frame.rowconfigure(2, weight=1)
+frame.rowconfigure(3, weight=1)
+
+# Run the application
+root.mainloop()
+```

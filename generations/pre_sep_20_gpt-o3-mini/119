@@ -1,0 +1,243 @@
+```python
+import sys
+import random
+import time
+from PyQt6.QtWidgets import (
+    QApplication,
+    QWidget,
+    QLabel,
+    QPushButton,
+    QGridLayout,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QMessageBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QDialog,  # Added for QInputDialog below
+)
+from PyQt6.QtCore import Qt, QTimer, QTime
+from PyQt6.QtGui import QFont
+
+
+class SchulteTable(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Таблица Шульте")
+
+        self.grid_size = 5
+        self.current_number = 1
+        self.start_time = 0
+        self.elapsed_time = 0
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_timer)
+        self.leaderboard = self.load_leaderboard()
+
+        self.init_ui()
+
+    def init_ui(self):
+        # Main Layout
+        main_layout = QVBoxLayout()
+
+        # Timer Layout
+        timer_layout = QHBoxLayout()
+        self.timer_label = QLabel("Время: 00:00.00")
+        self.timer_label.setFont(QFont("Arial", 14))
+        timer_layout.addWidget(self.timer_label)
+        main_layout.addLayout(timer_layout)
+
+        # Grid Layout
+        self.grid_layout = QGridLayout()
+        self.create_table()
+        main_layout.addLayout(self.grid_layout)
+
+        # Buttons Layout
+        buttons_layout = QHBoxLayout()
+        self.start_button = QPushButton("Старт")
+        self.start_button.clicked.connect(self.start_game)
+        buttons_layout.addWidget(self.start_button)
+
+        self.reset_button = QPushButton("Сброс")
+        self.reset_button.clicked.connect(self.reset_game)
+        self.reset_button.setEnabled(False)
+        buttons_layout.addWidget(self.reset_button)
+        main_layout.addLayout(buttons_layout)
+
+        # Leaderboard Layout
+        leaderboard_layout = QVBoxLayout()
+        leaderboard_label = QLabel("Таблица лидеров")
+        leaderboard_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
+        leaderboard_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        leaderboard_layout.addWidget(leaderboard_label)
+
+        self.leaderboard_table = QTableWidget()
+        self.leaderboard_table.setColumnCount(2)
+        self.leaderboard_table.setHorizontalHeaderLabels(["Имя", "Время"])
+        self.leaderboard_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.update_leaderboard_table()
+        leaderboard_layout.addWidget(self.leaderboard_table)
+        main_layout.addLayout(leaderboard_layout)
+
+        self.setLayout(main_layout)
+
+    def create_table(self):
+        numbers = list(range(1, self.grid_size * self.grid_size + 1))
+        random.shuffle(numbers)
+
+        for i in range(self.grid_size):
+            for j in range(self.grid_size):
+                button = QPushButton(str(numbers[i * self.grid_size + j]))
+                button.setFont(QFont("Arial", 18))
+                button.setFixedSize(60, 60)
+                button.clicked.connect(self.cell_clicked)
+                button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+                self.grid_layout.addWidget(button, i, j)
+
+    def cell_clicked(self):
+        sender = self.sender()
+        if sender.text() == str(self.current_number) and self.start_time != 0:
+            sender.setStyleSheet("background-color: lightgreen;")
+            sender.setEnabled(False)
+            self.current_number += 1
+            if self.current_number > self.grid_size * self.grid_size:
+                self.end_game()
+        print(f"Cell {sender.text()} clicked")
+        print(f"Current Number {str(self.current_number)}")
+
+    def start_game(self):
+        self.start_button.setEnabled(False)
+        self.reset_button.setEnabled(True)
+        self.current_number = 1
+        self.start_time = time.time()
+        self.timer.start(10)  # Update every 10 milliseconds
+
+    def update_timer(self):
+        self.elapsed_time = time.time() - self.start_time
+        minutes = int(self.elapsed_time // 60)
+        seconds = int(self.elapsed_time % 60)
+        milliseconds = int((self.elapsed_time % 1) * 100)
+        self.timer_label.setText(f"Время: {minutes:02d}:{seconds:02d}.{milliseconds:02d}")
+
+    def end_game(self):
+        self.timer.stop()
+        name = self.get_player_name()
+        if name:
+            self.leaderboard.append((name, self.elapsed_time))
+            self.leaderboard.sort(key=lambda x: x[1])
+            self.leaderboard = self.leaderboard[:10]  # Keep only top 10
+            self.save_leaderboard()
+            self.update_leaderboard_table()
+            QMessageBox.information(
+                self, "Готово!", f"Ваше время: {self.format_time(self.elapsed_time)}"
+            )
+
+    def reset_game(self):
+        self.timer.stop()
+        self.start_button.setEnabled(True)
+        self.reset_button.setEnabled(False)
+        self.current_number = 1
+        self.elapsed_time = 0
+        self.timer_label.setText("Время: 00:00.00")
+
+        # Clear and recreate the table
+        for i in range(self.grid_layout.count()):
+            widget = self.grid_layout.itemAt(i).widget()
+            if widget is not None:
+                widget.deleteLater()
+        self.create_table()
+
+    def get_player_name(self):
+        dialog = QInputDialog(self)
+        dialog.setWindowTitle("Ввод имени")
+        dialog.setLabelText("Введите ваше имя:")
+        dialog.setInputMode(QInputDialog.InputMode.TextInput)
+        dialog.setOkButtonText("OK")
+        dialog.setCancelButtonText("Отмена")
+
+        if dialog.exec() == QDialog.Accepted:
+            return dialog.textValue()
+        else:
+            return None
+
+    def load_leaderboard(self):
+        try:
+            with open("leaderboard.txt", "r") as f:
+                leaderboard = []
+                for line in f:
+                    name, time_str = line.strip().split(",")
+                    leaderboard.append((name, float(time_str)))
+                return leaderboard
+        except FileNotFoundError:
+            return []
+
+    def save_leaderboard(self):
+        with open("leaderboard.txt", "w") as f:
+            for name, time in self.leaderboard:
+                f.write(f"{name},{time}\n")
+
+    def update_leaderboard_table(self):
+        self.leaderboard_table.setRowCount(len(self.leaderboard))
+        for i, (name, time_val) in enumerate(self.leaderboard):
+            self.leaderboard_table.setItem(i, 0, QTableWidgetItem(name))
+            self.leaderboard_table.setItem(i, 1, QTableWidgetItem(self.format_time(time_val)))
+        self.leaderboard_table.resizeColumnsToContents()
+
+    def format_time(self, time_in_seconds):
+        minutes = int(time_in_seconds // 60)
+        seconds = int(time_in_seconds % 60)
+        milliseconds = int((time_in_seconds % 1) * 100)
+        return f"{minutes:02d}:{seconds:02d}.{milliseconds:02d}"
+
+
+class QInputDialog(QDialog):
+    class InputMode:
+        TextInput = 0
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Input Dialog")
+        self.label = QLabel()
+        self.input = QLineEdit()
+        self.ok_button = QPushButton("OK")
+        self.cancel_button = QPushButton("Отмена")
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.input)
+
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.ok_button)
+        button_layout.addWidget(self.cancel_button)
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+        self.ok_button.clicked.connect(self.accept)
+        self.cancel_button.clicked.connect(self.reject)
+
+    def setLabelText(self, text):
+        self.label.setText(text)
+
+    def setInputMode(self, mode):
+        if mode == QInputDialog.InputMode.TextInput:
+            self.input.setText("")
+
+    def setOkButtonText(self, text):
+        self.ok_button.setText(text)
+
+    def setCancelButtonText(self, text):
+        self.cancel_button.setText(text)
+
+    def textValue(self):
+        return self.input.text()
+
+    def exec(self):
+        return super().exec()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.loop = app.instance().eventDispatcher().processEvents  # Store the event loop reference
+    window = SchulteTable()
+    window.show()
+    sys.exit(app.exec())
+```

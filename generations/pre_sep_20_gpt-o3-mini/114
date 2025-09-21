@@ -1,0 +1,451 @@
+```python
+#analyze and plot ctp data
+import numpy as np
+import pandas as pd
+import tkinter as tk
+from tkinter import ttk
+from tkinter import filedialog
+import matplotlib.pyplot as plt
+import random
+import os
+import json
+import re
+import calc
+
+params_list = ['Т1', 'Т2', 'Т3', 'Т4', 'Т7', 'Р1', 'Р2', 'Р7', 'Р13', 'Т13', 'Тнв']
+mag_params_list = ['Т1', 'Т2', 'Р1', 'Р2', 'Тнв']
+
+ctp_dict = {}
+mag_dict = {}
+ctp_data = np.full((13,45000), fill_value=np.nan, dtype=np.float32)
+mag_data = np.full((5,45000,3), fill_value=np.nan, dtype=np.float32)
+current_path = os.path.abspath(__file__)
+dict_path_const = os.path.dirname(current_path)
+db_path_const = os.path.join(dict_path_const,'New_CTP_Data')
+ctp_min_val = [15.,15.,15.,15.,10.,0.01,0.01,0.01,0.01,10.,-35.]
+ctp_max_val = [150.,90.,120.,90.,90.,2.,2.,2.,2.,70.,45.]
+
+def loadxls_click():
+    global ctp_data, ctp_dict
+    file_path = filedialog.askopenfilename(parent=root, title='Choose xlsx to process')
+    print(f"Processing file: {file_path}")
+    loadxls(file_path)
+
+def loadxls(file_path):    
+    global ctp_data, ctp_dict
+    CTP_No = ""
+    year = int(file_path[-7:-5])
+    print('Collecting values in year '+str(2000+year))
+    print('length of dict before='+str(len(ctp_dict)))
+    data = preprocess_data(file_path)
+    for index, row in data.iterrows():
+        if row['ЦТП №'] != CTP_No:
+            if CTP_No != "":
+                save_ctp_to_file(CTP_No)
+            CTP_No = row['ЦТП №']
+            load_ctp_from_file(CTP_No)
+        if row['Объект/Параметр'] in params_list:
+            for column_no in range(5, len(data.columns)):
+                
+                date_val = data.columns[column_no]
+                day_val = int(date_val[:2])
+                month_val = int(date_val[3:5])
+                hour_val = int(date_val[-2:])
+                index = calc.toindex(2000+year, month_val, day_val, hour_val)
+                # ADD a value check here
+                try:
+                    if ( not np.isnan(ctp_data[params_list.index(row['Объект/Параметр']),index])) and ((ctp_data[params_list.index(row['Объект/Параметр']),index] > ctp_max_val[params_list.index(row['Объект/Параметр'])]) or (ctp_data[params_list.index(row['Объект/Параметр']),index] < ctp_min_val[params_list.index(row['Объект/Параметр'])])): # or abs(ctp_data[params_list.index(param),i]-ctp_data[params_list.index(param),i-1] > 15)):
+                        print(f'CTP# {CTP_No} {row["Объект/Параметр"]} value {row[date_val]} at index {index} is dumped for out of bounds, previous value {ctp_data[params_list.index(row["Объект/Параметр"]),index-1]}')
+                        ctp_data[params_list.index(row['Объект/Параметр']),index] = np.nan
+                    else:
+                        ctp_data[params_list.index(row['Объект/Параметр']),index] = float(row[date_val])
+                except:
+                        print(f'CTP# {CTP_No} {row["Объект/Параметр"]} value {row[date_val]} at index {index} is dumped due to poor format')
+                        ctp_data[params_list.index(row['Объект/Параметр']),index] = np.nan
+                #print(str(hour_val)+':00 '+ str(day_val)+'.'+str(month_val)+'.'+str(year)+' '+str(t1[ctp_dict[row['ЦТП №']],year,month_val,day_val,hour_val])) #row[date_val]) #row['01-05 00)')
+    save_ctp_to_file(CTP_No)  
+    check_loaded_db(ctp_data)
+    print('length of dict after='+str(len(ctp_dict)))
+    #print(ctp_dict)
+    #values=t1[:, 3, 5, 1, 0]
+    #print(values[:50])
+    print(f"File: {file_path} processed successfully")
+    #check_loaded_db(t1)
+
+def preprocess_data(data_path):
+    pattern_ctp_no = r"\d{2}-\d{2}.*"
+    # Load data
+    df = pd.read_excel(data_path,header=4, converters={'Тех.Проц.': lambda x: 'nana' if x == '' else x})
+    CTP_no = ''
+    df.loc[:, 'ЦТП №'] = None
+    lines_to_drop = []
+    
+    #if len(ctp_dict) == 0:
+    #    print('No dictionary loaded, trying to load from disk')
+    #    load_dict_click(dict_path_const)
+    for index, row in df.iterrows():
+        # Do something with the current row
+        #print(row['Объект/Параметр'], row['Тех.Проц.'])
+        
+        if not pd.isna(row['Объект/Параметр']) and row['Тех.Проц.'] == 'nana':
+            CTP_no = row['Объект/Параметр']
+            if re.match(pattern_ctp_no, CTP_no):
+                #if CTP_no not in ctp_dict.keys():
+                #    ctp_dict[CTP_no] = len(ctp_dict)
+                pass
+            else:
+                print('Invalid ЦТП №'+CTP_no)
+                CTP_no = ""
+            #print('ЦТП №'+row['Объект/Параметр'])
+            lines_to_drop.append(index)
+        else:
+            if pd.isna(row['Итого:']) or row['Итого:'] == '' or row['Объект/Параметр'] not in params_list or CTP_no == "":
+                lines_to_drop.append(index)
+            else:
+                df.at[index, 'ЦТП №'] = CTP_no
+                #print(row['Итого:'])
+    df.drop(lines_to_drop, inplace=True)
+    # Explore data
+    df.insert(0, 'ЦТП №', df.pop('ЦТП №'))
+    
+    return df
+    #print(df.head(20))
+    #print(df.info())
+    return df
+
+def check_loaded_db(data):
+    # TODO fix for a new format
+    data_string = ""
+    start_date = ""
+    end_date = ""
+    for index in range(0,45000):
+        y,m,d,h = calc.todate(index)
+        if np.all(np.isnan(data[:11,index])):
+            if start_date != "":
+                data_string = data_string + start_date + ' - ' + end_date + '; '
+                start_date = ""
+                end_date = ""
+        else:
+            if start_date == "":
+                start_date = str(d).zfill(2)+'-'+str(m).zfill(2)+'-'+str(y)
+            end_date = str(d).zfill(2)+'-'+str(m).zfill(2)+'-'+str(y)
+        #if data_string == "" and start_date[:5] == "01-01":
+        #    print('Year '+str(y-1)+' is completed')
+        #else:
+    data_string = data_string + start_date + ' - ' + end_date + '.'
+    print('In the year '+str(y-1)+' found values in '+data_string)
+
+def on_combobox_select(event):
+    load_ctp_from_file(combobox.get())
+    load_mag_from_file(get_mag_name(combobox.get()))
+def load_dict():
+    global ctp_dict,mag_dict
+    try:
+        with open(os.path.join(dict_path_const, 'CTP_dict.json'), 'r') as f:
+            ctp_dict = json.load(f)
+        print('length of loaded ctp dict ='+str(len(ctp_dict)))
+    except:
+        print("no dictionary file found")
+    try:
+        with open(os.path.join(dict_path_const, 'mag_dict.json'), 'r') as f:
+            mag_dict = json.load(f)
+        print('length of loaded mag dict ='+str(len(mag_dict)))
+    except:
+        print("no dictionary file found")
+def load_ctp_from_file(ctp_no):
+    global ctp_data
+    try:
+        ctp_data = np.load(os.path.join(db_path_const,ctp_no.replace("/","_")+'.npy'))
+        print('Loaded '+str(np.count_nonzero(~np.isnan(ctp_data)))+' non-nan values in CTP№ '+ctp_no)
+        print(ctp_data[:,1000])
+        check_loaded_db(ctp_data)                   
+    except:
+        ctp_data = np.full((13,45000), fill_value=np.nan, dtype=np.float32)
+        print('No saved file for CTP № {ctp_no} found, starting to fill a new one')
+def save_ctp_to_file(ctp_no):
+    global ctp_data
+    np.save(os.path.join(db_path_const,ctp_no.replace("/","_")+'.npy'), ctp_data)
+    print('Saved '+str(np.count_nonzero(~np.isnan(ctp_data)))+' non-nan values in CTP№ '+ctp_no)
+def load_mag_from_file(mag_no):
+    global mag_data
+    try:
+        mag_data = np.load(os.path.join(db_path_const,mag_no.replace("/","_")+'.npy'))
+        print('Loaded '+str(np.count_nonzero(~np.isnan(mag_data)))+' non-nan values in MAG№ '+mag_no)                   
+    except:
+        mag_data = np.full((5,45000,3), fill_value=np.nan, dtype=np.float32)
+        print('No saved file for MAG№ {mag_no} found, starting to fill a new one')
+def save_mag_to_file(mag_no):
+    global mag_data
+    np.save(os.path.join(db_path_const,mag_no.replace("/","_")+'.npy'), mag_data)
+    print('Saved '+str(np.count_nonzero(~np.isnan(mag_data)))+' non-nan values in MAG№ '+mag_no)
+def check_click():
+    global ctp_data, mag_data
+    #load_ctp_from_file(combobox.get()) #not needed here, it's done in on_combobox_select
+    for param in params_list:
+        #print (ctp_data[params_list.index(param),:].shape)
+        print(f'{param}: min={np.nanmin(ctp_data[params_list.index(param),:]):.2f} max={np.nanmax(ctp_data[params_list.index(param),:]):.2f} avg={np.nanmean(ctp_data[params_list.index(param),:]):.2f} up avg={calc.up_average(ctp_data[params_list.index(param),:]):.2f} low avg={calc.low_average(ctp_data[params_list.index(param),:]):.2f}')
+    t1_diff = ctp_data[0, :] - mag_data[0, :, 1]
+    t1ctp = ctp_data[0, np.argmax(np.abs(t1_diff))]
+    t1mag = mag_data[0, np.unravel_index(np.argmax(np.abs(t1_diff)), t1_diff.shape),1]
+    print(t1ctp)
+    print(f'T1 diff: max={np.nanmax(t1_diff):.2f} avg={np.nanmean(t1_diff):.2f} T1ctp = {t1ctp:.2f} T1mag = {t1mag:.2f}')
+def mag_check_click():
+    global mag_data
+    for param in mag_params_list:
+        #print (ctp_data[params_list.index(param),:].shape)
+        print(f'{param}: min={np.nanmin(mag_data[mag_params_list.index(param),:,:]):.2f} max={np.nanmax(mag_data[mag_params_list.index(param),:,:]):.2f} avg={np.nanmean(mag_data[mag_params_list.index(param),:,1]):.2f} up avg={calc.up_average(mag_data[mag_params_list.index(param),:,2]):.2f} low avg={calc.low_average(mag_data[mag_params_list.index(param),:,0]):.2f}')
+
+def purify_click(): #adds weekdays and hours to ctp_data
+    global ctp_data, ctp_min_val, ctp_max_val
+    for ctpno in ctp_dict.keys():
+        #ctpno = combobox.get()
+        load_ctp_from_file(ctpno)
+        for i in range(0,45000):
+            date_result = calc.todate(i)
+            ctp_data[11,i] = calc.dayofweek(date_result[0], date_result[1], date_result[2])
+            ctp_data[12, i] = date_result[3]
+        #print(f'min t13 = {ctp_min_val[params_list.index("Т13")]} and max t13 = {ctp_max_val[params_list.index("Т13")]}')
+        save_ctp_to_file(ctpno)            
+def plot_ctp_click():
+    global ctp_data, ctp_dict
+    #load_ctp_from_file(combobox.get()) not needed here, we already have it at combobox_select
+    x_values = pd.date_range(start='12/3/2020', end='14/12/2024', freq='h')
+    
+    data_length = len(x_values)
+    t1_values = ctp_data[0,:data_length]
+    t2_values = ctp_data[1,:data_length]
+    t3_values = ctp_data[2,:data_length]
+    t4_values = ctp_data[3,:data_length]
+    tnv_values = ctp_data[10,:data_length]
+    p1_values = 100*ctp_data[5,:data_length]
+    p2_values = 100*ctp_data[6,:data_length]
+    t7_values = ctp_data[4,:data_length]
+    t13_values = ctp_data[9,:data_length]
+    #print (t1_values[:50])
+    plt.figure(figsize=(15, 10))
+    plt.get_current_fig_manager().full_screen_toggle()
+    plt.plot(x_values, t1_values, color='red', label='Т1')
+    plt.plot(x_values, t2_values, color='blue', label='Т2')
+    plt.plot(x_values, t3_values, color='orange', label='Т3')
+    plt.plot(x_values, t4_values, color='yellow', label='Т4')
+    plt.plot(x_values, tnv_values, color='green', label='Тнв')
+    plt.plot(x_values, p1_values, color='black', label='P1')
+    plt.plot(x_values, p2_values, color='gray', label='P2')
+    plt.plot(x_values, t7_values, color='magenta', label='Т7')
+    plt.plot(x_values, t13_values, color='cyan', label='Т13')
+    plt.title(f"CTP No: {combobox.get()}")
+    plt.xlabel("Date")
+    plt.ylabel("Temperature (°C)")
+    plt.legend()
+    plt.show()
+def plot_mag_click():
+    global ctp_data, ctp_dict, mag_data, mag_dict
+    #load_ctp_from_file(combobox.get()) not needed here, we already have it at combobox_select
+    x_values = pd.date_range(start='12/3/2020', end='14/08/2024', freq='h')
+    
+    data_length = len(x_values)
+    t1_low = mag_data[0,:data_length,0]
+    t1_avg = mag_data[0,:data_length,1]
+    t1_hi = mag_data[0,:data_length,2]
+    t1_values = ctp_data[0,:data_length]
+    t2_low = mag_data[1,:data_length,0]
+    t2_avg = mag_data[1,:data_length,1]
+    t2_hi = mag_data[1,:data_length,2]
+    tnv_values = ctp_data[10,:data_length]
+    p1_values = 100*ctp_data[5,:data_length]
+    p1_low = 100*mag_data[2,:data_length,0]
+    p1_avg = 100*mag_data[2,:data_length,1]
+    p1_hi = 100*mag_data[2,:data_length,2]
+    p2_values = 100*ctp_data[6,:data_length]
+    p2_low = 100*mag_data[3,:data_length,0]
+    p2_avg = 100*mag_data[3,:data_length,1]
+    p2_hi = 100*mag_data[3,:data_length,2]
+    #print (t1_values[:50])
+    plt.figure(figsize=(15, 10))
+    plt.get_current_fig_manager().full_screen_toggle()
+    plt.plot(x_values, t1_values, color='red', linewidth=2, label='Т1')
+    plt.plot(x_values, t1_low, color='red', label='Т1')
+    plt.plot(x_values, t1_avg, color='red', label='Т1')
+    plt.plot(x_values, t1_hi, color='red', label='Т1')
+    plt.plot(x_values, t2_values, color='blue', linewidth=2, label='Т2')
+    plt.plot(x_values, t2_low, color='blue', label='Т1')
+    plt.plot(x_values, t2_avg, color='blue', label='Т1')
+    plt.plot(x_values, t2_hi, color='blue', label='Т1')
+    #plt.plot(x_values, t3_values, color='orange', label='Т3')
+    #plt.plot(x_values, t4_values, color='yellow', label='Т4')
+    plt.plot(x_values, tnv_values, color='green', linewidth=2, label='Тнв')
+    plt.plot(x_values, p1_values, color='black', linewidth=2, label='P1')
+    plt.plot(x_values, p1_low, color='black', label='P1')
+    plt.plot(x_values, p1_avg, color='black', label='P1')
+    plt.plot(x_values, p1_hi, color='black', label='P1')
+    plt.plot(x_values, p2_values, color='gray', linewidth=2, label='P2')
+    plt.plot(x_values, p2_low, color='gray', label='P2')
+    plt.plot(x_values, p2_avg, color='gray', label='P2')
+    plt.plot(x_values, p2_hi, color='gray', label='P2')
+    #plt.plot(x_values, t7_values, color='magenta', label='Т7')
+    #plt.plot(x_values, t13_values, color='cyan', label='Т13')
+    plt.title(f"CTP No: {combobox.get()}")
+    plt.xlabel("Date")
+    plt.ylabel("Temperature (°C)")
+    plt.legend()
+    plt.show()
+def build_mag_click():
+    global ctp_dict, mag_dict
+    for key in ctp_dict:
+        mag_name = get_mag_name(key)
+        if mag_name in mag_dict:
+            pass
+        else:
+            mag_dict[mag_name] = len(mag_dict)
+    print('mag list: '+str(list(mag_dict.keys())[:100]))
+    with open(os.path.join(dict_path_const, 'mag_dict.json'), 'w') as f:
+        json.dump(mag_dict, f)
+def get_mag_name(CTP_no):
+    if re.match(r'\d{2}-\d{2}-\d{4}\/\d{3}', CTP_no):
+        return CTP_no[6:10]
+    else: # re.match(r'\d{2}-\d{2}-\d{4}[/].*',CTP_no):
+        return CTP_no[:5]
+def find_mag_values(): #calculates average values for T1, T2, P1, P2, Tnv for all magistrals
+    global mag_dict, ctp_dict, mag_data, ctp_data
+    #test_mag_dict = dict(list(mag_dict.items())[:2])
+    for mag_name in mag_dict.keys():
+        t1=[]
+        t2=[]
+        p1=[]
+        p2=[]
+        tnv=[]
+        mag_ctp_count = 0
+        for ctp_no in ctp_dict.keys():
+            if get_mag_name(ctp_no) == mag_name:
+                load_ctp_from_file(ctp_no)
+                t1.append(ctp_data[0, :])
+                t2.append(ctp_data[1, :])
+                p1.append(ctp_data[5, :])
+                p2.append(ctp_data[6, :])
+                tnv.append(ctp_data[10, :])
+                mag_ctp_count += 1
+        print(f'Mag {mag_name} has {mag_ctp_count} CTPs')
+        t1_array = np.array(t1)
+        t2_array = np.array(t2)
+        p1_array = np.array(p1)
+        p2_array = np.array(p2)
+        tnv_array = np.array(tnv)
+        for i in range(0,45000):
+            mag_data[0, i, 0] = calc.low_average(t1_array[:, i])
+            mag_data[0, i, 1] = calc.average(t1_array[:, i])
+            mag_data[0, i, 2] = calc.up_average(t1_array[:, i])
+            mag_data[1, i, 0] = calc.low_average(t2_array[:, i])
+            mag_data[1, i, 1] = calc.average(t2_array[:, i])
+            mag_data[1, i, 2] = calc.up_average(t2_array[:, i])
+            mag_data[2, i, 0] = calc.low_average(p1_array[:, i])
+            mag_data[2, i, 1] = calc.average(p1_array[:, i])
+            mag_data[2, i, 2] = calc.up_average(p1_array[:, i])
+            mag_data[3, i, 0] = calc.low_average(p2_array[:, i])
+            mag_data[3, i, 1] = calc.average(p2_array[:, i])
+            mag_data[3, i, 2] = calc.up_average(p2_array[:, i])
+            mag_data[4, i, 0] = calc.low_average(tnv_array[:, i])
+            mag_data[4, i, 1] = calc.average(tnv_array[:, i])
+            mag_data[4, i, 2] = calc.up_average(tnv_array[:, i])
+        save_mag_to_file(mag_name)
+        print(f'Mag {mag_name} has t1={mag_data[0, 30000,:]}, t2={mag_data[1, 30000,:]}, p1={mag_data[2, 30000,:]}, p2={mag_data[3, 30000,:]}, tnv={mag_data[4, 30000,:]}')
+              
+def prepare_data(sources1, sources2):
+    """Prepares data, flattening the last dimension of X2 into the first."""
+    
+    if sources1.shape != (13, 45000) or sources2.shape != (5, 45000, 3):
+        print("Error: Invalid input shapes.")
+        return None
+
+    Y = sources1[2, :]
+    X1 = np.concatenate((sources1[:2, :], sources1[3:, :]), axis=0)
+    X2 = sources2  # Shape (5, 45000, 3)
+
+    # Flatten the last dimension of X2 into the first
+    X2_reshaped = X2.reshape(5 * 3, 45000)  # Shape (15, 45000)
+
+    # Concatenate X1 and the reshaped X2 along the first axis
+    X = np.concatenate((X1, X2_reshaped), axis=0)  # Shape (12+15, 45000) = (27, 45000)
+
+    return X, Y
+
+def train_model_click():
+    global mag_data, ctp_data
+    X, Y = prepare_data(ctp_data, mag_data)
+
+    if X is not None and Y is not None:
+        print("X shape:", X.shape)  # Output: X shape: (27, 45000)
+        print("Y shape:", Y.shape)  # Output: Y shape: (45000,)
+
+        print("Example X[0] shape:", X[0].shape)  # Output: Example X[0] shape: (45000,)
+        print("Example X[14] shape:", X[14].shape)  # Output: Example X[14] shape: (45000,)
+        print("Example X[26] shape:", X[26].shape)  # Output: Example X[26] shape: (45000,)
+        print("Example Y[0]:", Y[0])
+
+
+if __name__ == "__main__":
+    load_dict()
+    
+    root = tk.Tk()
+    root.title("User Form")
+
+    # Create a label
+    label = tk.Label(root, text="Выберите ЦТП:")
+    label.pack(pady=3)
+
+    # Create a combobox (dropdown)
+    combobox = ttk.Combobox(root, values=list(ctp_dict.keys()), width=20)
+    combobox.set(list(ctp_dict.keys())[0])
+    combobox.set("06-02-1119/007")
+    combobox.bind("<<ComboboxSelected>>", on_combobox_select)
+    combobox.pack(pady=5)
+    load_ctp_from_file(combobox.get())
+    load_mag_from_file(get_mag_name(combobox.get()))
+
+    # Create buttons
+    loadxls_button = ttk.Button(root, text="Загрузить XLS файл", command=lambda: loadxls_click())
+    loadxls_button.pack(pady=5)
+
+    check_button = tk.Button(root, text="Проверить данные ЦТП", command=lambda: check_click())
+    check_button.pack(pady=5)
+    mag_check_button = tk.Button(root, text="Проверить данные МАГ", command=lambda: mag_check_click())
+    mag_check_button.pack(pady=5)
+
+
+    #purify_button = tk.Button(root, text="Добавить часы и дни недели", command=lambda: purify_click())
+    #purify_button.pack(pady=5)
+    
+    plot_button = tk.Button(root, text="Построить график ЦТП", command=lambda: plot_ctp_click())
+    plot_button.pack(pady=5)
+
+    mag_plot_button = tk.Button(root, text="Построить график МАГ", command=lambda: plot_mag_click())
+    mag_plot_button.pack(pady=5)
+
+    build_mag_button = tk.Button(root, text="Построить дерево магистралей", command=lambda: build_mag_click())
+    build_mag_button.pack(pady=5)
+
+    fill_mag_button = tk.Button(root, text="Рассчитать магистрали", command=lambda: find_mag_values())
+    fill_mag_button.pack(pady=5)
+    # add a button to train the model
+    train_model_button = tk.Button(root, text="Обучить модель", command=lambda: train_model_click())
+    train_model_button.pack(pady=5)
+    '''load_dict_button = tk.Button(root, text="Загрузить словарь", command=lambda: load_dict_click(dict_path_const))
+    load_dict_button.pack(pady=5)
+
+    process_button = tk.Button(root, text="пережевать данные", command=lambda: process_click())
+    process_button.pack(pady=5)
+    compare_button = tk.Button(root, text="сравнить данные", command=lambda: compare_click())
+    compare_button.pack(pady=5)
+
+    save_dict_button = tk.Button(root, text="Сохранить словарь", command=lambda: save_dict_click(dict_path_const))
+    save_dict_button.pack(pady=5)
+
+    loadxls_button = tk.Button(root, text="Загрузить данные xls", command=lambda: loadxls_click())
+    loadxls_button.pack(pady=5)
+
+    loaddir_button = tk.Button(root, text="Загрузить папку xls", command=lambda: loaddir_click())
+    loaddir_button.pack(pady=5)
+
+    '''
+    # Run the application
+    root.mainloop()
+```

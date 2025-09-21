@@ -1,0 +1,11 @@
+from .config import dataBase as db
+
+
+class Keys(db.Model):
+    key = db.Column(
+        db.String(255), primary_key=True, nullable=False, unique=True)
+    idUser = db.Column(
+        db.String(100), db.ForeignKey('users.id'), nullable=True, unique=True)
+
+    def __repr__(self):
+        return f" Keys('{self.key}')"
