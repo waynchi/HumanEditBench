@@ -31,7 +31,7 @@ def create_question_folders(js_only=False):
         qid_content = generation_folder / str(question["problem_id"])
         if not qid_content.exists():
             raise FileNotFoundError(
-                f"Generation for {qid_content/ 'qid.txt'} does not exist. Please run the generation function first."
+                f"Generation for {qid_content} does not exist. Please run the generation function first."
             )
 
         with open(qid_content, "r") as f:
@@ -82,43 +82,133 @@ def create_question_folders(js_only=False):
             with open(other_file, "w") as f:
                 f.write(file_content)
 
+def generate_single_file(generation_function, prompt_template, question, output_dir):
+    """Generate a single file for a given question"""
+    id = question["problem_id"]
+    file_name = output_dir / str(id)
+    
+    # Skip if file already exists
+    if file_name.exists():
+        return {"status": "skipped", "problem_id": id}
+    
+    prompt = prompt_template.format(
+        original_code=question["original_code"],
+        highlighted_code=question["highlighted_code"],
+        instruction=question["instruction"],
+        lang=question["programming_language"]
+    )
+    
+    try:
+        generated_code = generation_function(prompt)
+        
+        # Write file based on programming language
+        if question["programming_language"] in ["python", "javascript", "javascript/react"]:
+            with open(file_name, "w") as f:
+                f.write(generated_code)
+            return {"status": "success", "problem_id": id}
+        else:
+            return {"status": "unsupported_language", "problem_id": id}
+            
+    except Exception as e:
+        return {"status": "error", "problem_id": id, "error": str(e)}
 
-def generate_files(generation_function, prompt_file, js_only=False):
+
+def generate_files(generation_function, prompt_file, js_only=False, max_workers=8):
+    """Generate files in parallel using ThreadPoolExecutor"""
     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
     output_dir.mkdir(parents=True, exist_ok=True)
+    
     data = load_dataset("copilot-arena/HumanEditBench", split="test")
+    
     with open(prompt_file, "r") as f:
         prompt_template = f.read()
-
-
-    # disable_progress_bar()
-    for question in tqdm(data, desc="Generating code for questions"):
-        id = question["problem_id"]
-
-        file_name = output_dir / str(id)
-        if file_name.exists():
-            continue
-        prompt = prompt_template.format(
-            original_code=question["original_code"],
-            highlighted_code=question["highlighted_code"],
-            instruction=question["instruction"],
-            lang=question["programming_language"]
-        )
-        generated_code = generation_function(prompt)
-
-        if question["programming_language"] == "python":
-            if js_only:
+    
+    futures_dict = {}
+    errored_out = []
+    skipped = []
+    successful = []
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all jobs to the executor
+        for question in tqdm(data, desc="Creating generation threads"):
+            # Skip Python files if js_only is True
+            if js_only and question["programming_language"] == "python":
                 continue
-            with open(file_name, "w") as f:
-                f.write(generated_code)
-        elif question["programming_language"] == "javascript":
-            with open(file_name, "w") as f:
-                f.write(generated_code)
-        elif question["programming_language"] == "javascript/react":
-            with open(file_name, "w") as f:
-                f.write(generated_code)
+                
+            future = executor.submit(
+                generate_single_file,
+                generation_function,
+                prompt_template,
+                question,
+                output_dir
+            )
+            futures_dict[future] = question["problem_id"]
+        
+        # Process results as they complete
+        for future in tqdm(
+            as_completed(futures_dict),
+            total=len(futures_dict),
+            desc="Generating files",
+            unit="file",
+        ):
+            problem_id = futures_dict[future]
+            try:
+                result = future.result()
+                if result["status"] == "error":
+                    errored_out.append(problem_id)
+                elif result["status"] == "skipped":
+                    skipped.append(problem_id)
+                elif result["status"] == "success":
+                    successful.append(problem_id)
+            except Exception as exc:
+                errored_out.append(problem_id)
+    
+    # Print summary
+    print(f"Generation complete:")
+    print(f"  - Successful: {len(successful)}")
+    print(f"  - Skipped (already exist): {len(skipped)}")
+    if errored_out:
+        print(f"  - Errored out: {len(errored_out)}")
+        for problem_id in errored_out[:5]:  # Show first 5 errors
+            print(f"    - {problem_id}")
+        if len(errored_out) > 5:
+            print(f"    - ... and {len(errored_out) - 5} more")
+# def generate_files(generation_function, prompt_file, js_only=False):
+#     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
+#     output_dir.mkdir(parents=True, exist_ok=True)
+#     data = load_dataset("copilot-arena/HumanEditBench", split="test")
+#     with open(prompt_file, "r") as f:
+#         prompt_template = f.read()
 
-    # enable_progress_bar()
+
+#     # disable_progress_bar()
+#     for question in tqdm(data, desc="Generating code for questions"):
+#         id = question["problem_id"]
+
+#         file_name = output_dir / str(id)
+#         if file_name.exists():
+#             continue
+#         prompt = prompt_template.format(
+#             original_code=question["original_code"],
+#             highlighted_code=question["highlighted_code"],
+#             instruction=question["instruction"],
+#             lang=question["programming_language"]
+#         )
+#         generated_code = generation_function(prompt)
+
+#         if question["programming_language"] == "python":
+#             if js_only:
+#                 continue
+#             with open(file_name, "w") as f:
+#                 f.write(generated_code)
+#         elif question["programming_language"] == "javascript":
+#             with open(file_name, "w") as f:
+#                 f.write(generated_code)
+#         elif question["programming_language"] == "javascript/react":
+#             with open(file_name, "w") as f:
+#                 f.write(generated_code)
+
+#     # enable_progress_bar()
 
 
 #########################################################################################
