@@ -18,7 +18,7 @@ TEST_DIR = Path("/root/editbench_sandboxes")
 
 
 def create_question_folders(js_only=False):
-    data = load_dataset("copilot-arena/HumanEditBench", split="test")
+    data = load_dataset("copilot-arena/HumanEditBench", split=getenv("HF_SPLIT", "test"))
     generation_folder = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
 
     for question in tqdm(data, desc="Creating testing sandboxes"):
@@ -118,7 +118,7 @@ def generate_files(generation_function, prompt_file, js_only=False, max_workers=
     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
     output_dir.mkdir(parents=True, exist_ok=True)
     
-    data = load_dataset("copilot-arena/HumanEditBench", split="test")
+    data = load_dataset("copilot-arena/HumanEditBench", split=getenv("HF_SPLIT", "test"))
     
     with open(prompt_file, "r") as f:
         prompt_template = f.read()
@@ -176,7 +176,7 @@ def generate_files(generation_function, prompt_file, js_only=False, max_workers=
 # def generate_files(generation_function, prompt_file, js_only=False):
 #     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
 #     output_dir.mkdir(parents=True, exist_ok=True)
-#     data = load_dataset("copilot-arena/HumanEditBench", split="test")
+#     data = load_dataset("copilot-arena/HumanEditBench", split="error")
 #     with open(prompt_file, "r") as f:
 #         prompt_template = f.read()
 
@@ -364,7 +364,7 @@ def run_tests(max_workers=4, js_only=False):
     futures_dict = {}
     errored_out = []
 
-    questions = load_dataset("copilot-arena/HumanEditBench", split="test")
+    questions = load_dataset("copilot-arena/HumanEditBench", split=getenv("HF_SPLIT", "test"))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all jobs to the executor
         for question in tqdm(questions, desc="Creating test threads"):
