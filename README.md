@@ -142,3 +142,15 @@ For questions and feedback, please open an issue or feel free to reach out direc
 ## Citation
 
 TODO
+make documentation easier to look at, give minimal set of instructions to run the thing liek:
+instructions for deepseek r1
+Changes you need to make:
+
+    add your API key to HEB.config at the bottom like youre adding it to an env file
+    modify testing script to examples/open_router_generate.py
+    change eval model name to whole_file/deepseek-r1  to make the stored generations into that file
+    go to examples/open_router_generate.py
+        change the ENV in api_key to the name in HEB.config
+        change model to deepseek/deepseek-r1-0528:free
+        change the file name in the last line to results/whole_file/deepseek-r1.json
+     to run (generate and test) just do bash run_heb.sh or ./run_heb.sh
