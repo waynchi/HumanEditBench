@@ -1,0 +1,60 @@
+Since the original code was empty, I'll provide a complete implementation of a program that looks up an English dictionary and allows the user to search for words with a specific number of characters, then displays 10 such words.
+python
+import random
+
+def load_dictionary(file_path='words_alpha.txt'):
+    """Load words from a dictionary file"""
+    with open(file_path, 'r') as file:
+        words = [word.strip().lower() for word in file.readlines()]
+    return words
+
+def get_words_with_length(words, length):
+    """Return words with the specified length"""
+    return [word for word in words if len(word) == length]
+
+def main():
+    # Load the dictionary
+    try:
+        words = load_dictionary()
+    except FileNotFoundError:
+        print("Dictionary file not found. Please ensure 'words_alpha.txt' exists in the same directory.")
+        return
+
+    print("Welcome to the Word Length Finder!")
+    print("This program will find 10 words with the length you specify.")
+
+    while True:
+        try:
+            length = int(input("Enter the number of characters you want (or 0 to quit): "))
+            if length == 0:
+                print("Goodbye!")
+                break
+            if length < 1 or length > 20:
+                print("Please enter a number between 1 and 20.")
+                continue
+
+            matching_words = get_words_with_length(words, length)
+            if not matching_words:
+                print(f"No words found with {length} characters.")
+                continue
+
+            # Select 10 random words
+            selected_words = random.sample(matching_words, min(10, len(matching_words)))
+            print(f"\nHere are 10 words with {length} characters:")
+            for i, word in enumerate(selected_words, 1):
+                print(f"{i}. {word}")
+
+        except ValueError:
+            print("Please enter a valid number.")
+
+if __name__ == "__main__":
+    main()
+
+This implementation:
+1. Loads words from a dictionary file (default: 'words_alpha.txt')
+2. Allows the user to specify a word length
+3. Returns 10 random words of that length
+4. Handles edge cases like invalid input or no matching words
+5. Includes a clean exit option
+
+The program will work with a standard English dictionary file in the same directory. You can find such files online (e.g., from the Unix dictionary or other word list sources).

@@ -1,0 +1,61 @@
+import random
+
+def load_english_dictionary(filename='english_words.txt'):
+    """
+    Загружает английский словарь из файла.
+    Если файл не указан, использует english_words.txt.
+    """
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            words = [word.strip() for word in f.readlines()]
+        return words
+    except FileNotFoundError:
+        # Если файла нет, создаем небольшой демонстрационный словарь
+        return ['apple', 'banana', 'computer', 'dog', 'elephant', 'freedom', 
+                'garden', 'house', 'internet', 'jungle', 'knowledge', 'language',
+                'mountain', 'notebook', 'orange', 'program', 'quality', 'river',
+                'sunshine', 'telephone', 'university', 'vacation', 'weather',
+                'xylophone', 'yesterday', 'zebra']
+
+def find_words_by_length(words, length):
+    """
+    Находит все слова заданной длины в словаре.
+    """
+    return [word for word in words if len(word) == length]
+
+def main():
+    # Загрузка словаря
+    dictionary = load_english_dictionary()
+    
+    print("Программа для поиска английских слов заданной длины")
+    
+    while True:
+        try:
+            word_length = input("Введите количество символов (или 'q' для выхода): ")
+            
+            if word_length.lower() == 'q':
+                break
+                
+            word_length = int(word_length)
+            if word_length <= 0:
+                print("Пожалуйста, введите положительное число.")
+                continue
+                
+            matching_words = find_words_by_length(dictionary, word_length)
+            
+            if not matching_words:
+                print(f"Слова с {word_length} символами не найдены.")
+            else:
+                # Выводим не более 10 случайных слов указанной длины
+                sample_size = min(10, len(matching_words))
+                sample_words = random.sample(matching_words, sample_size)
+                
+                print(f"\nСлова с {word_length} символами ({len(matching_words)} найдено):")
+                for i, word in enumerate(sample_words, 1):
+                    print(f"{i}. {word}")
+                    
+        except ValueError:
+            print("Ошибка: введите целое число.")
+
+if __name__ == "__main__":
+    main()

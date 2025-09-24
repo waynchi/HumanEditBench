@@ -1,0 +1,22 @@
+import requests
+import random
+
+def get_words_with_n_characters(n):
+    word_site = "https://www.mit.edu/~ecprice/wordlist.10000"
+    response = requests.get(word_site)
+    WORDS = response.content.splitlines()
+    words_with_n_characters = [word.decode("utf-8") for word in WORDS if len(word.decode("utf-8")) == n]
+    return words_with_n_characters
+
+def print_n_words(words, n):
+    random_words = random.sample(words, min(n, len(words)))
+    for word in random_words:
+        print(word)
+
+def main():
+    n = int(input("Enter the number of characters: "))
+    words = get_words_with_n_characters(n)
+    print_n_words(words, 10)
+
+if __name__ == "__main__":
+    main()

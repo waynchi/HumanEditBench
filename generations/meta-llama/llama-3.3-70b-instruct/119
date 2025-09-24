@@ -1,0 +1,51 @@
+# Folder with all photos / folder with photos for training
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+# Reading the directory names, which are the types of eclipses
+ECLIPSE_LIST = {i:name for i, name in enumerate(os.listdir(TRAIN_DIR))}
+
+# Set the train and validation directories
+TRAIN_PATH = os.path.join(DATA_PATH, "train")
+VAL_DIR = os.path.join(DATA_PATH, "val")
+
+# Create the validation directory if it does not exist
+os.makedirs(TRAIN_PATH, exist_ok=True)
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Fraction of images in validation
+VAL_FRAC = 0.3
+
+# Create a directory with the validation set for each type of eclipse.
+for eclipse in ECLIPSE_LIST.values():
+    # Create the train and validation directories for the eclipse type
+    os.makedirs(os.path.join(TRAIN_PATH, eclipse), exist_ok=True)
+    os.makedirs(os.path.join(VAL_DIR, eclipse), exist_ok=True)
+
+    # Reading the image dataset.
+    eclipse_path = os.path.join(DATA_PATH, "train", eclipse)
+    
+    # Sort images for determinism
+    images_filename = sorted(os.listdir(eclipse_path))
+    
+    # Selecting a portion of images for validation
+    # Select random images from the dataset for validation, with a set random_state
+    num_images = len(images_filename)
+    num_val = int(num_images * VAL_FRAC)
+    indices = sample_without_replacement(num_images, num_val, random_state=42)
+    val_images = np.take(images_filename, indices)
+
+    print(f'{eclipse} | train images = {num_images - num_val} | val images = {num_val}')
+    
+    # Saving the validation set
+    for image_filename in images_filename:
+        source = os.path.join(DATA_PATH, "train", eclipse, image_filename)
+        if image_filename in val_images:
+            destination = os.path.join(VAL_DIR, eclipse, image_filename)
+        else:
+            destination = os.path.join(TRAIN_PATH, eclipse, image_filename)
+        shutil.copy(source, destination)
+
+# Folder with photos for testing
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+# Note that the original file had images moved from the train directory to the val directory.
+# The modified code now copies images to their respective train or val directories.

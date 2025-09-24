@@ -1,0 +1,25 @@
+import requests
+
+def get_words(length):
+    """
+    Returns a list of 10 words with the specified length from a English dictionary API.
+    """
+    url = f"https://random-word-api.herokuapp.com/word?length={length}"
+    response = requests.get(url)
+    data = response.json()
+    # Since the API returns a list of words, we need to join them into a single list
+    words = []
+    for _ in range(10):
+        response = requests.get(url)
+        words.extend(response.json())
+    return words[:10]
+
+def main():
+    length = int(input("Enter the word length: "))
+    words = get_words(length)
+    print("Words with {} characters:".format(length))
+    for word in words:
+        print(word)
+
+if __name__ == "__main__":
+    main()

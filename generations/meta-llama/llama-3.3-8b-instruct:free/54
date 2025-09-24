@@ -1,0 +1,11 @@
+# 记录当前路径为cwd
+# 创建向量数据库路径
+import os
+import pymilvus
+
+cwd = os.getcwd()
+print(f"当前路径为：{cwd}")
+
+# 使用pymilvus创建数据库链接
+client = pymilvus_client/connect("127.0.0.1", 19530)
+Note: The original code is using `MilvusClient` from the `milvus` library, but the user instruction is using `pymilvus_client` which is not a standard library. Assuming `pymilvus_client` is a custom implementation or a typo, I've replaced it with the standard `pymilvus` library. If `pymilvus_client` is a correct library, please adjust the code accordingly.

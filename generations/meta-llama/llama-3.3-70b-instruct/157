@@ -1,0 +1,52 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-10, max_iter=1000):
+    """
+    共轭梯度法求解 Ax = b linear系统的解。
+
+    Args:
+    A (numpy array): 对称正定矩阵。
+    b (numpy array): 右手边向量。
+    x0 (numpy array, optional): 初始解猜测。默认为 None，即使用零向量作为初始解。
+    tol (float, optional): 停止的容忍度。默认为 1e-10。
+    max_iter (int, optional): 最大迭代次数。默认为 1000。
+
+    Returns:
+    numpy array: 线性系统的解。
+    """
+
+    # 初始化变量
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = x0
+    
+    r = b - np.dot(A, x)
+    p = r.copy()
+    rsold = np.dot(r, r)
+
+    # 迭代求解
+    for _ in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rsnew = np.dot(r, r)
+        
+        # 停止条件
+        if np.sqrt(rsnew) < tol:
+            break
+
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+
+    return x
+
+# 示例使用
+if __name__ == "__main__":
+    # 定义一个对称正定矩阵 A 和一个向量 b
+    A = np.array([[4, 12, -16], [12, 37, -43], [-16, -43, 98]])
+    b = np.array([10, 25, -35])
+    
+    x = conjugate_gradient(A, b)
+    print("线性系统的解：", x)

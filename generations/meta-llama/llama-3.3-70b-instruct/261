@@ -1,0 +1,22 @@
+from langchain import LLMChain, PromptTemplate
+from langchain.llms import AI21
+
+import json
+
+llm = AI21()
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+template = PromptTemplate(
+    input_variables=["sys_prompt", "prompt"],
+    template="You are given the following system prompt: {sys_prompt}\n\nUser: {prompt}\n\nAssistant:",
+)
+chain = LLMChain(llm=llm, prompt=template)
+output = chain({"sys_prompt": sys_prompt, "prompt": prompt})
+print(output)

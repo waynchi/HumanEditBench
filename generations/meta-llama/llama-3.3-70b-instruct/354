@@ -1,0 +1,27 @@
+import requests
+
+def get_words(length):
+    """
+    Retrieves a list of 10 English words with a specified length.
+    
+    Args:
+    length (int): The length of the words to retrieve.
+    
+    Returns:
+    list: A list of 10 English words with the specified length.
+    """
+    word_site = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+    response = requests.get(word_site)
+    words = response.text.splitlines()
+    filtered_words = [word for word in words if len(word) == length]
+    return filtered_words[:10]
+
+def main():
+    length = int(input("Enter the number of characters: "))
+    words = get_words(length)
+    print("10 English words with {} characters:".format(length))
+    for word in words:
+        print(word)
+
+if __name__ == "__main__":
+    main()

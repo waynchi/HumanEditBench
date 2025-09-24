@@ -1,0 +1,29 @@
+import random
+import requests
+
+def get_words(length):
+    """
+    获取指定长度的单词列表
+    """
+    word_site = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+    response = requests.get(word_site)
+    english_words = response.text.splitlines()
+    words_with_length = [word for word in english_words if len(word) == length]
+    return words_with_length
+
+def print_words(length):
+    """
+    打印指定长度的10个单词
+    """
+    words = get_words(length)
+    if len(words) < 10:
+        print("没有足够的单词满足您的要求。")
+        return
+    print(random.sample(words, 10))
+
+def main():
+    length = int(input("请输入您想要的单词长度："))
+    print_words(length)
+
+if __name__ == "__main__":
+    main()

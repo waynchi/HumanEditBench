@@ -1,0 +1,64 @@
+import numpy as np
+
+def conj_grad(A, b, x0=None, max_iter=1000, tol=1e-6):
+    """
+    Funkcja dla metody sprzężonych gradientów.
+
+    Parametry:
+    A (np.ndarray): macierz zwartej        
+    b (np.ndarray): wektor prawych stron        
+    x0 (np.ndarray, optional): początkowa wartość. Domyślnie None.
+    max_iter (int, optional): maksymalna liczba iteracji. Domyślnie 1000.
+    tol (float, optional): tolerancja dla zera. Domyślnie 1e-6.
+
+    Zwraca:
+    x (np.ndarray): przybliżone rozwiązanie układu równań Ax = b
+    """
+    
+    # Rozmiar macierzy
+    n = len(b)
+    
+    # Początkowa wartość, jeśli nie podana
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        x = x0
+    
+    # Wektor residuum
+    r = b - np.dot(A, x)
+    
+    # Kierunek
+    p = r.copy()
+    
+    # Wielomian
+    rsold = np.dot(r, r)
+    
+    for _ in range(max_iter):
+        # Oblicz współczynnik alfa
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        
+        # Aktualizuj x i r
+        x += alpha * p
+        r -= alpha * Ap
+        
+        # Sprawdź warunek stopu
+        rsnew = np.dot(r, r)
+        if np.sqrt(rsnew) < tol:
+            break
+        
+        # Aktualizuj p
+        p = r + (rsnew / rsold) * p
+        
+        # Aktualizuj rsold
+        rsold = rsnew
+    
+    return x
+
+# Przykład użycia
+if __name__ == "__main__":
+    A = np.array([[4, 12, -16], [12, 37, -43], [-16, -43, 98]])
+    b = np.array([10, 25, 35])
+    
+    x = conj_grad(A, b)
+    print("Rozwiązanie układu równań:", x)

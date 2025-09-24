@@ -1,0 +1,59 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    
+    # Remove empty lines
+    lines = [line for line in lines if line.strip()]
+    
+    # Improved splitting to handle variable whitespace
+    cols = [line.strip().split() for line in lines]
+    
+    # Better error handling when converting to numpy array
+    try:
+        cols = np.array(cols, dtype=int).T
+    except ValueError as e:
+        print(f"Error converting data to integers: {e}")
+        return
+    
+    # Use numpy arrays directly instead of converting to lists
+    array_1 = cols[0].copy()
+    array_2 = cols[1].copy()
+    
+    total_distance = 0
+    
+    # Process all elements in a more efficient way
+    while len(array_1) > 0:
+        # Find minimum values
+        idx1 = np.argmin(array_1)
+        min1 = array_1[idx1]
+        # Remove by masking instead of using pop (more efficient with numpy)
+        array_1 = np.delete(array_1, idx1)
+        
+        idx2 = np.argmin(array_2)
+        min2 = array_2[idx2]
+        array_2 = np.delete(array_2, idx2)
+        
+        # Calculate and accumulate distance
+        distance = abs(min1 - min2)
+        total_distance += distance
+    
+    print(f"Total distance: {total_distance}")
+
+def parse_input_file():
+    try:
+        with open(INPUT_FILE_PATH, 'r') as f:
+            lines = f.read().split("\n")
+        return lines
+    except FileNotFoundError:
+        print(f"Error: File {INPUT_FILE_PATH} not found.")
+        return []
+    except Exception as e:
+        print(f"Error reading file: {e}")
+        return []
+
+if __name__ == "__main__":
+    main()

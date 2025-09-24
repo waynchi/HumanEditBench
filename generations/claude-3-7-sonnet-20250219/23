@@ -1,0 +1,60 @@
+import requests
+import random
+
+def get_english_words():
+    try:
+        response = requests.get("https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt")
+        response.raise_for_status()
+        words = response.text.splitlines()
+        return [word.strip() for word in words if word.strip()]
+    except Exception as e:
+        print(f"Error fetching word list: {e}")
+        return []
+
+def words_with_length(word_list, length):
+    matching_words = [word for word in word_list if len(word) == length]
+    if not matching_words:
+        return []
+    return random.sample(matching_words, min(10, len(matching_words)))
+
+def main():
+    print("Welcome to the Word Length Finder!")
+    print("This program finds English words with a specific length.")
+    
+    word_list = get_english_words()
+    if not word_list:
+        print("Failed to load the dictionary. Please try again later.")
+        return
+    
+    print(f"Dictionary loaded with {len(word_list)} words.")
+    
+    while True:
+        try:
+            n = input("\nEnter the number of characters (or 'quit' to exit): ")
+            
+            if n.lower() == 'quit':
+                break
+                
+            n = int(n)
+            if n <= 0:
+                print("Please enter a positive number.")
+                continue
+                
+            result = words_with_length(word_list, n)
+            
+            if not result:
+                print(f"No words with exactly {n} characters found.")
+            else:
+                print(f"\n10 words with {n} characters:")
+                for i, word in enumerate(result, 1):
+                    print(f"{i}. {word}")
+                    
+        except ValueError:
+            print("Please enter a valid number.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+    
+    print("Thank you for using Word Length Finder!")
+
+if __name__ == "__main__":
+    main()

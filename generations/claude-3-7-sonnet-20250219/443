@@ -1,0 +1,32 @@
+def is_prime(n):
+    """
+    Función para verificar si un número es primo.
+    Un número primo es aquel que solo es divisible por 1 y por sí mismo.
+    
+    Args:
+        n: Número entero a verificar
+        
+    Returns:
+        bool: True si el número es primo, False en caso contrario
+    """
+    # Los números menores o iguales a 1 no son primos
+    if n <= 1:
+        return False
+    
+    # 2 es el único número par que es primo
+    if n == 2:
+        return True
+    
+    # Los números pares mayores que 2 no son primos
+    if n % 2 == 0:
+        return False
+    
+    # Verificamos divisibilidad solo con números impares hasta la raíz cuadrada de n
+    # Esto es suficiente porque si n = a*b, al menos uno de estos factores es ≤ √n
+    i = 3
+    while i * i <= n:
+        if n % i == 0:
+            return False
+        i += 2
+    
+    return True

@@ -1,0 +1,68 @@
+def find_words_with_n_characters(n):
+    """
+    Funkcja przeszukuje słownik angielski i zwraca listę słów o długości n znaków.
+    
+    Args:
+        n (int): liczba znaków w słowie
+    
+    Returns:
+        list: lista słów o długości n znaków (maksymalnie 10)
+    """
+    # Otwieranie słownika angielskiego
+    # Zakładamy, że słownik znajduje się w pliku 'english_words.txt'
+    # Jeśli nie masz takiego pliku, możesz użyć następującego polecenia, aby go pobrać:
+    # Na systemie Linux/Mac: curl -o english_words.txt https://raw.githubusercontent.com/dwyl/english-words/master/words.txt
+    # Na systemie Windows: Invoke-WebRequest -Uri https://raw.githubusercontent.com/dwyl/english-words/master/words.txt -OutFile english_words.txt
+    try:
+        with open('english_words.txt', 'r') as file:
+            words = file.read().splitlines()
+    except FileNotFoundError:
+        # Jeśli nie ma pliku, używamy wbudowanego modułu 'nltk' (wymaga instalacji: pip install nltk)
+        try:
+            import nltk
+            nltk.download('words', quiet=True)
+            from nltk.corpus import words
+            words = words.words()
+        except ImportError:
+            # Jeśli nie ma modułu nltk, używamy krótkiej listy przykładowych słów
+            words = ["apple", "banana", "car", "dog", "elephant", "flower", "guitar", 
+                    "house", "internet", "jacket", "king", "lamp", "mouse", "notebook", 
+                    "orange", "piano", "queen", "rabbit", "sun", "telephone", "umbrella", 
+                    "violin", "window", "xylophone", "yellow", "zebra", "computer", "algorithm",
+                    "programming", "python", "language", "dictionary", "keyboard", "screen"]
+    
+    # Filtrujemy słowa, które mają dokładnie n znaków
+    matching_words = [word for word in words if len(word) == n]
+    
+    # Zwracamy maksymalnie 10 słów
+    return matching_words[:10]
+
+def main():
+    print("Program do wyszukiwania słów o określonej długości.")
+    
+    while True:
+        try:
+            n = int(input("Podaj liczbę znaków (lub 0 aby zakończyć): "))
+            if n == 0:
+                print("Koniec programu.")
+                break
+            
+            if n < 1:
+                print("Liczba znaków musi być dodatnia.")
+                continue
+            
+            words = find_words_with_n_characters(n)
+            
+            if not words:
+                print(f"Nie znaleziono słów o długości {n} znaków.")
+            else:
+                print(f"Znaleziono następujące słowa o długości {n} znaków:")
+                for i, word in enumerate(words, 1):
+                    print(f"{i}. {word}")
+        except ValueError:
+            print("Błąd: Wprowadź liczbę całkowitą.")
+        except Exception as e:
+            print(f"Wystąpił nieoczekiwany błąd: {e}")
+
+if __name__ == "__main__":
+    main()

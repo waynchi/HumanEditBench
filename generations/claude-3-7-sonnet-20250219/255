@@ -1,0 +1,45 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # Удаление пустых строк
+    lines = [line for line in lines if line]
+    
+    # Улучшение считывания данных: обработка различных форматов разделителей
+    cols = []
+    for l in lines:
+        # Обработка нескольких пробелов между числами
+        values = [int(val) for val in l.strip().split() if val]
+        cols.append(values)
+    
+    # Если данные имеют транспонированный вид
+    if len(cols) > 0 and len(cols[0]) >= 2:
+        cols = np.array(cols)
+        list_1 = list(cols[:, 0])
+        list_2 = list(cols[:, 1])
+    else:
+        print("Ошибка формата данных")
+        return
+    
+    # Более эффективная реализация вычисления расстояний
+    # Сортируем оба списка и вычисляем разницы между соответствующими элементами
+    list_1.sort()
+    list_2.sort()
+    all_dists = [abs(a - b) for a, b in zip(list_1, list_2)]
+    
+    print(f"Сумма расстояний: {sum(all_dists)}")
+
+def parse_input_file():
+    try:
+        with open(INPUT_FILE_PATH, 'r') as f:
+            lines = f.read().split("\n")
+        return lines
+    except FileNotFoundError:
+        print(f"Файл {INPUT_FILE_PATH} не найден")
+        return []
+
+if __name__ == "__main__":
+    main()

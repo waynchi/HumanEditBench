@@ -1,0 +1,50 @@
+def visualize_results_grid(results_df):
+    columns = [results_df.iloc[:, i] for i in range(len(results_df.columns))]
+    columns = [pd.to_numeric(col, errors='coerce') if not pd.api.types.is_numeric_dtype(col) else col for col in columns]
+    
+    # Deducir la forma de la cuadrícula a partir del número de filas de resultados
+    grid_size = int(np.sqrt(len(results_df)))
+    # Reformar columnas en matrices
+    matrices = [col.to_numpy().reshape(grid_size, grid_size) for col in columns]
+    
+    # Configuración de visualización
+    num_columns = len(results_df.columns)
+    
+    # Determine el número de filas y columnas para la disposición de subgráficos
+    if num_columns <= 3:
+        n_rows, n_cols = 1, num_columns
+    else:
+        n_rows = (num_columns + 3) // 4  # Redondeo hacia arriba
+        n_cols = min(4, num_columns)
+    
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 3))
+    
+    # Si solo hay una fila, asegúrese de que axes sea un array 2D
+    if n_rows == 1:
+        axes = np.array([axes])
+    
+    # Aplane axes para una iteración más fácil
+    axes_flat = axes.flatten()
+    
+    # Generar títulos y colormaps para cada columna
+    titles = [f"{results_df.columns[i]} (Categorical/Binary)" if i == 0 else f"{results_df.columns[i]} (Continuous)" for i in range(num_columns)]
+    
+    # Lista de colormaps para usar (repite si hay más columnas que colormaps)
+    colormaps = ["coolwarm", "viridis", "plasma", "magma", "cividis", "inferno"]
+    cmaps = [colormaps[i % len(colormaps)] for i in range(num_columns)]
+    
+    # Graficar cada matriz
+    for i, (matrix, ax, title, cmap) in enumerate(zip(matrices, axes_flat, titles, cmaps)):
+        im = ax.imshow(matrix, cmap=cmap, interpolation="none")
+        ax.set_title(title)
+        ax.set_xticks(range(grid_size))
+        ax.set_yticks(range(grid_size))
+        fig.colorbar(im, ax=ax)
+    
+    # Ocultar ejes vacíos si hay menos matrices que subgráficos
+    for i in range(num_columns, len(axes_flat)):
+        axes_flat[i].axis('off')
+
+    # Mostrar el gráfico
+    plt.tight_layout()
+    plt.show()

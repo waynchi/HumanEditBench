@@ -1,0 +1,20 @@
+from langchain.llms import AI21
+from langchain.chains.qa import load_qa_chain
+from langchain.utilities import serializemanaged
+
+import json
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+llama = AI21()
+chain = load_qa_chain(llama, return_messages=True)
+
+output = chain({"question": prompt, "context": sys_prompt})
+print(output["output"]["protected"]["content"])

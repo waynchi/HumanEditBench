@@ -1,0 +1,47 @@
+# Import Pymapdl
+# from ansys.mapdl.core import launch_mapdl
+
+# Create a MAPDL instance
+# mapdl = launch_mapdl(override=True)
+
+# Define a function to fit a line to an array
+def fit_line(x, y):
+    """Function to fit a line to an array"""
+    # Calculate the average values of x and y
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    
+    # Calculate the deviation of x and y
+    x_dev = x - x_mean
+    y_dev = y - y_mean
+    
+    # Calculate the product of the deviations of x and y
+    xy_dev = x_dev * y_dev
+    
+    # Calculate the square of the deviation of x
+    x_dev_squared = x_dev ** 2
+    
+    # Calculate the slope and intercept of the line
+    slope = np.sum(xy_dev) / np.sum(x_dev_squared)
+    intercept = y_mean - slope * x_mean
+    
+    return slope, intercept
+
+# 定义一个求xy数组二次曲线拟合的函数
+def fit_quadratic(x, y):
+    """
+    求数组二次曲线拟合的函数
+    """
+    # 创建一个Vandermonde矩阵
+    A = np.vstack([x**2, x, np.ones(len(x))]).T
+    
+    # 使用最小二乘法求解系数
+    coeffs = np.linalg.lstsq(A, y, rcond=None)[0]
+    
+    # 增加找到最大偏差值
+    deviations = np.abs(np.dot(A, coeffs) - y)
+    max_deviation = np.max(deviations)
+    
+    return coeffs, max_deviation
+
+import numpy as np

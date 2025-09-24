@@ -1,0 +1,27 @@
+from flask import Flask
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route('/')
+def display_date_time():
+    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return f"""
+    <html>
+    <head>
+        <title>Bieżąca data i godzina</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; text-align: center; margin-top: 100px; }}
+            h1 {{ color: #333; }}
+            .time {{ font-size: 2em; padding: 20px; background-color: #f0f0f0; border-radius: 10px; display: inline-block; }}
+        </style>
+    </head>
+    <body>
+        <h1>Bieżąca data i godzina</h1>
+        <div class="time">{current_time}</div>
+    </body>
+    </html>
+    """
+
+if __name__ == "__main__":
+    app.run(debug=True)

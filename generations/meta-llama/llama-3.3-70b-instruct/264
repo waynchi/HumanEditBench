@@ -1,0 +1,18 @@
+def sum_of_four_squares(n):
+    """
+    Returns all possible combinations of four non-zero squares that sum up to n.
+    """
+    results = []
+    for a in range(1, int(n**0.5) + 1):
+        for b in range(a, int((n - a**2)**0.5) + 1):
+            for c in range(b, int((n - a**2 - b**2)**0.5) + 1):
+                for d in range(c, int((n - a**2 - b**2 - c**2)**0.5) + 1):
+                    if a**2 + b**2 + c**2 + d**2 == n:
+                        results.append((a, b, c, d))
+    return results
+
+# Test the function
+n = 100
+results = sum_of_four_squares(n)
+for i, result in enumerate(results):
+    print(f"Combination {i+1}: {result[0]}^2 + {result[1]}^2 + {result[2]}^2 + {result[3]}^2 = {n}")

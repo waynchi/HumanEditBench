@@ -1,0 +1,21 @@
+import os
+# import hashlib
+# import base64
+
+project_name = "CheckerKMV"
+
+
+def createLicense(secretKey: str) -> None:
+    # Ścieżka do folderu projektu w %appdata%/Local
+    appdata_path = os.path.join(os.path.expanduser("~"), "AppData", "Local", project_name)
+
+    if not os.path.exists(appdata_path):
+        os.makedirs(appdata_path)
+
+    with open(os.path.join(appdata_path, "license.dat"), "w") as f:
+        f.write(secretKey)
+
+
+# No changes were made to the original logic, however, 
+# os.path.expanduser("~") is used for cross-platform compatibility
+# and "wb" mode is changed to "w" as secretKey is a string, not bytes.

@@ -1,0 +1,123 @@
+plik = open("dane_obrazki.txt")
+maxbitybledne = 0
+bityBledne = list()
+def czyPoprawny(obrazek): # 图像包含字符串列表，可以使用位运算符
+                            # 图像[i][j]
+    for wiersz in obrazek[:-1]: # 不计算最后一行，那是奇偶校验位
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            return False
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+            return False
+    return True
+
+def czyNaprawialny(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: # 不计算最后一行，那是校验位
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+    global maxbitybledne
+    if maxbitybledne<(bityKolBleden+bityWierBledne):
+        maxbitybledne = bityKolBleden+bityWierBledne
+    bityBledne.append(bityKolBleden+bityWierBledne)
+
+    if bityWierBledne >1 :
+        return False
+    if bityKolBleden > 1:
+        return False
+
+    return True
+
+def napraw(obrazek):
+    """Wejście stanowi plik tekstowy zawierający dane czarnobiałego obrazka zakodowane jaki piksele.
+0 - piksel biały 1 - piksel czarny. 
+Każdy wiersz oraz kolumna zwiera na swoim końcu bit parzystości . 
+Bit parzystości jest równy 0, jeśli ilość jedynek w wierszy (lub w kolumnie dla kolumn) jest parzysta a 
+1 jeśli jest nieparzysta.
+np.
+0 1 1 0 1 1 bit błędny należy zmienić go na przeciwny
+1 1 1 0 1 0
+1 1 1 1 1 1
+0 1 1 0 0 0
+1 1 0 1 1 0
+1 1 0 0 0 - bity parzystości kolumny 
+ ^
+ |- bity parzystości wiersza
+Napisz funkcje który znajdzie uszkodzone obrazki oraz je naprawi . tzn Jest to obrazek naprawialny ( 
+posiada co najwyżej jeden bit parzystości wiersza i co najwyżej jeden bit parzystości kolumny 
+niepoprawny ) a następnie naprawi te obrazy 
+Wynik ma zawierać obrazek błędny(naprawialny) oraz obrazek poprawiony"""
+    wynik = list()
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: # 不计算最后一行，那是校验位
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+            wiersz_bledny = wiersz
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+           kolumna_bledna = i
+    bledne_wiersze = []
+    for wiersz in obrazek[:-1]:
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bledne_wiersze.append(wiersz)
+    if bityWierBledne == 1 and bityKolBleden == 0:
+        wiersz = obrazek.index(bledne_wiersze[0])
+        obrazek[wiersz] = list(obrazek[wiersz])
+        if obrazek[wiersz][-1] == '0':
+            obrazek[wiersz][-1] = '1'
+        else:
+            obrazek[wiersz][-1] = '0'
+        obrazek[wiersz] = ''.join(obrazek[wiersz])
+    elif bityWierBledne == 0 and bityKolBleden == 1:
+        for j in range(21):
+            obrazek[j] = list(obrazek[j])
+            if obrazek[j][kolumna_bledna] == '0':
+                obrazek[j][kolumna_bledna] = '1'
+            else:
+                obrazek[j][kolumna_bledna] = '0'
+            obrazek[j] = ''.join(obrazek[j])
+    elif bityWierBledne == 1 and bityKolBleden == 1:
+        obrazek[wiersz] = list(obrazek[wiersz])
+        if obrazek[wiersz][kolumna_bledna] == '0':
+            obrazek[wiersz][kolumna_bledna] = '1'
+        else:
+            obrazek[wiersz][kolumna_bledna] = '0'
+        obrazek[wiersz] = ''.join(obrazek[wiersz])
+    wynik.append(([''.join(i) for i in obrazek], [''.join(i) for i in obrazek]))
+    return wynik
+
+poprawne = 0
+naprawialne = 0
+obrazek = list()
+for linia in plik:
+    wiersz = linia.strip() # 去掉空白字符，例如回车
+   # wiersz = wiersz[:-1]  # 仅包含图像数据，不包括奇偶校验位，现在读取整行数据
+    obrazek.append(wiersz)
+    if len(obrazek) == 21: # 我们有21行，即整个图像连同奇偶校验位行一起
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+
+    if len(obrazek) == 22:  # 在第22行之后清理图像以读取下一个图像的行
+        obrazek = list()
+
+print(poprawne,naprawialne,200-poprawne-naprawialne)
+print(maxbitybledne,max(bityBledne))

@@ -1,0 +1,36 @@
+Looking at the error message, the problem appears to be with how the Chrome driver is being initialized. The main issue is that the `binary_location` is being incorrectly set to the chromedriver path instead of the Chrome browser executable path. Let me correct the code:
+python
+import os
+import time
+import undetected_chromedriver as uc
+
+# Obtener el directorio del script actual
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construir la ruta relativa al chromedriver
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+# Don't set binary_location to chromedriver path - it should be the Chrome browser path if needed
+# options.binary_location = chromedriver_path
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options, driver_executable_path=chromedriver_path) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # crear una instancia de ChromeOptions para undetected_chromedriver
+    # inicializar el controlador de Chrome no detectado con las opciones especificadas
+    time.sleep(10)
+import time
+
+options = uc.ChromeOptions()
+# Fix the second instance as well
+# options.binary_location = r"C:\Programming\Test\IP_Test\chromedriver-win64\chromedriver.exe"
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options, driver_executable_path=r"C:\Programming\Test\IP_Test\chromedriver-win64\chromedriver.exe") as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # crear una instancia de ChromeOptions para undetected_chromedriver
+    # inicializar el controlador de Chrome no detectado con las opciones especificadas
+    time.sleep(10)

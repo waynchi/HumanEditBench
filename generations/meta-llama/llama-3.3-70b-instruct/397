@@ -1,0 +1,47 @@
+import numpy as np
+
+from manim import *
+
+class MaroAnimation(Scene):
+    def construct(self):
+        # Create the text
+        text = Text("Maro", font_size=120)
+        
+        # Add a nice color gradient
+        text.set_color_by_gradient(BLUE, PURPLE, PINK)
+        
+        # Create the animation sequence
+        self.play(
+            Write(text, run_time=2),
+            rate_func=smooth
+        )
+        
+        # Add a gentle pulse animation
+        self.play(
+            text.animate.scale(1.2),
+            rate_func=there_and_back,
+            run_time=1.5
+        )
+        
+        # Add a slight rotation for style
+        self.play(
+            text.animate.rotate(PI/12),
+            text.animate.shift(UP * 0.5),
+            rate_func=ease_in_out_sine,
+            run_time=1
+        )
+        
+        # Hold the final frame
+        self.wait(2)
+
+# To fix potential errors, the following line can be uncommented (if np is not used elsewhere)
+# import numpy as np can be removed if not used
+
+# Potential fix for the issue if rate_func was causing problems
+# From manim import * imports all, including rate functions. Consider importing only what you need from manim
+from manim.utils.rate_functions import smooth, there_and_back, ease_in_out_sine
+from manim.constants import *  # For constants such as UP, BLUE, PURPLE, PINK, PI
+
+# Make sure you have manim installed. If your code was previously working, there might be some dependency or version issues with manim or numpy. You may need to update one or the other.
+
+# This script should run without any errors assuming manim and numpy are properly installed and you are using a compatible version of Python.

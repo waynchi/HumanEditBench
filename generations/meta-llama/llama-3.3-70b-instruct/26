@@ -1,0 +1,37 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-10, max_iter=1000):
+    """
+    Функция для метода спряжённых градиентов.
+
+    Parameters:
+    A (numpy array): Матрица коэффициентов.
+    b (numpy array): Вектор правой части.
+    x0 (numpy array, optional): Начальное приближение. Defaults to None.
+    tol (float, optional): Тolerance. Defaults to 1e-10.
+    max_iter (int, optional): Максимальное количество итераций. Defaults to 1000.
+
+    Returns:
+    numpy array: Решение системы линейных уравнений.
+    """
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = x0
+
+    r = b - np.dot(A, x)
+    p = r.copy()
+    rsold = np.dot(r, r)
+
+    for _ in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rsnew = np.dot(r, r)
+        if np.sqrt(rsnew) < tol:
+            break
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+
+    return x

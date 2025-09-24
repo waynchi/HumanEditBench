@@ -1,0 +1,12 @@
+from flask import Flask
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route('/')
+def mostrar_fecha_y_hora():
+    fecha_y_hora_actuales = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return f'La fecha y hora actuales son: {fecha_y_hora_actuales}'
+
+if __name__ == '__main__':
+    app.run()

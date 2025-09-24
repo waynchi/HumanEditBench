@@ -1,0 +1,49 @@
+def find_numbers(n):
+    """
+    This function generates numbers that can be expressed as the sum of four non-zero squares.
+    
+    Parameters:
+    n (int): The upper limit of the range of numbers to check.
+    
+    Returns:
+    list: A list of numbers that can be expressed as the sum of four non-zero squares.
+    """
+    
+    # Initialize an empty list to store the numbers that can be expressed as the sum of four non-zero squares
+    numbers = []
+    
+    # Iterate over the range from 1 to n (inclusive)
+    for i in range(1, n + 1):
+        # Initialize a flag to indicate whether the current number can be expressed as the sum of four non-zero squares
+        is_sum_of_squares = False
+        
+        # Iterate over all possible combinations of four non-zero squares that sum up to the current number
+        for a in range(1, int(i ** 0.5) + 1):
+            for b in range(a, int(i ** 0.5) + 1):
+                for c in range(b, int(i ** 0.5) + 1):
+                    for d in range(c, int(i ** 0.5) + 1):
+                        # Check if the current combination of squares sums up to the current number
+                        if a ** 2 + b ** 2 + c ** 2 + d ** 2 == i:
+                            # If it does, set the flag to True and break out of the inner loops
+                            is_sum_of_squares = True
+                            break
+                    if is_sum_of_squares:
+                        break
+                if is_sum_of_squares:
+                    break
+            if is_sum_of_squares:
+                break
+        
+        # If the current number can be expressed as the sum of four non-zero squares, add it to the list
+        if is_sum_of_squares:
+            numbers.append(i)
+    
+    # Return the list of numbers that can be expressed as the sum of four non-zero squares
+    return numbers
+
+
+# Example usage:
+n = 100
+result = find_numbers(n)
+print("Numbers that can be expressed as the sum of four non-zero squares up to", n, "are:")
+print(result)

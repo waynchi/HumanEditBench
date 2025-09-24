@@ -1,0 +1,26 @@
+def can_be_expressed_as_sum_of_four_squares(n):
+    """
+    Verifica se um número pode ser expresso como a soma de quatro quadrados não nulos.
+    
+    Parameters:
+    n (int): O número a ser verificado.
+    
+    Returns:
+    bool: True se o número pode ser expresso como a soma de quatro quadrados não nulos, False caso contrário.
+    """
+    # Itera sobre todos os possíveis quadrados não nulos
+    for a in range(1, int(n**0.5) + 1):
+        for b in range(1, int(n**0.5) + 1):
+            for c in range(1, int(n**0.5) + 1):
+                for d in range(1, int(n**0.5) + 1):
+                    # Verifica se a soma dos quadrados é igual ao número
+                    if a**2 + b**2 + c**2 + d**2 == n:
+                        return True
+    return False
+
+# Testa a função
+n = int(input("Digite um número: "))
+if can_be_expressed_as_sum_of_four_squares(n):
+    print("O número pode ser expresso como a soma de quatro quadrados não nulos.")
+else:
+    print("O número não pode ser expresso como a soma de quatro quadrados não nulos.")

@@ -1,0 +1,91 @@
+def conjugate_gradient_method(A, b, x0=None, tol=1e-10, max_iter=1000):
+    """
+    Метод сопряженных градиентов для решения системы линейных уравнений Ax = b.
+    
+    Параметры:
+    ----------
+    A : callable или numpy.ndarray
+        Матрица коэффициентов системы или функция, принимающая вектор и возвращающая результат умножения матрицы A на этот вектор.
+    b : numpy.ndarray
+        Вектор правой части системы.
+    x0 : numpy.ndarray, optional
+        Начальное приближение. Если не указано, используется нулевой вектор.
+    tol : float, optional
+        Допустимая погрешность. По умолчанию 1e-10.
+    max_iter : int, optional
+        Максимальное число итераций. По умолчанию 1000.
+    
+    Возвращает:
+    -----------
+    x : numpy.ndarray
+        Приближенное решение системы.
+    n_iter : int
+        Число выполненных итераций.
+    residuals : list
+        Список норм невязок на каждой итерации.
+    """
+    import numpy as np
+    
+    # Определяем размерность задачи
+    n = len(b)
+    
+    # Если начальное приближение не задано, используем нулевой вектор
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        x = x0.copy()
+    
+    # Определяем функцию для умножения A на вектор
+    if callable(A):
+        matvec = A
+    else:
+        def matvec(v):
+            return A.dot(v)
+    
+    # Вычисляем начальную невязку r = b - A*x
+    r = b - matvec(x)
+    
+    # Начальное направление поиска совпадает с невязкой
+    p = r.copy()
+    
+    # Начальная норма невязки
+    r_norm = np.linalg.norm(r)
+    residuals = [r_norm]
+    
+    # Если начальная невязка достаточно мала, возвращаем начальное приближение
+    if r_norm < tol:
+        return x, 0, residuals
+    
+    # Основной цикл метода сопряженных градиентов
+    for i in range(max_iter):
+        # Вычисляем A*p
+        Ap = matvec(p)
+        
+        # Вычисляем шаг alpha = (r, r) / (p, A*p)
+        alpha = np.dot(r, r) / np.dot(p, Ap)
+        
+        # Обновляем решение: x = x + alpha*p
+        x = x + alpha * p
+        
+        # Вычисляем новую невязку: r_new = r - alpha*A*p
+        r_new = r - alpha * Ap
+        
+        # Вычисляем норму новой невязки
+        r_new_norm = np.linalg.norm(r_new)
+        residuals.append(r_new_norm)
+        
+        # Проверяем условие сходимости
+        if r_new_norm < tol:
+            return x, i + 1, residuals
+        
+        # Вычисляем коэффициент beta = (r_new, r_new) / (r, r)
+        beta = np.dot(r_new, r_new) / np.dot(r, r)
+        
+        # Обновляем направление поиска: p = r_new + beta*p
+        p = r_new + beta * p
+        
+        # Обновляем невязку
+        r = r_new
+    
+    # Если метод не сошелся за максимальное число итераций
+    return x, max_iter, residuals

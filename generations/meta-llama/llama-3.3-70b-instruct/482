@@ -1,0 +1,37 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Obtener el directorio del script actual
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construir la ruta relativa al chromedriver
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+options.add_argument("--headless") # Add this to run Chrome in headless mode
+options.add_argument("--disable-gpu") # Add this to disable GPU acceleration
+options.add_argument("--window-size=1920,1080") # Add this to set window size
+options.binary_location = chromedriver_path
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)
+
+import time
+
+options = uc.ChromeOptions()
+options.add_argument("--headless") # Add this to run Chrome in headless mode
+options.add_argument("--disable-gpu") # Add this to disable GPU acceleration
+options.add_argument("--window-size=1920,1080") # Add this to set window size
+options.binary_location = (
+    r"C:\Programming\Test\IP_Test\chromedriver-win64\chromedriver.exe"
+)
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)

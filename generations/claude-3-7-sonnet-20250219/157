@@ -1,0 +1,47 @@
+def conjugate_gradient(A, b, x0=None, tol=1e-5, max_iter=1000):
+    """
+    使用共轭梯度法求解线性方程组 Ax = b
+    
+    参数:
+    A : 2D numpy array
+        对称正定矩阵
+    b : 1D numpy array
+        右侧向量
+    x0 : 1D numpy array, 可选
+        初始猜测解，默认为零向量
+    tol : float, 可选
+        收敛容差
+    max_iter : int, 可选
+        最大迭代次数
+    
+    返回:
+    x : 1D numpy array
+        方程组的解
+    """
+    import numpy as np
+    
+    n = len(b)
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        x = x0.copy()
+    
+    r = b - np.dot(A, x)
+    p = r.copy()
+    
+    rsold = np.dot(r, r)
+    
+    for i in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        
+        rsnew = np.dot(r, r)
+        if np.sqrt(rsnew) < tol:
+            break
+            
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+        
+    return x

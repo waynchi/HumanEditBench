@@ -1,0 +1,63 @@
+def can_be_expressed_as_sum_of_four_nonzero_squares(n):
+    """
+    Check if a number can be expressed as a sum of four non-zero squares.
+    
+    Args:
+        n: The number to check
+        
+    Returns:
+        bool: True if the number can be expressed as a sum of four non-zero squares, False otherwise
+    """
+    # Check all possible combinations of four non-zero squares that sum to n
+    for a in range(1, int(n**0.5) + 1):
+        a_squared = a * a
+        if a_squared > n:
+            break
+            
+        for b in range(1, int((n - a_squared)**0.5) + 1):
+            b_squared = b * b
+            if a_squared + b_squared > n:
+                break
+                
+            for c in range(1, int((n - a_squared - b_squared)**0.5) + 1):
+                c_squared = c * c
+                remainder = n - a_squared - b_squared - c_squared
+                
+                # Check if the remainder is a perfect square and not zero
+                d = int(remainder**0.5)
+                if d > 0 and d*d == remainder:
+                    return True
+    
+    return False
+
+# Find all numbers in a range that can be expressed as a sum of four non-zero squares
+def find_numbers_in_range(start, end):
+    """
+    Find all numbers in the given range that can be expressed as a sum of four non-zero squares.
+    
+    Args:
+        start: The start of the range (inclusive)
+        end: The end of the range (inclusive)
+        
+    Returns:
+        list: A list of numbers that can be expressed as a sum of four non-zero squares
+    """
+    result = []
+    for num in range(start, end + 1):
+        if can_be_expressed_as_sum_of_four_nonzero_squares(num):
+            result.append(num)
+    return result
+
+# Example usage
+if __name__ == "__main__":
+    # Find numbers from 1 to 100 that can be expressed as a sum of four non-zero squares
+    numbers = find_numbers_in_range(1, 100)
+    print(f"Numbers that can be expressed as a sum of four non-zero squares between 1 and 100: {numbers}")
+    
+    # Check some specific numbers
+    test_numbers = [15, 30, 45, 60]
+    for num in test_numbers:
+        if can_be_expressed_as_sum_of_four_nonzero_squares(num):
+            print(f"{num} can be expressed as a sum of four non-zero squares")
+        else:
+            print(f"{num} cannot be expressed as a sum of four non-zero squares")

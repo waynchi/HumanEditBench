@@ -1,0 +1,20 @@
+def is_sum_of_four_squares(n):
+    for a in range(1, int(n**0.5) + 1):
+        for b in range(a, int(n**0.5) + 1):
+            for c in range(b, int(n**0.5) + 1):
+                for d in range(c, int(n**0.5) + 1):
+                    if a**2 + b**2 + c**2 + d**2 == n:
+                        return True
+    return False
+
+def main():
+    # Test the function
+    numbers = [1, 4, 9, 16, 25, 26]
+    for num in numbers:
+        if is_sum_of_four_squares(num):
+            print(f"{num} can be expressed as the sum of four non-zero squares.")
+        else:
+            print(f"{num} cannot be expressed as the sum of four non-zero squares.")
+
+if __name__ == "__main__":
+    main()

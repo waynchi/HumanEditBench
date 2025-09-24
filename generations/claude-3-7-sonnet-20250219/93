@@ -1,0 +1,68 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def generate_response(
+    shap_values_file="Vuori_Final_Approval_2024_09_24.json",
+    system_prompt_file="system.prompt",
+    model="llama3.2",
+    base_url="http://localhost:11434",
+    use_remote=False,
+    remote_url=None,
+    auth_token=None
+):
+    """
+    Generate a response using the ChatOllama model based on SHAP values.
+    
+    Args:
+        shap_values_file (str): Path to the JSON file containing SHAP values
+        system_prompt_file (str): Path to the file containing the system prompt
+        model (str): The model to use
+        base_url (str): The base URL for the local Ollama instance
+        use_remote (bool): Whether to use a remote Ollama instance
+        remote_url (str): The URL for the remote Ollama instance
+        auth_token (str): The authorization token for the remote instance
+        
+    Returns:
+        str: The generated response content
+    """
+    # Initialize the ChatOllama model
+    if use_remote and remote_url and auth_token:
+        chat_model = ChatOllama(
+            model=model,
+            base_url=remote_url,
+            client_kwargs={
+                "headers": {"authorization": f"Bearer {auth_token}"}
+            },
+        )
+    else:
+        chat_model = ChatOllama(model=model, base_url=base_url)
+    
+    # Load SHAP values from JSON file
+    with open(shap_values_file, "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+    
+    # Load system prompt from file
+    with open(system_prompt_file, "r") as file:
+        sys_prompt = file.read().strip()
+    
+    # Prepare the messages
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+    
+    # Generate the response
+    user_input = json.dumps(shap_values_json)  # Prepare user input
+    
+    chain = prompt | chat_model
+    
+    # Return the response
+    response = chain.invoke(user_input)
+    return response
+
+# Print the response
+response = generate_response()
+print(response.content)

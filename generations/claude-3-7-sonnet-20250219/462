@@ -1,0 +1,52 @@
+import random
+
+def get_english_dictionary():
+    try:
+        with open('english_dictionary.txt', 'r') as file:
+            words = [word.strip() for word in file.readlines()]
+        return words
+    except FileNotFoundError:
+        # If file not found, use a small default dictionary
+        print("Diccionario no encontrado. Usando un diccionario pequeño por defecto.")
+        return ["apple", "banana", "carrot", "dog", "elephant", "flower", "guitar", 
+                "happiness", "internet", "justice", "knowledge", "lemon", "mountain", 
+                "notebook", "ocean", "piano", "queen", "rainbow", "sunshine", "tree"]
+
+def find_words_with_length(dictionary, length):
+    words_with_length = [word for word in dictionary if len(word) == length]
+    if len(words_with_length) >= 10:
+        return random.sample(words_with_length, 10)
+    else:
+        return words_with_length
+
+def main():
+    print("¡Bienvenido al buscador de palabras en inglés!")
+    dictionary = get_english_dictionary()
+    
+    while True:
+        try:
+            word_length = int(input("\nIntroduce el número de caracteres que deseas (0 para salir): "))
+            if word_length == 0:
+                print("¡Hasta luego!")
+                break
+            
+            if word_length < 1:
+                print("Por favor, introduce un número positivo.")
+                continue
+            
+            words = find_words_with_length(dictionary, word_length)
+            
+            if words:
+                print(f"\nPalabras con {word_length} caracteres:")
+                for i, word in enumerate(words, 1):
+                    print(f"{i}. {word}")
+                if len(words) < 10:
+                    print(f"Solo se encontraron {len(words)} palabras con {word_length} caracteres.")
+            else:
+                print(f"No se encontraron palabras con {word_length} caracteres.")
+                
+        except ValueError:
+            print("Por favor, introduce un número válido.")
+
+if __name__ == "__main__":
+    main()

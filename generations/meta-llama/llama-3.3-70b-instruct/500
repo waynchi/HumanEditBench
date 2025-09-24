@@ -1,0 +1,71 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class Card:
+    id: str = None
+    celular: str = None
+    operadora: str = None
+    valor: str = None
+    email: str = None
+    nome: str = None
+    cpf: str = None
+    card: str = None
+    mes: str = None
+    ano: str = None
+    cvv: str = None
+    token: str = None
+    bin: str = None
+    dadosbin: str = None
+    senha: str = None
+
+    def __init__(self, 
+                 celular: str = None, 
+                 operadora: str = None, 
+                 valor: str = None, 
+                 email: str = None, 
+                 nome: str = None, 
+                 cpf: str = None, 
+                 card: str = None, 
+                 mes: str = None, 
+                 ano: str = None, 
+                 cvv: str = None, 
+                 token: str = None, 
+                 bin: str = None, 
+                 dadosbin: str = None, 
+                 senha: str = None,
+                 id: str = None):
+        self.id = id
+        self.celular = celular
+        self.operadora = operadora
+        self.valor = valor
+        self.email = email
+        self.nome = nome
+        self.cpf = cpf
+        self.card = card
+        self.mes = mes
+        self.ano = ano
+        self.cvv = cvv
+        self.token = token
+        self.bin = bin
+        self.dadosbin = dadosbin
+        self.senha = senha
+
+    def __repr__(self):
+        return (f"Card(" +
+                f"id='{self.id}', " if self.id else "" +
+                f"celular='{self.celular}', " if self.celular else "" +
+                f"operadora='{self.operadora}', " if self.operadora else "" +
+                f"valor='{self.valor}', " if self.valor else "" +
+                f"email='{self.email}', " if self.email else "" +
+                f"nome='{self.nome}', " if self.nome else "" +
+                f"cpf='{self.cpf}', " if self.cpf else "" +
+                f"card='{self.card}', " if self.card else "" +
+                f"mes='{self.mes}', " if self.mes else "" +
+                f"ano='{self.ano}', " if self.ano else "" +
+                f"cvv='{self.cvv}', " if self.cvv else "" +
+                f"token='{self.token}', " if self.token else "" +
+                f"bin='{self.bin}', " if self.bin else "" +
+                f"dadosbin='{self.dadosbin}', " if self.dadosbin else "" +
+                f"senha='{self.senha}'" if self.senha else "" +
+                ")")

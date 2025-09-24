@@ -1,0 +1,69 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return autor == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    import random
+    import string
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+
+q = Query()
+d = Discussions()
+posts_generator = d.get_discussions("created", q, limit=6000)
+X = 0
+diccionario = {}
+
+for post in posts_generator:
+    post_author = post['author']
+    post_permlink = post['permlink']
+    post_replies = post['children']
+    cnt = 0
+    X += 1
+    if post_author not in diccionario:
+        diccionario[post_author] = {}
+    if post_permlink not in diccionario[post_author]:
+        diccionario[post_author][post_permlink] = {'replies': []}
+    if post_replies > n_respuestas_minimas:
+        comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+        post_replies :list = comment.get_replies()
+        
+        cnt = 0
+        for replies in post_replies:
+        
+            
+            author = replies['author']
+            text = replies['body']
+            if is_own_author(author):
+                # Reevaluar el comentario
+                break
+            if is_banned(author):
+                break
+            if procesar(text):
+                cnt+= 1
+                diccionario[post_author][post_permlink]['replies'].append({'author': author, 'permlink': replies['permlink']})
+    if cnt > 3:
+        print("Iterador: ",X)
+        for reply in diccionario[post_author][post_permlink]['replies']:
+            print(reply['author'],'/',reply['permlink'])
+        # print(replies['author'],'/',replies['permlink']) 

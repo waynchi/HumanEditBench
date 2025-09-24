@@ -1,0 +1,59 @@
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """Создает матрицу размера rows x cols, заполненную значением fill_value."""
+    matrix = []
+    for _ in range(rows):
+        row = []
+        for _ in range(cols):
+            row.append(fill_value)
+        matrix.append(row)
+    return matrix
+
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """Складывает две матрицы одинакового размера."""
+    result = []
+    for i in range(len(matrix_a)):
+        row = []
+        for j in range(len(matrix_a[0])):
+            row.append(matrix_a[i][j] + matrix_b[i][j])
+        result.append(row)
+    return result
+
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """Умножает все элементы матрицы на скаляр."""
+    result = []
+    for row in matrix:
+        new_row = []
+        for element in row:
+            new_row.append(element * scalar)
+        result.append(new_row)
+    return result
+
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """Перемножает две матрицы."""
+    result = []
+    for i in range(len(matrix_a)):
+        row = []
+        for j in range(len(matrix_b[0])):
+            sum = 0
+            for k in range(len(matrix_a[0])):
+                sum += matrix_a[i][k] * matrix_b[k][j]
+            row.append(sum)
+        result.append(row)
+    return result
+
+def transpose_matrix(matrix: list) -> list:
+    """Транспонирует матрицу."""
+    result = []
+    for i in range(len(matrix[0])):
+        row = []
+        for j in range(len(matrix)):
+            row.append(matrix[j][i])
+        result.append(row)
+    return result
+
+def determinant_3x3(matrix: list) -> float:
+    """Вычисляет определитель матрицы 3x3."""
+    a = matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+    b = matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+    c = matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0])
+    return a - b + c

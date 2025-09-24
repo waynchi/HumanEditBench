@@ -1,0 +1,77 @@
+def create_single_patch_image_with_text(
+    n_patches_x,
+    n_patches_y,
+    patch_size,
+    main_color,
+    special_color,
+    special_patch,
+    text="Hello",
+    text_color=(255, 255, 255),
+    special_patch_width=2,
+    font_size=16,
+):
+    """Crea una imagen compuesta de parches de colores, pero coloca una sola palabra (o texto) dentro del área del parche 'especial'."""
+    # Crear un array 3D de NumPy para la imagen
+    img_height = n_patches_y * patch_size
+    img_width = n_patches_x * patch_size
+    image_data = np.zeros((img_height, img_width, 3), dtype=np.uint8)
+
+    # Llenar toda la imagen con el color principal
+    image_data[:, :] = main_color
+
+    # Asignar el color especial al área del parche especial
+    special_row, special_col = special_patch
+    image_data[
+        special_row * patch_size : (special_row + special_patch_width) * patch_size,
+        special_col * patch_size : (special_col + special_patch_width) * patch_size
+    ] = special_color
+
+    # Convertir a una imagen de Pillow para que podamos dibujar en ella
+    img = Image.fromarray(image_data)
+    draw = ImageDraw.Draw(img)
+
+    # Intentar cargar una fuente con el tamaño especificado
+    try:
+        # Intentamos primero con Arial (común en Windows)
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except IOError:
+        try:
+            # Intentamos con DejaVuSans (común en Linux)
+            font = ImageFont.truetype("DejaVuSans.ttf", font_size)
+        except IOError:
+            try:
+                # Intentamos con fuentes del sistema disponibles en diferentes plataformas
+                import matplotlib.font_manager as fm
+                system_fonts = fm.findSystemFonts()
+                if system_fonts:
+                    font = ImageFont.truetype(system_fonts[0], font_size)
+                else:
+                    # Si no se encuentra ninguna fuente, usamos la fuente predeterminada
+                    font = ImageFont.load_default()
+                    print("No se pudo cargar una fuente TrueType, usando fuente predeterminada.")
+            except Exception:
+                font = ImageFont.load_default()
+                print("No se pudo cargar una fuente TrueType, usando fuente predeterminada.")
+
+    # Calcular el centro del parche especial en coordenadas de píxeles
+    patch_center_x = (
+        special_col * patch_size
+        + (special_patch_width * patch_size) // 2
+    )
+    patch_center_y = (
+        special_row * patch_size
+        + (special_patch_width * patch_size) // 2
+    )
+
+    # Calcular el cuadro delimitador del texto para centrar el texto
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    text_x = patch_center_x - text_width // 2
+    text_y = patch_center_y - text_height // 2
+
+    # Colocar el texto en el centro del parche especial
+    draw.text((text_x, text_y), text, fill=text_color, font=font)
+
+    return img

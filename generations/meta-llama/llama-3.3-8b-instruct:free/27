@@ -1,0 +1,20 @@
+from langchain.chat_models import chat_models
+
+import json
+
+from ollama import Client
+
+client = Client(host="http://localhost:11434")
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+# Changed the highlighted section to use langchain
+agent = chat_models.llama_3_2()
+response = agent({"role": "user", "content": prompt}, {"role": "system", "content": sys_prompt})
+print(response["output"]["text"])

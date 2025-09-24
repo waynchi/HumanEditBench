@@ -1,0 +1,36 @@
+def visualize_results_grid(results_df):
+    columns = [results_df.iloc[:, i] for i in range(len(results_df.columns))]
+    columns = [pd.to_numeric(col, errors='coerce') if not pd.api.types.is_numeric_dtype(col) else col for col in columns]
+    
+    # 从结果行数推断网格形状
+    grid_size = int(np.sqrt(len(results_df)))
+    # 将列重塑为矩阵
+    matrices = [col.to_numpy().reshape(grid_size, grid_size) for col in columns]
+    
+    # 可视化设置 - 动态调整图像大小和颜色映射
+    num_cols = len(results_df.columns)
+    fig_width = min(16, 4 * num_cols)  # 限制最大宽度
+    fig, axes = plt.subplots(1, num_cols, figsize=(fig_width, 3))
+    
+    # 确保axes始终是可迭代的，即使只有一列
+    if num_cols == 1:
+        axes = [axes]
+    
+    # 为所有列生成标题和颜色映射
+    titles = [f"{results_df.columns[i]} ({'Categorical' if i == 0 else 'Continuous'})" for i in range(num_cols)]
+    
+    # 生成足够的颜色映射 - 循环使用预定义的颜色映射
+    available_cmaps = ["coolwarm", "viridis", "plasma", "inferno", "magma", "cividis", "twilight", "ocean"]
+    cmaps = [available_cmaps[i % len(available_cmaps)] for i in range(num_cols)]
+    
+    # 绘制每个矩阵
+    for i, (matrix, ax, title, cmap) in enumerate(zip(matrices, axes, titles, cmaps)):
+        im = ax.imshow(matrix, cmap=cmap, interpolation="none")
+        ax.set_title(title)
+        ax.set_xticks(range(grid_size))
+        ax.set_yticks(range(grid_size))
+        fig.colorbar(im, ax=ax)
+
+    # 显示图表
+    plt.tight_layout()
+    plt.show()

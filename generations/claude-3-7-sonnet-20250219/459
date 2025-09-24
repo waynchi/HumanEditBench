@@ -1,0 +1,53 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    
+    # Eliminar líneas vacías
+    lines = [line for line in lines if line.strip()]
+    
+    # Mejor manejo de la separación de columnas
+    try:
+        cols = [line.split() for line in lines]  # Más flexible con espacios
+        cols = np.array(cols, dtype=int).T  # Convertir directamente a int
+    except (ValueError, IndexError) as e:
+        print(f"Error al procesar el archivo: {e}")
+        print("Revise el formato de entrada. Se espera columnas numéricas separadas por espacios.")
+        return
+    
+    # Verificar que hay suficientes datos
+    if cols.shape[0] < 2:
+        print("Se requieren al menos dos columnas de datos")
+        return
+        
+    list_1 = cols[0].tolist()
+    list_2 = cols[1].tolist()
+
+    # Método más eficiente: ordenar y calcular diferencias
+    list_1.sort()
+    list_2.sort()
+    
+    all_dists = [abs(x - y) for x, y in zip(list_1, list_2)]
+    
+    # Resultados con más contexto
+    print(f"Listas originales: {cols[0]}, {cols[1]}")
+    print(f"Distancias individuales: {all_dists}")
+    print(f"Suma total de distancias: {sum(all_dists)}")
+
+def parse_input_file():
+    try:
+        with open(INPUT_FILE_PATH, 'r') as f:
+            lines = f.read().split("\n")
+        return lines
+    except FileNotFoundError:
+        print(f"Archivo no encontrado: {INPUT_FILE_PATH}")
+        return []
+    except Exception as e:
+        print(f"Error al leer el archivo: {e}")
+        return []
+
+if __name__ == "__main__":
+    main()

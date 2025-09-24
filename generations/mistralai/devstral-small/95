@@ -1,0 +1,92 @@
+import random
+import logging
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+
+class SearchModule:
+    def __init__(self, driver, config):
+        self.driver = driver
+        self.config = config
+        self.search_engine = config.get('Search', 'search_engine')
+        self.queries = [q.strip() for q in config.get('Search', 'queries').split(',')]
+        self.random_query = config.getboolean('Search', 'random_query')
+
+    def perform_search(self):
+        query = random.choice(self.queries) if self.random_query else self.queries[0]
+        logging.info(f"Performing search with query: {query}")
+
+        if self.search_engine.lower() == 'google':
+            self.driver.get("https://www.google.com")
+            try:
+                search_box = self.driver.find_element(By.NAME, "q")
+            except Exception as e:
+                logging.error(f"Failed to find Google search box: {str(e)}")
+                return
+        elif self.search_engine.lower() == 'yandex':
+            self.driver.get("https://ya.ru")
+            try:
+                search_box = self.driver.find_element(By.CSS_SELECTOR, 'input[placeholder="Найдётся всё"]')
+            except Exception as e:
+                logging.error(f"Failed to find Yandex search box: {str(e)}")
+                return
+        elif self.search_engine.lower() == 'bing':
+            self.driver.get("https://www.bing.com")
+            try:
+                search_box = self.driver.find_element(By.NAME, "q")
+            except Exception as e:
+                logging.error(f"Failed to find Bing search box: {str(e)}")
+                return
+        else:
+            logging.error("Unsupported search engine.")
+            return
+
+        try:
+            search_box.send_keys(query + Keys.RETURN)
+        except Exception as e:
+            logging.error(f"Failed to enter search query: {str(e)}")
+            return
+
+        time.sleep(random.uniform(2, 4))  # Ожидание загрузки результатов
+
+    def navigate_random_link(self):
+        logging.info("Navigating to a random search result link.")
+        if self.search_engine.lower() == 'google':
+            try:
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'div.yuRUbf > a')
+            except Exception as e:
+                logging.error(f"Failed to find Google links: {str(e)}")
+                return
+        elif self.search_engine.lower() == 'yandex':
+            try:
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'a.link')
+            except Exception as e:
+                logging.error(f"Failed to find Yandex links: {str(e)}")
+                return
+        elif self.search_engine.lower() == 'bing':
+            try:
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'li.b_algo h2 a')
+            except Exception as e:
+                logging.error(f"Failed to find Bing links: {str(e)}")
+                return
+        else:
+            logging.error("Unsupported search engine.")
+            return
+
+        if not links:
+            logging.warning("No links found on the search results page.")
+            return
+
+        try:
+            random_link = random.choice(links)
+            href = random_link.get_attribute('href')
+            if not href:
+                logging.warning("Selected link has no href attribute.")
+                return
+            logging.info(f"Navigating to: {href}")
+            self.driver.get(href)
+        except Exception as e:
+            logging.error(f"Failed to navigate to random link: {str(e)}")
+            return
+
+        time.sleep(random.uniform(3, 6))  # Ожидание загрузки страницы

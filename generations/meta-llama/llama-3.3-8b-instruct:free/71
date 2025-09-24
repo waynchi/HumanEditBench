@@ -1,0 +1,77 @@
+def factual_score_dataloader(
+    model,
+    tokenizer,
+    dataset,
+    expected_answers,
+    max_new_tokens=32,
+    output_format=False,
+    random_state=42,
+    device=None,
+    verbose=False,
+):
+    """
+    Evaluate the factual accuracy of answers from a language model.
+
+    Args:
+        model: The language model.
+        tokenizer: The tokenizer.
+        tokenized_eval_dataset: The tokenized evaluation dataset.
+        max_new_tokens: Maximum number of new tokens to generate.
+        output_format: Whether to check output format.
+        random_state: Random seed for sampling.
+        device: Device to run on (defaults to CUDA if available, else CPU).
+
+    Returns:
+        fact_results: List of factual accuracy results (boolean).
+        format_hard_results (optional): List of hard format check results.
+        format_soft_results (optional): List of soft format check results.
+    """
+
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    fact_results = []
+    format_hard_results, format_soft_results = (
+        ([], []) if output_format else (None, None)
+    )
+    batched_outputs = []
+    batched_detokenized_inputs = []
+    for batch, expected_answers in zip(dataset, expected_answers):
+        batch = {
+            k: v.to(device)
+            for k, v in batch.items()
+            if k in ["input_ids", "attention_mask"]
+        }
+
+        with torch.no_grad():
+            outputs = model.generate(
+                **batch,
+                max_new_tokens=max_new_tokens,
+                pad_token_id=tokenizer.pad_token_id,
+            )
+        
+        detokenized_inputs = tokenizer.batch_decode(
+            batch["input_ids"], skip_special_tokens=True
+        )
+        output_strings = tokenizer.batch_decode(
+            outputs[:, batch["input_ids"].shape[-1]:], skip_special_tokens=True
+        )
+        
+        batched_outputs.append(outputs)
+        batched_detokenized_inputs.append(detokenized_inputs)
+        
+    for i in range(len(batched_outputs)):
+        output_strings = tokenizer.batch_decode(
+            batched_outputs[i][:, batched_outputs[i].shape[-1]:], skip_special_tokens=True
+        )
+        for output_str, expected_answer, question in zip(
+            output_strings, expected_answers[i], batched_detokenized_inputs[i]
+        ):
+            if verbose:
+                print(repr(question), repr(output_str), repr(expected_answer))
+            fact_results.append(check_answer_factual(output_str, expected_answer))
+            if output_format:
+                format_hard_results.append(check_answer_format(output_str, hard=True))
+                format_soft_results.append(check_answer_format(output_str, hard=False))
+    
+    return (fact_results, format_hard_results, format_soft_results) if output_format else fact_results

@@ -1,0 +1,56 @@
+def conjugate_gradient_method(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Soluciona el sistema de ecuaciones lineales Ax = b 
+    utilizando el método de gradientes conjugados.
+    
+    Parámetros:
+    -----------
+    A : matriz cuadrada, simétrica y definida positiva
+    b : vector de términos independientes
+    x0 : aproximación inicial, por defecto es un vector de ceros
+    tol : tolerancia para el criterio de convergencia
+    max_iter : número máximo de iteraciones
+    
+    Retorna:
+    --------
+    x : solución aproximada
+    historia : historial de residuos, iteraciones y tiempos
+    """
+    import numpy as np
+    import time
+    
+    # Inicialización
+    n = len(b)
+    if x0 is None:
+        x0 = np.zeros(n)
+    if max_iter is None:
+        max_iter = n
+    
+    x = x0.copy()
+    r = b - np.dot(A, x)
+    p = r.copy()
+    rsold = np.dot(r, r)
+    
+    historia = {'iteraciones': [], 'residuos': [], 'tiempo': []}
+    tiempo_inicio = time.time()
+    
+    for i in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rsnew = np.dot(r, r)
+        
+        # Guardar historia
+        historia['iteraciones'].append(i+1)
+        historia['residuos'].append(np.sqrt(rsnew))
+        historia['tiempo'].append(time.time() - tiempo_inicio)
+        
+        # Criterio de convergencia
+        if np.sqrt(rsnew) < tol:
+            break
+            
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+    
+    return x, historia

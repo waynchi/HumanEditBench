@@ -1,0 +1,31 @@
+    # Calculate the steps per epoch based on total number of training examples and batch size
+    steps_per_epoch = total_train_examples // batch_size
+
+    # Calculate eval_steps, save_steps, and logging_steps based on the steps per epoch
+    eval_steps = max(
+        1, steps_per_epoch // 10
+    )  # Evaluate 10 times per epoch, at least once per epoch
+    save_steps = eval_steps  # Save at the same frequency as evaluation
+    logging_steps = max(
+        1, steps_per_epoch // 20
+    )  # Log 20 times per epoch, at least once per epoch
+
+    training_args = TrainingArguments(
+        output_dir=checkpoint_dir,
+        learning_rate=learning_rate,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        num_train_epochs=num_epochs,
+        eval_steps=eval_steps,
+        save_steps=save_steps,
+        logging_steps=logging_steps,
+        save_total_limit=2,  # Keep only the 2 best checkpoints
+        weight_decay=0.01,
+        evaluation_strategy="steps",  # Changed to steps to make use of eval_steps
+        logging_strategy="steps",
+        save_strategy="steps",  # Changed to steps to make use of save_steps
+        logging_dir=logging_dir,  # Uncomment this if you define a logging directory
+        report_to="none",  # Report to tensorboard for visual monitoring
+        load_best_model_at_end=True,
+        dataloader_pin_memory=False,
+    )

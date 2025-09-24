@@ -1,0 +1,46 @@
+def sum_of_four_squares(num):
+    """
+    Check if a number can be expressed as the sum of four non-zero squares.
+    
+    Args:
+        num: The number to check
+        
+    Returns:
+        A list of 4-tuples containing the four non-zero squares that sum up to the number,
+        or an empty list if no such combination exists.
+    """
+    result = []
+    
+    # Find all possible combinations of four non-zero squares that sum to num
+    for a in range(1, int(num**0.5) + 1):
+        a_squared = a**2
+        if a_squared >= num:
+            break
+            
+        for b in range(1, int((num - a_squared)**0.5) + 1):
+            b_squared = b**2
+            if a_squared + b_squared >= num:
+                break
+                
+            for c in range(1, int((num - a_squared - b_squared)**0.5) + 1):
+                c_squared = c**2
+                d_squared = num - a_squared - b_squared - c_squared
+                
+                # Check if d_squared is a perfect square
+                d = int(d_squared**0.5)
+                if d > 0 and d**2 == d_squared:
+                    result.append((a, b, c, d))
+    
+    return result
+
+# Example usage
+if __name__ == "__main__":
+    number = 31
+    representations = sum_of_four_squares(number)
+    
+    if representations:
+        print(f"{number} can be expressed as the sum of four non-zero squares:")
+        for a, b, c, d in representations:
+            print(f"{number} = {a}² + {b}² + {c}² + {d}² = {a**2} + {b**2} + {c**2} + {d**2}")
+    else:
+        print(f"{number} cannot be expressed as the sum of four non-zero squares.")

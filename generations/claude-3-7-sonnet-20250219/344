@@ -1,0 +1,10 @@
+import pandas as pd
+
+def create_column(df):
+    # Create a new column 'Frequency' with default value of 0
+    df['Frequency'] = 0
+    
+    # Set 'Frequency' to 117 where 'EventId' is 'E16'
+    df.loc[df['EventId'] == 'E16', 'Frequency'] = 117
+    
+    return df

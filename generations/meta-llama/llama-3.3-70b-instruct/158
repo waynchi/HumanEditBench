@@ -1,0 +1,28 @@
+from langchain import LLMChain, PromptTemplate
+from langchain.llms import Ollama
+
+import json
+
+ollama = Ollama()
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+template = PromptTemplate(
+    input_variables=["sys_prompt", "prompt"],
+    template="{sys_prompt} {prompt}",
+)
+
+chain = LLMChain(
+    llm=ollama,
+    prompt=template,
+)
+
+output = chain({"sys_prompt": sys_prompt, "prompt": prompt})
+print(output)

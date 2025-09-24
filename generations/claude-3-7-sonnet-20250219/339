@@ -1,0 +1,35 @@
+def visualize_results_grid(results_df):
+    columns = [results_df.iloc[:, i] for i in range(len(results_df.columns))]
+    columns = [pd.to_numeric(col, errors='coerce') if not pd.api.types.is_numeric_dtype(col) else col for col in columns]
+    
+    # Wnioskuj kształt siatki z liczby wierszy wyników
+    grid_size = int(np.sqrt(len(results_df)))
+    # Przekształć kolumny w macierze
+    matrices = [col.to_numpy().reshape(grid_size, grid_size) for col in columns]
+    
+    # Ustawienia wizualizacji
+    num_cols = len(results_df.columns)
+    fig, axes = plt.subplots(1, num_cols, figsize=(4 * num_cols, 4))
+    
+    # Ensure axes is always a list, even for single column
+    if num_cols == 1:
+        axes = [axes]
+    
+    # Generate titles for each column
+    titles = [f"{results_df.columns[i]} ({'Categorical/Binary' if i == 0 else 'Continuous'})" for i in range(num_cols)]
+    
+    # Create a list of colormaps with enough entries for all columns
+    base_cmaps = ["coolwarm", "viridis", "plasma", "magma", "inferno", "cividis", "Spectral", "YlGnBu", "PuRd", "BrBG"]
+    cmaps = [base_cmaps[i % len(base_cmaps)] for i in range(num_cols)]
+    
+    # Plot each matrix
+    for i, (matrix, ax, title, cmap) in enumerate(zip(matrices, axes, titles, cmaps)):
+        im = ax.imshow(matrix, cmap=cmap, interpolation="none")
+        ax.set_title(title)
+        ax.set_xticks(range(grid_size))
+        ax.set_yticks(range(grid_size))
+        fig.colorbar(im, ax=ax)
+
+    # Display the plot
+    plt.tight_layout()
+    plt.show()

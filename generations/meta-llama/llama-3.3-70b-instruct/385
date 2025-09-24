@@ -1,0 +1,14 @@
+# Zapisz bieżącą ścieżkę jako cwd
+# Utwórz ścieżkę bazy danych wektorów 
+import os
+from pymilvus import MilvusClient
+
+cwd = os.getcwd()
+db_path = cwd + '/milvus_db.db'
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+# Use pymilvus to connect to the database
+client = MilvusClient(url='tcp://localhost:19530')
+
+# No further code is provided in the problem statement, 
+# so the rest of the code remains empty.

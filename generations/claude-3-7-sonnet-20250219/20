@@ -1,0 +1,49 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # Remove empty lines if any
+    lines = [line for line in lines if line.strip()]
+    
+    # Parse the input with better error handling
+    try:
+        cols = []
+        for line in lines:
+            # Handle different types of spacing
+            parts = [p for p in line.replace('\t', ' ').split(' ') if p]
+            cols.append(parts)
+        
+        # Convert to numpy array more safely
+        cols = np.array(cols, dtype=int).T
+        list_1 = list(cols[0])
+        list_2 = list(cols[1])
+
+        # More efficient way to compute the sum of absolute differences
+        # Sort both lists and calculate absolute differences
+        list_1.sort()
+        list_2.sort()
+        
+        all_dists = [abs(a - b) for a, b in zip(list_1, list_2)]
+        print(f"Total distance sum: {sum(all_dists)}")
+        
+    except (ValueError, IndexError) as e:
+        print(f"Error processing input data: {e}")
+        print("Please check that your input file contains valid numeric data in the expected format.")
+
+def parse_input_file():
+    try:
+        with open(INPUT_FILE_PATH, 'r') as f:
+            lines = f.read().split("\n")
+        return lines
+    except FileNotFoundError:
+        print(f"Error: Input file '{INPUT_FILE_PATH}' not found.")
+        return []
+    except Exception as e:
+        print(f"Error reading input file: {e}")
+        return []
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,271 @@
+import time
+import json
+import logging
+import os
+import shutil
+from pathlib import Path
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Union, Callable, Awaitable
+from contextlib import asynccontextmanager
+import sqlite3
+import asyncio
+import gradio as gr
+import threading
+from functools import wraps
+from dotenv import load_dotenv
+from playwright.async_api import async_playwright
+
+SETTINGS_DB = 'settings.db'
+DEFAULT_TEMPERATURE = 1.0
+DEFAULT_WINDOW_WIDTH = 1280
+DEFAULT_WINDOW_HEIGHT = 720
+DEFAULT_MAX_STEPS = 10
+LOG_DIR = Path('./logs')
+TEMP_DIR = Path('./temp')
+
+def init_database():
+    """Initialize the settings database if it doesn't exist."""
+    with sqlite3.connect(SETTINGS_DB) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+
+class SettingsManager:
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._setup_pool()
+        return cls._instance
+
+    def _setup_pool(self):
+        self._pool = sqlite3.connect(
+            SETTINGS_DB,
+            check_same_thread=False,
+            timeout=30.0
+        )
+        with self._lock:
+            self._pool.row_factory = sqlite3.Row
+        
+        # Initialize cache
+        self._cache = {}
+
+    def get_cached(self, key: str) -> Any:
+        with self._lock:
+            if key in self._cache:
+                value, expires_at = self._cache[key]
+                if expires_at > time.time():
+                    return value
+                del self._cache[key]
+        return None
+
+    def set_cached(self, key: str, value: Any, ttl: int = 300):
+        with self._lock:
+            self._cache[key] = (value, time.time() + ttl)
+
+    def save_setting(self, key: str, value: Any):
+        with self._lock:
+            with self._pool:
+                self._pool.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                    (key, json.dumps(value))
+                )
+
+    def load_setting(self, key: str, default: Any = None) -> Any:
+        try:
+            with self._lock:
+                cursor = self._pool.execute(
+                    "SELECT value FROM settings WHERE key = ?",
+                    (key,)
+                )
+                result = cursor.fetchone()
+                return json.loads(result[0]) if result else default
+        except Exception as e:
+            logger.error(f"Error loading setting {key}: {e}")
+            return default
+
+    def close(self):
+        with self._lock:
+            if hasattr(self, '_pool'):
+                self._pool.close()
+
+class SecurityManager:
+    def __init__(self):
+        self.rate_limits = {}
+        self.max_requests = 100
+        self.time_window = 3600
+        self._lock = threading.Lock()
+
+    def check_rate_limit(self, key: str) -> bool:
+        now = time.time()
+        with self._lock:
+            if key not in self.rate_limits:
+                self.rate_limits[key] = []
+            self.rate_limits[key] = [t for t in self.rate_limits[key] if t > now - self.time_window]
+            if len(self.rate_limits[key]) >= self.max_requests:
+                return False
+            self.rate_limits[key].append(now)
+        return True
+
+def rate_limited(func: Callable[..., Awaitable]):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        if not SecurityManager().check_rate_limit(func.__name__):
+            raise Exception("Rate limit exceeded")
+        return await func(*args, **kwargs)
+    return wrapper
+
+@asynccontextmanager
+async def browser_session(config: "AgentConfig"):
+    runner = BrowserAgentRunner(config)
+    try:
+        yield runner
+    finally:
+        await runner.cleanup()
+
+class BrowserAgentRunner:
+    def __init__(self, config: "AgentConfig"):
+        self.config = config
+        self.playwright = None
+        self.browser_context = None
+        self.browser = None
+        self.resource_manager = ResourceManager()
+        self.security_manager = SecurityManager()
+        self._start_time = time.time()
+
+    @property
+    def execution_time(self) -> float:
+        return time.time() - self._start_time
+
+    async def run(self):
+        try:
+            # Add some debug logging to track what's happening
+            logger.debug("Starting browser session...")
+            async with async_playwright() as p:
+                # Use try-except to catch any exceptions
+                try:
+                    self.browser = await p.chromium.launch(headless=self.config.headless)
+                    logger.debug("Browser launched successfully")
+                    self.browser_context = await self.browser.new_context(
+                        viewport={'width': self.config.window_w, 'height': self.config.window_h}
+                    )
+                    logger.debug("Browser context created successfully")
+                    page = await self.browser_context.new_page()
+                    logger.debug("New page created successfully")
+    
+                    # Example task: Navigate to a given URL
+                    logger.debug("Navigating to https://example.com")
+                    await page.goto("https://example.com")
+                    logger.debug("Navigated to https://example.com successfully")
+                    # Perform more actions here based on the task
+    
+                    return "Task completed successfully", "", "", ""
+                except Exception as e:
+                    # Log the error
+                    logger.error(f"Detailed error during run: {e}")
+                    return "", str(e), "", ""
+            except Exception as e:
+                # Log the outer error
+                logger.error(f"Outer error during run: {e}")
+                return "", str(e), "", ""
+        finally:
+            # Log that cleanup is happening
+            logger.debug("Starting cleanup...")
+            await self.cleanup()
+            logger.debug("Cleanup completed")
+
+    async def cleanup(self):
+        logger.debug("Cleaning up browser session.")
+        try:
+            if self.browser_context:
+                await self.browser_context.close()
+                logger.debug("Browser context closed successfully.")
+                self.browser_context = None
+
+            if self.browser:
+                await self.browser.close()
+                logger.debug("Browser closed successfully.")
+                self.browser = None
+
+            await self.resource_manager.cleanup()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
+class ProcessManager:
+    def __init__(self):
+        self.processes = []
+        self._lock = threading.Lock()
+
+    async def start_task(self, task):
+        with self._lock:
+            # Logic to start a task
+            pass
+
+    async def stop_task(self):
+        with self._lock:
+            # Logic to stop tasks
+            return "", ""
+
+    def cleanup(self):
+        with self._lock:
+            # Logic for cleanup after tasks
+            pass
+
+class GradioInterface:
+    def __init__(self):
+        self.theme = gr.themes.Soft()
+        self.settings_manager = SettingsManager()
+        self.process_manager = ProcessManager()
+        self.security_manager = SecurityManager()
+
+    @rate_limited
+    async def _run_with_manager(self, *args):
+        try:
+            logger.debug("Starting _run_with_manager...")
+            async with browser_session(AgentConfig(*args)) as runner:
+                final_result, errors, model_actions, model_thoughts = await runner.run()
+                logger.debug(f"Returning values: {final_result}, {errors}, {model_actions}, {model_thoughts}")
+                return final_result or "", errors or "", model_actions or "", model_thoughts or ""
+        except Exception as e:
+            logger.error(f"Error in _run_with_manager: {e}")
+            return str(e), str(e), "", ""
+
+    async def _stop_agent(self):
+        return await self.process_manager.stop_task()
+
+    def _load_saved_values(self) -> Dict[str, Any]:
+        return {
+            "agent_type": self.settings_manager.load_setting("agent_type", "custom"),
+            "max_steps": self.settings_manager.load_setting("max_steps", DEFAULT_MAX_STEPS),
+            "use_vision": self.settings_manager.load_setting("use_vision", True),
+            "llm_provider": self.settings_manager.load_setting("llm_provider", "gemini"),
+            "llm_model_name": self.settings_manager.load_setting("llm_model_name", "gemini-2.0-flash-exp"),
+            "llm_temperature": self.settings_manager.load_setting("llm_temperature", DEFAULT_TEMPERATURE),
+            "llm_base_url": self.settings_manager.load_setting("llm_base_url", ""),
+            "llm_api_key": self.settings_manager.load_setting("llm_api_key", ""),
+            "use_own_browser": self.settings_manager.load_setting("use_own_browser", False),
+            "headless": self.settings_manager.load_setting("headless", False),
+            "disable_security": self.settings_manager.load_setting("disable_security", False),
+            "window_w": self.settings_manager.load_setting("window_w", DEFAULT_WINDOW_WIDTH),
+            "window_h": self.settings_manager.load_setting("window_h", DEFAULT_WINDOW_HEIGHT),
+            "save_recording_path": self.settings_manager.load_setting("save_recording_path", "./tmp/record_videos"),
+            "task": self.settings_manager.load_setting("task", "go to google.com and type 'OpenAI' click search and give me the first url"),
+            "add_infos": self.settings_manager.load_setting("add_infos", "")
+        }
+
+    def create_ui(self) -> gr.Blocks:
+        saved_values = self._load_saved_values()
+
+        def save_value(key: str, value: Any):
+            self.settings_manager.save_setting(key, value)
+            return value
+
+        demo = gr.Blocks(title="Browser Use WebUI",

@@ -1,0 +1,77 @@
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+import numpy as np
+import matplotlib.pyplot as plt
+
+def cluster_data(features_transformed, cluster_features_dict, n_clusters=2, clustering_method='kmeans'):
+    """执行数据聚类。
+
+参数：
+    features_transformed (pandas.DataFrame): 转换后的包含参数的DataFrame。
+    cluster_features_dict (dict): 字典，键是聚类标签列名，值是要用于聚类的列的元组。
+    n_clusters (int): 聚类数量。
+    clustering_method (str): 聚类方法（'kmeans'）。
+
+返回：
+    pandas.DataFrame: 添加了聚类标签列的DataFrame。"""
+    if features_transformed is None:
+        print("Сначала выполните преобразование данных (этап 5).")
+        return None
+
+    results_df = features_transformed.copy()
+    
+    if clustering_method == 'kmeans':
+        for cluster_name, columns in cluster_features_dict.items():
+            if not isinstance(columns, (list, tuple)):
+                columns = [columns]
+            
+            # 选择指定的列进行聚类
+            features_for_clustering = features_transformed[list(columns)].copy()
+            
+            model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            cluster_labels = model.fit_predict(features_for_clustering)
+            
+            # 评估聚类质量
+            if len(np.unique(cluster_labels)) > 1:
+                silhouette_avg = silhouette_score(features_for_clustering, cluster_labels)
+                print(f"聚类 '{cluster_name}' 的轮廓系数（{n_clusters}个簇）: {silhouette_avg:.4f}")
+            else:
+                print(f"无法计算聚类 '{cluster_name}' 的轮廓系数（所有点都在一个簇中）")
+            
+            # 将聚类标签添加到结果DataFrame
+            results_df[cluster_name] = cluster_labels
+            print(f"已完成聚类 '{cluster_name}'，聚类标签已添加到列 '{cluster_name}'。")
+    else:
+        print("不支持的聚类方法。")
+        return None
+
+    return results_df
+
+# 执行聚类（在步骤5之后和步骤6之前）
+if 'features_transformed' in locals() and features_transformed is not None:
+    # 定义要独立聚类的列集合
+    cluster_features_dict = {
+        'cluster1': ['feature1', 'feature2'],  # 第一组特征聚类
+        'cluster2': ['feature3']               # 第二组特征聚类
+    }
+    n_clusters = 3  # 簇的数量（选择最佳值）
+    features_transformed = cluster_data(features_transformed, cluster_features_dict, n_clusters)
+    
+    # 可视化第一个聚类（当有两个数值特征时的示例）
+    if 'cluster1' in features_transformed.columns and len(cluster_features_dict['cluster1']) >= 2:
+        plt.figure(figsize=(8, 6))
+        plt.scatter(
+            features_transformed[cluster_features_dict['cluster1'][0]], 
+            features_transformed[cluster_features_dict['cluster1'][1]], 
+            c=features_transformed['cluster1'], 
+            cmap='viridis'
+        )
+        plt.xlabel(cluster_features_dict['cluster1'][0])
+        plt.ylabel(cluster_features_dict['cluster1'][1])
+        plt.title('聚类1结果')
+        plt.colorbar(label='簇编号')
+        plt.show()
+    else:
+        print("没有足够的数值特征来可视化平面上的簇。")
+else:
+    print("Сначала выполните этап 5 (Преобразование данных).")

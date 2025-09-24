@@ -1,0 +1,31 @@
+def binary_search(arr, target):
+    """
+    Бинарный поиск элемента в отсортированном списке.
+
+    Args:
+        arr (list): Отсортированный список.
+        target: Элемент, который нужно найти.
+
+    Returns:
+        int: Индекс элемента, если найден. -1, если не найден.
+    """
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+# Пример использования
+arr = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]
+target = 23
+result = binary_search(arr, target)
+
+if result != -1:
+    print(f"Элемент {target} найден под индексом {result}")
+else:
+    print(f"Элемент {target} не найден в списке")

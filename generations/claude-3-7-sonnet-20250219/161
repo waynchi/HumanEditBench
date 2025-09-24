@@ -1,0 +1,38 @@
+def find_four_squares(n):
+    """
+    Find four square numbers that sum to n.
+    Returns a tuple (a, b, c, d) such that a^2 + b^2 + c^2 + d^2 = n,
+    or None if no such numbers exist.
+    """
+    # Lagrange's four-square theorem states that every natural number can be expressed
+    # as the sum of four integer squares
+    
+    # Check all possible combinations of a, b, c
+    # and then calculate d as the remaining value
+    for a in range(int(n**0.5) + 1):
+        for b in range(a, int((n - a*a)**0.5) + 1):
+            for c in range(b, int((n - a*a - b*b)**0.5) + 1):
+                # Calculate the remaining value for d^2
+                d_squared = n - a*a - b*b - c*c
+                
+                # Check if d^2 is a perfect square
+                d = int(d_squared**0.5)
+                if d*d == d_squared:
+                    return (a, b, c, d)
+    
+    return None
+
+def main():
+    # Test with a few numbers
+    test_numbers = [7, 15, 23, 31, 39, 47, 55, 63, 71, 79, 87, 95]
+    
+    for num in test_numbers:
+        result = find_four_squares(num)
+        if result:
+            a, b, c, d = result
+            print(f"{num} = {a}² + {b}² + {c}² + {d}² = {a*a} + {b*b} + {c*c} + {d*d}")
+        else:
+            print(f"{num} cannot be expressed as the sum of four squares")
+
+if __name__ == "__main__":
+    main()

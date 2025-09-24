@@ -1,0 +1,49 @@
+import torch.nn as nn
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_size=(3, 32, 32)):
+        super().__init__()
+        
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+        
+        self.flatten = nn.Flatten()
+        
+        # 计算展平后的特征数量
+        # 初始大小：input_size (例如 32x32 图像)
+        # 第一层卷积：卷积核大小 3x3，无填充，输出大小 = 32-3+1 = 30
+        # 第一层池化：池化核大小 2x2，输出大小 = 30/2 = 15
+        # 第二层卷积：卷积核大小 3x3，无填充，输出大小 = 15-3+1 = 13
+        # 第二层池化：池化核大小 2x2，输出大小 = 13/2 = 6 (整数除法向下取整)
+        # 最终特征图大小：64 x 6 x 6 = 2304
+        
+        c, h, w = input_size
+        h_out = (h - 3 + 1) // 2  # 第一层卷积+池化后的高度
+        h_out = (h_out - 3 + 1) // 2  # 第二层卷积+池化后的高度
+        
+        w_out = (w - 3 + 1) // 2  # 第一层卷积+池化后的宽度
+        w_out = (w_out - 3 + 1) // 2  # 第二层卷积+池化后的宽度
+        
+        flattened_size = 64 * h_out * w_out
+        
+        self.fc1 = nn.Sequential(
+            nn.Linear(flattened_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, 3)
+        )
+        
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

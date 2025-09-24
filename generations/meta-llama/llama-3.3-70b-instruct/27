@@ -1,0 +1,24 @@
+from langchain.llms import LLMChain
+from langchain.chains.question_answer import load_qa_chain
+from langchain import LLM
+
+llm = LLM(
+    name="langchain-llama",
+    model_name="decapoda-research/llama-3.2-hf",
+    model_type="hf",
+)
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+response = llm({
+    "prompt": sys_prompt + "\n" + prompt
+})
+
+print(response)

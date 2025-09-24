@@ -1,0 +1,13 @@
+from flask import Flask
+import datetime
+
+app = Flask(__name__)
+
+# Highlighted section modified
+@app.route('/', methods=['GET'])
+def show_date_time():
+    now = datetime.datetime.now()
+    return "Current Date and Time: " + now.strftime("%Y-%m-%d %H:%M:%S")
+
+if __name__ == '__main__':
+    app.run()

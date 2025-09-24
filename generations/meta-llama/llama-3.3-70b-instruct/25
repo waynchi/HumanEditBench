@@ -1,0 +1,56 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+# Initialize the ChatOllama model with error handling and specific input
+try:
+    chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+except Exception as e:
+    print(f"Failed to initialize ChatOllama model: {e}")
+    exit(1)
+
+# Load SHAP values from JSON file with error handling
+try:
+    with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+        if shap_values_json is None:
+            print("Failed to load SHAP values from JSON file")
+            exit(1)
+except FileNotFoundError:
+    print("JSON file not found")
+    exit(1)
+except json.JSONDecodeError:
+    print("Failed to parse JSON file")
+    exit(1)
+
+# Load system prompt from file with error handling
+try:
+    with open("system.prompt", "r") as file:
+        sys_prompt = file.read().strip()
+        if not sys_prompt:
+            print("System prompt is empty")
+            exit(1)
+except FileNotFoundError:
+    print("System prompt file not found")
+    exit(1)
+
+# Prepare the messages with user input validation
+def get_user_input():
+    user_input = input("Please enter your input: ")
+    if not user_input:
+        print("User input is empty")
+        exit(1)
+    return user_input
+
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", get_user_input()),
+])
+
+# Generate the response with error handling
+try:
+    prompt_value = template.invoke(json.dumps(shap_values_json))
+    chain = prompt_value | chat_model
+    chain.invoke()
+except Exception as e:
+    print(f"Failed to generate response: {e}")

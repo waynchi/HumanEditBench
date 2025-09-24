@@ -1,0 +1,30 @@
+# 编写二分查找
+
+def binary_search(arr, target):
+    """
+    二分查找算法
+    
+    参数:
+        arr: 有序数组
+        target: 要查找的目标值
+        
+    返回:
+        如果找到目标值，返回其索引，否则返回-1
+    """
+    left, right = 0, len(arr) - 1
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        
+        # 找到目标值
+        if arr[mid] == target:
+            return mid
+        # 目标值在左半部分
+        elif arr[mid] > target:
+            right = mid - 1
+        # 目标值在右半部分
+        else:
+            left = mid + 1
+    
+    # 没有找到目标值
+    return -1
