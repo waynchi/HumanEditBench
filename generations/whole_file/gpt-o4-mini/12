@@ -1,0 +1,8 @@
+import pandas as pd
+
+def create_column(df):
+    # initialize Frequency column with NaN (None)
+    df['Frequency'] = None
+    # set Frequency to 117 where EventId == 'E16'
+    df.loc[df['EventId'] == 'E16', 'Frequency'] = 117
+    return df

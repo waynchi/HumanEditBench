@@ -1,0 +1,42 @@
+import sys
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    # Read and filter out any empty lines
+    lines = [line for line in parse_input_file() if line.strip()]
+    print(lines)
+
+    # Parse and validate each line into an (int, int) pair
+    pairs = []
+    for idx, line in enumerate(lines, start=1):
+        parts = line.split()
+        if len(parts) != 2:
+            print(f"Skipping line {idx}: expected 2 values, got {len(parts)}", file=sys.stderr)
+            continue
+        try:
+            a, b = map(int, parts)
+        except ValueError as e:
+            print(f"Skipping line {idx}: invalid integer ({e})", file=sys.stderr)
+            continue
+        pairs.append((a, b))
+
+    if not pairs:
+        print("No valid data to process.", file=sys.stderr)
+        return
+
+    # To minimize total absolute distance, sort both lists and pair them accordingly
+    list1, list2 = zip(*pairs)
+    sorted1 = sorted(list1)
+    sorted2 = sorted(list2)
+    total_distance = sum(abs(a - b) for a, b in zip(sorted1, sorted2))
+    print(total_distance)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

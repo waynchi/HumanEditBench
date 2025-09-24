@@ -1,0 +1,53 @@
+import argparse
+import sys
+
+INPUT_FILE_PATH = './input.txt'
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Read two columns of integers from a file, pair them by sorting, "
+                    "and compute the total absolute distance.")
+    parser.add_argument(
+        "-i", "--input",
+        help=f"Path to the input file (default: {INPUT_FILE_PATH})",
+        default=None
+    )
+    args = parser.parse_args()
+
+    # If the user supplied a file path, override the default
+    global INPUT_FILE_PATH
+    if args.input:
+        INPUT_FILE_PATH = args.input
+
+    lines = parse_input_file()
+    # Remove any empty lines
+    lines = [ln for ln in lines if ln.strip()]
+    if not lines:
+        print("No data to process.")
+        return
+
+    # Split on any whitespace, convert to ints
+    try:
+        pairs = [list(map(int, ln.split())) for ln in lines]
+    except ValueError as e:
+        print(f"Error parsing numbers: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Unzip into two lists
+    list_1, list_2 = zip(*pairs)
+    # Sort both lists so that the smallest goes with the smallest, etc.
+    list_1 = sorted(list_1)
+    list_2 = sorted(list_2)
+
+    # Compute total absolute distance
+    total_dist = sum(abs(a - b) for a, b in zip(list_1, list_2))
+    print(total_dist)
+
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        return f.read().splitlines()
+
+
+if __name__ == "__main__":
+    main()

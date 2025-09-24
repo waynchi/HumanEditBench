@@ -1,0 +1,93 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Crear una sesión Spark
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# Ejemplo de datos (reemplazar con tus datos reales)
+data = [
+    {"id": 1, "nombre": "Juan", "edad": 30},
+    {"id": 2, "nombre": "Ana", "edad": 25},
+    {"id": 3, "nombre": "Pedro", "edad": 40}
+]
+
+# Crear un DataFrame a partir de los datos
+# En este escenario, los datos provienen de una API y primero debemos analizarlos.
+# Intentamos obtener el JSON de la API, inferimos el esquema y mostramos ejemplos.
+import json
+from typing import Any
+import requests
+from pyspark.sql.types import ArrayType
+
+api_url = "<your_api_url>"  # Reemplazar con la URL de tu API
+
+def to_df_from_json_obj(obj: Any):
+    # Convierte un objeto Python (dict o list) en un DataFrame de Spark infiriendo el esquema
+    if isinstance(obj, list):
+        rdd = spark.sparkContext.parallelize([json.dumps(rec) for rec in obj])
+        return spark.read.json(rdd)
+    else:
+        rdd = spark.sparkContext.parallelize([json.dumps(obj)])
+        return spark.read.json(rdd)
+
+try:
+    resp = requests.get(api_url, timeout=30)
+    resp.raise_for_status()
+    payload = resp.json()
+    df_raw = to_df_from_json_obj(payload)
+except Exception as e:
+    print(f"Advertencia: No se pudo obtener/parsear datos desde la API ({e}). Usando datos de ejemplo locales.")
+    df_raw = spark.createDataFrame(data)
+
+print("Esquema detectado desde la fuente:")
+df_raw.printSchema()
+print("Ejemplo de registros detectados:")
+df_raw.show(20, truncate=False)
+
+# Intento opcional de normalización si la API devuelve estructuras anidadas o listas dentro de una única columna
+df = df_raw
+try:
+    if len(df_raw.schema.fields) == 1:
+        fld = df_raw.schema.fields[0]
+        if isinstance(fld.dataType, ArrayType):
+            # Si el JSON raíz es una lista, la expandimos
+            df = df_raw.selectExpr(f"explode_outer({fld.name}) as row").select("row.*")
+    else:
+        # Si existen columnas típicas con arrays, las expandimos
+        candidate_cols = [c for c in ["items", "data", "value", "results", "records"] if c in df_raw.columns]
+        expanded = False
+        for c in candidate_cols:
+            dt = next((f.dataType for f in df_raw.schema.fields if f.name == c), None)
+            if isinstance(dt, ArrayType):
+                df = df_raw.selectExpr(f"explode_outer({c}) as row").select("row.*")
+                expanded = True
+                break
+        if not expanded:
+            df = df_raw
+except Exception as e:
+    print(f"No se realizó normalización automática: {e}")
+    df = df_raw
+
+print("Esquema final que se escribirá:")
+df.printSchema()
+df.show(20, truncate=False)
+
+
+# Configurar la conexión a ADL2 usando la identidad de Microsoft ID
+# No es necesario proporcionar credenciales explícitamente en un notebook de Synapse
+# Spark utilizará la identidad administrada del notebook para autenticarse.
+
+# Especificar la ruta al contenedor y la carpeta en ADL2
+container_name = "<your_container_name>"  # Reemplazar con el nombre de tu contenedor
+folder_path = "<your_folder_path>"  # Reemplazar con la ruta a la carpeta dentro del contenedor
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Escribir el DataFrame en formato parquet en ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# Opcional: leer el archivo parquet para verificar
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# Detener la sesión Spark
+spark.stop()

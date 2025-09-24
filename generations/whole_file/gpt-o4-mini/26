@@ -1,0 +1,55 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Решение системы Ax = b методом сопряжённых градиентов.
+    Аргументы:
+        A : (n,n) array_like, симметричная положительно определённая матрица
+        b : (n,) array_like, правая часть
+        x0: (n,) array_like, начальное приближение (по умолчанию нулевой вектор)
+        tol: float, критерий остановки по норме невязки
+        max_iter: int, максимальное число итераций (по умолчанию 10*n)
+    Возвращает:
+        x : (n,) ndarray, найденное решение
+    """
+    # --- НАЧАЛО ИЗМЕНЁННОГО РАЗДЕЛА ---
+    # Инициализация
+    n = b.shape[0]
+    if x0 is None:
+        x = np.zeros(n, dtype=float)
+    else:
+        x = np.array(x0, dtype=float)
+    r = b - A.dot(x)
+    p = r.copy()
+    rs_old = np.dot(r, r)
+
+    if max_iter is None:
+        max_iter = 10 * n
+
+    for i in range(max_iter):
+        Ap = A.dot(p)
+        alpha = rs_old / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rs_new = np.dot(r, r)
+        # Проверка критерия остановки
+        if np.sqrt(rs_new) < tol:
+            # print(f'Сошлось за {i+1} итераций')
+            break
+        # Обновление направлений
+        beta = rs_new / rs_old
+        p = r + beta * p
+        rs_old = rs_new
+
+    return x
+    # --- КОНЕЦ ИЗМЕНЁННОГО РАЗДЕЛА ---
+
+
+if __name__ == "__main__":
+    # Пример использования
+    A = np.array([[4.0, 1.0], [1.0, 3.0]])
+    b = np.array([1.0, 2.0])
+    x = conjugate_gradient(A, b)
+    print("Решение x =", x)
+    # Проверка: Ax
+    print("Ax =", A.dot(x), "≈ b =", b)

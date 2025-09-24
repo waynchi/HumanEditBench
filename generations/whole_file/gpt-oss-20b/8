@@ -1,0 +1,46 @@
+def is_sum_of_four_squares(n):
+    """
+    Returns a tuple (a, b, c, d) of positive integers such that
+    a^2 + b^2 + c^2 + d^2 == n, or None if no such representation
+    exists. Each component is required to be non‑zero to satisfy the
+    "four non‑null squares" requirement.
+    """
+    if n < 0:
+        return None
+    max_val = int(n**0.5) + 1
+    for a in range(1, max_val):
+        aa = a * a
+        for b in range(1, max_val):
+            bb = b * b
+            for c in range(1, max_val):
+                cc = c * c
+                remaining = n - (aa + bb + cc)
+                if remaining <= 0:
+                    continue
+                d = int(remaining**0.5)
+                if d * d == remaining and d > 0:
+                    return a, b, c, d
+    return None
+
+def find_four_squares_sums(limit):
+    """
+    Finds numbers up to a limit that can be expressed as the sum of
+    four non‑zero squares.
+    """
+    results = []
+    for n in range(1, limit + 1):
+        result = is_sum_of_four_squares(n)
+        if result:
+            a, b, c, d = result
+            if a != 0 and b != 0 and c != 0 and d != 0:
+                results.append(n)
+    return results
+
+# Example usage:
+limit = int(input("Digite o limite superior: "))
+sums_found = find_four_squares_sums(limit)
+print("Números que podem ser expressos como a soma de quatro quadrados não nulos:")
+for num in sums_found:
+    result = is_sum_of_four_squares(num)
+    a, b, c, d = result
+    print(f"{num} = {a}^2 + {b}^2 + {c}^2 + {d}^2")

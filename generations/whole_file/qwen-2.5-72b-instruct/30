@@ -1,0 +1,18 @@
+def can_be_expressed_as_sum_of_four_squares(n):
+    def is_square(m):
+        return int(m**0.5) ** 2 == m
+    
+    if n < 4:
+        return False
+    
+    for i in range(1, int(n**0.5) + 1):
+        for j in range(i, int((n - i**2)**0.5) + 1):
+            for k in range(j, int((n - i**2 - j**2)**0.5) + 1):
+                l = n - i**2 - j**2 - k**2
+                if l > 0 and is_square(l):
+                    return True
+    return False
+
+# Test the function
+print(can_be_expressed_as_sum_of_four_squares(30))  # Should return True
+print(can_be_expressed_as_sum_of_four_squares(31))  # Should return False

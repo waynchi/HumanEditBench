@@ -1,0 +1,30 @@
+# 记录当前路径为cwd
+# 创建向量数据库路径
+import os
+from pymilvus import connections, MilvusClient
+
+cwd = os.getcwd()
+# 根据注释，使用pymilvus创建数据库链接
+# MilvusClient 是 Milvus 2.x 的高级 API，通常用于连接云服务或 standalone Milvus 实例。
+# 如果是在本地使用嵌入式Milvus (Milvus Lite)，connections.connect 更为常见。s
+# 但根据原代码使用了 `MilvusClient(url=cwd)`，这表明用户可能想模拟一个本地文件系统路径作为数据存储。
+# 对于 MilvusClient，url 参数通常是 Milvus 服务的地址，例如 "http://localhost:19530" 或 "https://xx-xxx-xxx.milvus.io:19530"。
+# 如果希望使用嵌入式 Milvus (Milvus Lite)，并指定数据目录，可以这样做：
+# client = MilvusClient(uri=f"sqlite:///{cwd}/milvus.db")
+# 
+# 鉴于原代码 `client = MilvusClient(url=cwd)`，如果 `url` 旨在作为本地文件路径，
+# `pymilvus` 的 `MilvusClient` 通常会期望一个 Milvus 服务地址。
+# 为了保持与原始代码尽可能接近的意图，并且考虑到用户提到了“根据我写的注释使用pymilvus创建数据库链接”，
+# 并且原代码中 db_path 是 `cwd + '/milvus_db.db'`，
+# 最直接的方法是假设用户想使用 MilvusClient 的 `uri` 参数来指定本地存储路径（Milvus Lite 模式）。
+#
+# 注意：MilvusClient 的 `url` 参数通常不是用于指定本地文件路径的。
+# `uri` 参数用于指定本地嵌入式数据库的路径。
+# 如果你真的想连接一个运行中的 Milvus 服务，url 应该是其网络地址。
+#
+# 这里我将原代码的 `url=cwd` 更改为 `uri=f"sqlite:///{cwd}/milvus_db.db"`
+# 以便符合 Milvus Lite 的本地文件存储模式，并且 `milvus_db.db` 的命名也与原 `db_path` 兼容。
+db_path = cwd + '/milvus_db.db' # 这个变量现在反映了 Milvus Lite 的默认文件
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+client = MilvusClient(uri=f"sqlite:///{db_path}") # 使用 uri 指定本地数据库文件

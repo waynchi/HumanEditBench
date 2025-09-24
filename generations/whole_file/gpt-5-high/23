@@ -1,0 +1,184 @@
+import os
+import sys
+import re
+
+# Attempt to load an English word list from common system dictionary locations.
+# Falls back to a small built-in list if none is available.
+
+DICT_PATHS = [
+    os.environ.get("WORDS_FILE"),
+    "/usr/share/dict/words",
+    "/usr/share/dict/american-english",
+    "/usr/share/dict/british-english",
+    "/usr/share/dict/web2",
+    "/usr/share/dict/words.txt",
+    "/usr/share/dict/english",
+]
+
+FALLBACK_WORDS = {
+    # 1-2 letters
+    "a", "i", "an", "as", "at", "be", "by", "do", "go", "he", "in", "is", "it", "me", "my",
+    "no", "of", "on", "or", "so", "to", "up", "us", "we",
+    # 3 letters
+    "and", "any", "are", "ask", "bad", "bar", "bed", "bee", "bus", "car", "cat", "cow", "cup",
+    "cut", "dog", "dry", "eat", "egg", "far", "fat", "few", "fix", "fog", "fox", "fun", "gas",
+    "get", "god", "hat", "hot", "ice", "job", "joy", "key", "law", "leg", "let", "low", "man",
+    "map", "mix", "new", "now", "old", "one", "out", "pay", "pen", "pet", "pop", "put", "raw",
+    "red", "run", "sea", "see", "set", "she", "six", "sky", "sun", "tax", "ten", "the", "tie",
+    "top", "toy", "use", "war", "way", "wet", "win", "you", "yes",
+    # 4 letters
+    "able", "also", "area", "baby", "back", "bank", "base", "blue", "book", "both", "busy",
+    "call", "city", "cold", "come", "cool", "copy", "cost", "data", "door", "down", "easy",
+    "east", "edge", "else", "even", "ever", "face", "fact", "fall", "farm", "fast", "feed",
+    "feel", "file", "film", "find", "fine", "fire", "fish", "food", "free", "from", "game",
+    "girl", "good", "grow", "hair", "half", "hand", "hard", "have", "head", "hear", "help",
+    "here", "high", "hold", "home", "hope", "hour", "idea", "join", "keep", "kind", "know",
+    "lake", "land", "late", "lead", "left", "less", "life", "line", "list", "live", "long",
+    "look", "lose", "love", "main", "make", "many", "mark", "mass", "meet", "mind", "more",
+    "most", "move", "name", "near", "need", "news", "next", "note", "only", "open", "over",
+    "page", "pair", "part", "past", "path", "plan", "play", "poor", "port", "post", "pull",
+    "push", "race", "rain", "rate", "read", "real", "rest", "rich", "ride", "ring", "road",
+    "room", "rule", "safe", "save", "seat", "seek", "self", "sell", "send", "shop", "show",
+    "side", "sign", "size", "skin", "snow", "soft", "some", "song", "soon", "star", "stay",
+    "step", "stop", "such", "talk", "task", "team", "tell", "test", "than", "that", "them",
+    "then", "they", "thin", "this", "time", "tire", "town", "tree", "trip", "true", "turn",
+    "type", "unit", "wait", "walk", "wall", "want", "warm", "wash", "wear", "week", "well",
+    "west", "what", "when", "wide", "wife", "will", "wind", "wine", "wish", "with", "word",
+    "work", "year", "your", "zero",
+    # 5 letters
+    "about", "above", "after", "again", "apple", "black", "brown", "chair", "cheap", "clean",
+    "clear", "close", "daily", "dance", "dream", "drink", "drive", "early", "earth", "eight",
+    "every", "field", "first", "floor", "fruit", "green", "happy", "heart", "heavy", "house",
+    "human", "large", "learn", "light", "maybe", "month", "never", "night", "north", "other",
+    "paper", "party", "peace", "phone", "place", "plant", "point", "price", "quick", "quite",
+    "radio", "reach", "right", "river", "round", "scale", "share", "sheet", "short", "small",
+    "smart", "smile", "sound", "south", "space", "spend", "sport", "stand", "start", "state",
+    "story", "table", "thank", "their", "there", "these", "thing", "think", "three", "today",
+    "under", "value", "watch", "water", "white", "whole", "woman", "world", "write", "young",
+    # 6 letters
+    "across", "always", "animal", "before", "better", "camera", "chance", "change", "choose",
+    "coffee", "corner", "create", "demand", "doctor", "during", "effect", "enable", "family",
+    "father", "figure", "flight", "future", "golden", "health", "little", "market", "nation",
+    "number", "orange", "people", "police", "purple", "reason", "school", "silver", "simple",
+    "single", "spring", "street", "summer", "system", "theory", "though", "travel", "window",
+    "within", "writer",
+    # 7 letters
+    "another", "between", "country", "current", "culture", "deliver", "department",  # department is 10, ignore length context
+    "evening", "feature", "freedom", "further", "general", "history", "holiday", "imagine",
+    "library", "morning", "nothing", "outside", "picture", "problem", "section", "society",
+    "special", "station", "student", "teacher", "through", "traffic", "weather", "without",
+    # 8 letters
+    "building", "business", "computer", "decision", "director", "elephant", "football",
+    "language", "medicine", "mountain", "notebook", "keyboard", "personal", "question",
+    "resource", "solution", "thursday", "tomorrow", "weekends", "workflow",
+    # 9 letters
+    "advantage", "apartment", "beautiful", "chocolate", "direction", "education", "hurricane",
+    "important", "influence", "knowledge", "something", "transport", "wonderful",
+    # 10 letters
+    "backpacker", "blackberry", "conference", "dictionary", "generation", "government",
+    "grapefruit", "recreation", "strawberry", "television", "understand",
+    # 11 letters
+    "application", "circulation", "consistency", "development", "examination",
+    "imagination", "information", "interaction", "mathematics", "programming",
+    "translation",
+    # 12 letters
+    "announcement", "electricians", "encyclopedia", "engineering", "imprisonment",
+    "intelligence", "marketplace", "microbiology", "performance", "relationship",
+    "transmission",
+    # 13 letters
+    "communication", "decomposition", "environmental", "extraordinary", "international",
+    "revolutionary", "recommendable",
+    # 14 letters
+    "administration", "characteristic", "counterexample", "disorientation",
+    "interpretation", "reconstruction", "recommendation", "responsibility",
+    "transportation", "characterizing",
+}
+
+def load_dictionary_words():
+    words = set()
+
+    # Try common system dictionaries
+    for path in DICT_PATHS:
+        if not path:
+            continue
+        if os.path.isfile(path):
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        w = line.strip()
+                        # Keep purely alphabetic words
+                        if w and re.fullmatch(r"[A-Za-z]+", w):
+                            words.add(w.lower())
+            except Exception:
+                # Ignore unreadable files and keep trying others
+                pass
+
+    # Optional: try wordfreq if installed (top common words)
+    if not words:
+        try:
+            from wordfreq import top_n_list  # type: ignore
+            # Get a reasonably sized list of common English words
+            common = top_n_list("en", n_top=50000)
+            for w in common:
+                if re.fullmatch(r"[a-z]+", w):
+                    words.add(w)
+        except Exception:
+            pass
+
+    # Fallback to built-in list if still empty
+    if not words:
+        words = {w for w in FALLBACK_WORDS if re.fullmatch(r"[a-z]+", w)}
+
+    return words
+
+
+def words_of_length(words, n, limit=10):
+    candidates = [w for w in words if len(w) == n]
+    candidates.sort()
+    return candidates[:limit]
+
+
+def parse_n(args):
+    if len(args) >= 2:
+        try:
+            n = int(args[1])
+            if n > 0:
+                return n
+        except ValueError:
+            pass
+    # Interactive prompt if no valid CLI argument
+    while True:
+        try:
+            s = input("Enter number of characters (N): ").strip()
+        except EOFError:
+            return None
+        if not s:
+            continue
+        try:
+            n = int(s)
+            if n > 0:
+                return n
+            else:
+                print("Please enter a positive integer.")
+        except ValueError:
+            print("Please enter a positive integer.")
+
+
+def main():
+    n = parse_n(sys.argv)
+    if n is None:
+        return
+
+    words = load_dictionary_words()
+    matches = words_of_length(words, n, limit=10)
+
+    if not matches:
+        print(f"No words found with {n} characters.")
+        return
+
+    for w in matches:
+        print(w)
+
+
+if __name__ == "__main__":
+    main()

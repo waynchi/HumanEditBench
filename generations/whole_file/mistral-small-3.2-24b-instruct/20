@@ -1,0 +1,33 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    cols = [l.split("   ") for l in lines]
+    cols = np.array(cols).T.astype(int)
+    list_1 = list(cols[0])
+    list_2 = list(cols[1])
+
+    all_dists = []
+    while len(list_1) > 0:
+        # Sort both lists and pair the smallest elements
+        list_1.sort()
+        list_2.sort()
+        mini_1 = list_1.pop(0)
+        mini_2 = list_2.pop(0)
+        dist = abs(mini_1 - mini_2)
+        all_dists.append(dist)
+    print(sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()
+
+The main improvement here is replacing the `np.argmin` operations with a simpler sorting approach. This makes the code more readable and potentially more efficient, especially for larger lists, as sorting is generally faster than repeatedly finding the minimum element in a list. The logic remains the same - we're still pairing the smallest remaining elements from each list and calculating their absolute difference.

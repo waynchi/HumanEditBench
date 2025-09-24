@@ -1,0 +1,41 @@
+import random
+
+def get_words_by_length(words, length):
+    """Get all words with the specified length"""
+    return [word for word in words if len(word) == length]
+
+def main():
+    # Sample dictionary - in a real implementation, you might load this from a file
+    dictionary = [
+        "apple", "banana", "cat", "dog", "elephant", "flower", "guitar", "house",
+        "island", "jungle", "kitchen", "library", "mountain", "notebook", "ocean",
+        "piano", "queen", "river", "sunshine", "tree", "umbrella", "violin", "water",
+        "xylophone", "yellow", "zebra", "airplane", "backpack", "cupboard", "dolphin"
+    ]
+    
+    while True:
+        try:
+            n = int(input("Enter the number of characters for words you want to find: "))
+            if n <= 0:
+                print("Please enter a positive number.")
+                continue
+                
+            words_with_n_chars = get_words_by_length(dictionary, n)
+            
+            if not words_with_n_chars:
+                print(f"No words found with {n} characters.")
+            else:
+                # Select 10 random words or all words if less than 10
+                sample_words = random.sample(words_with_n_chars, min(10, len(words_with_n_chars)))
+                print(f"\nWords with {n} characters:")
+                for i, word in enumerate(sample_words, 1):
+                    print(f"{i}. {word}")
+                    
+        except ValueError:
+            print("Please enter a valid number.")
+        except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+
+if __name__ == "__main__":
+    main()

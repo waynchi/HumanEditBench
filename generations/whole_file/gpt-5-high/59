@@ -1,0 +1,48 @@
+class SimpleConvNet1(nn.Module):
+    def __init__(self, flattened_size=None):  # flattened_size делаем необязательным
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.flatten = nn.Flatten()
+        self.num_classes = 3
+
+        # Если flattened_size известен заранее, создаем полносвязный блок сразу.
+        # Иначе отложенно инициализируем его при первом проходе (forward).
+        if flattened_size is not None:
+            self.fc1 = nn.Sequential(
+                nn.Linear(flattened_size, 512),
+                nn.ReLU(),
+                nn.Linear(512, self.num_classes)
+            )
+        else:
+            self.fc1 = None  # будет создана при первом forward
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+
+        # Отложенная инициализация полносвязного слоя,
+        # если flattened_size не был передан
+        if self.fc1 is None:
+            in_features = x.shape[1]
+            self.fc1 = nn.Sequential(
+                nn.Linear(in_features, 512),
+                nn.ReLU(),
+                nn.Linear(512, self.num_classes)
+            )
+            self.fc1.to(x.device)
+
+        x = self.fc1(x)
+        return x

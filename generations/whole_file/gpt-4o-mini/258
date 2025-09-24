@@ -1,0 +1,28 @@
+import random
+
+# Example word list (In a real scenario, you would load this from a dictionary file)
+word_list = ["apple", "banana", "cherry", "date", "fig", "grape", "kiwi", "lime", "melon", "nectarine",
+             "orange", "papaya", "quince", "raspberry", "strawberry", "tangerine", "umbrella", "vanilla",
+             "watermelon", "xigua", "yellow", "zucchini"]
+
+def find_words_with_length(n):
+    """Return a list of words with the specified number of characters."""
+    return [word for word in word_list if len(word) == n]
+
+def main():
+    try:
+        n = int(input("Введите количество символов в слове: "))
+        
+        matching_words = find_words_with_length(n)
+        
+        if not matching_words:
+            print(f"Слов не найдено с {n} символами.")
+        else:
+            print(f"10 случайных слов с {n} символами:")
+            print(random.sample(matching_words, min(len(matching_words), 10)))
+    
+    except ValueError:
+        print("Пожалуйста, введите корректное число.")
+
+if __name__ == "__main__":
+    main()

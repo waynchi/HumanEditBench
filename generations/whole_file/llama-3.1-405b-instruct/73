@@ -1,0 +1,144 @@
+import json
+import random
+from groq import Groq
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+api_key = os.getenv("GROQ_API_KEY")
+client = Groq(api_key=api_key)
+
+class SCP_Object:
+    def __init__(self, name, description, triggers, initial_state):
+        self.name = name
+        self.description = description
+        self.triggers = triggers
+        self.state = initial_state
+
+class D_Personnel:
+    def __init__(self, name, initial_state):
+        self.name = name
+        self.state = initial_state
+        self.memory = [] # List of strings, what he remembers from experiments
+
+class Room:
+    def __init__(self, name, description, initial_state):
+        self.name = name
+        self.description = description
+        self.state = initial_state
+
+class Game:
+    def __init__(self):
+        self.scp_objects = self.load_scp_objects()
+        self.current_scp = random.choice(self.scp_objects)
+        self.d_personnel = D_Personnel("D-" + str(random.randint(1000, 9999)), initial_state="calm")
+        self.room = Room("Test Chamber", "A standard containment chamber.", initial_state="clean")
+        self.player_report = ""
+        self.experiment_log = []
+
+    def load_scp_objects(self):
+        # Example SCP objects, can be loaded from a file later
+        return [
+            SCP_Object(
+                name="SCP-173",
+                description="SCP-173 is a concrete statue that moves when not directly observed.",
+                triggers={
+                    "not_observed": "SCP-173 moves quickly towards the nearest person.",
+                    "touch": "SCP-173 does nothing.",
+                },
+                initial_state="immobile"
+            ),
+            SCP_Object(
+                name="SCP-096",
+                description="SCP-096 is a humanoid creature that becomes extremely hostile when its face is viewed.",
+                triggers={
+                    "view_face": "SCP-096 will scream and chase the viewer.",
+                    "touch": "SCP-096 does nothing.",
+                },
+                initial_state="docile"
+            ),
+            SCP_Object(
+                name="SCP-999",
+                description="SCP-999 is a large, amorphous, gelatinous mass of translucent orange slime with a consistency similar to that of peanut butter. SCP-999's behavior is best described as playful and dog-like.",
+                triggers={
+                    "touch": "SCP-999 will make a happy sound and try to hug the person.",
+                    "attack": "SCP-999 will try to hug the person.",
+                },
+                initial_state="happy"
+            )
+        ]
+
+    def llm_request(self, system_prompt, user_prompt):
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": user_prompt
+                },
+            ],
+            temperature=0.02,
+            max_tokens=1024,
+            top_p=1,
+            stream=False,
+            response_format={"type": "json_object"},
+            stop=None,
+        )
+        try:
+            return json.loads(completion.choices[0].message.content)
+        except json.JSONDecodeError:
+            print(f"Error decoding JSON: {completion.choices[0].message.content}")
+            return {"message": "Error decoding JSON", "intention": "error"}
+
+    def check_instruction_clarity(self, instruction):
+        system_prompt = "You are a helpful assistant that checks if the instruction to people is clear and understandable. Provide a json response with the following fields: 'reasoning' (a step-by-step analysis of the instruction), 'decision' (True if the instruction is clear, False otherwise), and 'why' (a brief explanation of your decision)."
+        user_prompt = f"Analyze the clarity of this instruction: {instruction}"
+        response = self.llm_request(system_prompt, user_prompt)
+        return response
+
+    def check_instruction_possibility(self, instruction):
+        system_prompt = "You are a helpful assistant that checks if the instruction is physically possible. Provide a json response with the following fields: 'reasoning' (a step-by-step analysis of the instruction's feasibility), 'decision' (True if the instruction is possible, False otherwise), and 'why' (a brief explanation of your decision)."
+        user_prompt = f"Analyze the possibility of this instruction: {instruction}. Current room state: {self.room.state}"
+        response = self.llm_request(system_prompt, user_prompt)
+        return response
+
+    def check_d_willingness(self, instruction):
+        system_prompt = "You are a D-class personnel in a test chamber with an unknown SCP object. Provide a json response with the following fields: 'reasoning' (a step-by-step analysis of your willingness), 'decision' (True if you agree to perform the instruction, False otherwise), and 'why' (a brief explanation of your decision)."
+        user_prompt = f"Will you perform this instruction? Instruction: {instruction}. Your current state: {self.d_personnel.state}. Your current knowledge about SCP: {self.d_personnel.memory}"
+        response = self.llm_request(system_prompt, user_prompt)
+        return response
+
+    def emulate_experiment(self, instruction):
+        self.experiment_log.append(f"Instruction: {instruction}")
+        
+        # Initial checks
+        clarity_check = self.check_instruction_clarity(instruction)
+        if clarity_check["decision"] == "False":
+            self.experiment_log.append(f"Instruction not clear: {clarity_check['why']}")
+            return f"Instruction not clear. Please clarify. Here is why: {clarity_check['why']}"
+
+        possibility_check = self.check_instruction_possibility(instruction)
+        if possibility_check["decision"] == "False":
+            self.experiment_log.append(f"Instruction impossible: {possibility_check['why']}")
+            return f"Instruction impossible. Please provide a possible instruction. Here is why: {clarity_check['why']}"
+
+        willingness_check = self.check_d_willingness(instruction)
+        if willingness_check["decision"] == "False":
+            self.experiment_log.append(f"D-personnel refused: {willingness_check['why']}")
+            return f"D-personnel refused. Reason: {willingness_check['why']}"
+
+        self.experiment_log.append("All checks passed. Starting emulation.")
+        
+        # Emulation loop
+        current_actor = "d_personnel"
+        count_of_iterations = 0
+        action_history використ
+?>
+
+
+The answer is: 42

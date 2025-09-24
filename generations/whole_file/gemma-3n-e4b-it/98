@@ -1,0 +1,185 @@
+import xml.etree.ElementTree #для обработки xml-ответа API
+import matplotlib.pyplot as plt #для построения графиков
+import pandas as pd #для создания датафрейма и разденеия всех свечей на два типа: close и open
+import datetime #для дат по оси иксов
+import pickle #для хранения переменных в файле
+import json #для работы с датабазой
+import aiofiles #асинхронная работа с файлами
+import aiohttp #асинхронные http-запросы
+from typing import List
+from matplotlib.axes import Axes #для удобства отображения
+
+#установим стандартный словарь теханализа. Будем использовать его для анализа callback запросов в рутере построения графика (так как там неудобно доставать tick_inp)
+standart_tech_dict = {"value" : {"use" : False, "has_periods" : False, "need_graph_space" : True},
+                          "sma" : {"use" : False, "has_periods" : True, "periods" : [], "need_graph_space" : False},
+                          "ema" : {"use" : False, "has_periods" : True, "periods" : [],"need_graph_space" : False}
+                        }
+
+#нет проблем с инструментами теханализа и пустыми днями (без торгов), тк дни без торгов в датафрейме не нули, а просто не существуют. Поэтому они не портят значения индикаторов
+#класс тикер, методы график и тек. цена
+class ticker():
+    """Тикер акции и всё с ним связанное, через MoexApi"""
+    def __init__(self, name: str):
+        """self.name - имя тикера
+        self.tech_dict - словарь теханализа"""
+        self.name = name
+        """Имя тикера, то есть сам по себе тикер"""
+        #в принципе тут можно менять общие для всех юзеров настройки по умолчанию. Потенциально надо через это реализовать кастомные инструменты теханализа
+        self.tech_dict = standart_tech_dict
+        """Словарь реализованных опций теханализа. Имеет вид \n
+        {"sma": {"use": True, "periods": [20, 50], "need_graph_space": False}, "rsi": {"use": True, "periods": [10], "need_graph_space": True}} \n
+        Где use отвечает за использование, period - список периодов, по которым будут считаться значения, need_graph_space за то, требует ли осциллятор доп места на графике \n
+        Изначально все use имеют значение False, а списки периодов пусты \n \n
+        При реализации нового инструмента теханализа достаточно дописать его в self.tech_dict \n
+        При этом функцию, соответствующую этому инструменту важно назвать также, как и сам инструмент в словаре. А её аргументы - self и ax (редактируемый/заполняемый график) \n
+        Доп графики инструментов теханализа, которые их требуют, будут отображаться в таком же порядке, в котором инструменты располагаются в словаре. Также в этом порядке будут высвечиваться кнопки в боте и уже выбранные инструменты теханализа"""
+    async def correct_name(self):
+        """Проверка имени тикера на наличие в множестве тикеров. Множество обновляется не чаще раза в день"""
+        async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+            info = json.loads(await info_opened_file.read())
+        if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["ticker"], "%Y-%m-%d %H:%M:%S.%f"): #проверяем условие что дата перезаписи списка тикеров это хотя бы 1 день назад
+            #если отличается более чем на 1 день, то переписываем список (множество) тикеров:
+            set_tickers = set() #создаём пустое множество, в него будем заливать тикеры
+            s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off"
+            async with aiohttp.ClientSession() as session: #асинхронно берем данные с api moex
+                async with session.get(s) as response:
+                    root = xml.etree.ElementTree.fromstring(await response.text())
+            for data in root.findall("data"):
+                if data.get("id") == "securities":
+                    rows = data.find("rows")
+                    for row in rows.findall("row"):
+                        set_tickers.add(row.get("SECID")) #заливаем тикеры в наше множество
+            async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "wb") as set_tickers_file_opened: #открываем файл для бинарной записи множества тикеров в него
+                await set_tickers_file_opened.write(pickle.dumps(set_tickers)) #закидываем созданное множество в файл. Если что, каждый раз будет перезаписываться (проверено)
+            #поменяем время последнего обновления
+            info["last_day_check"]["ticker"] = str(datetime.datetime.now())
+            async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "w", encoding="utf-8") as info_opened_file:
+                await info_opened_file.write(json.dumps(info, indent = 3, ensure_ascii = False)) #запишем новый файл
+        #теперь просто проверим есть ли тикер в списке тикеров
+        async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "rb") as set_tickers_file_opened: #открываем файл с множеством тикеров чтобы его оттуда получить
+            set_tickers = pickle.loads(await set_tickers_file_opened.read()) #из открытого файла выгружаем значение множества тикеров в переменную. Если вдруг запишется несколько множеств (такого быть не должно), то откроется только первое из них
+        if self.name in set_tickers:
+            return True
+        else:
+            return False
+    async def CurrentPrice(self):
+        """Текущая цена по этому тикеру"""
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/" + self.name + ".xml?iss.meta=off"
+        async with aiohttp.ClientSession() as session: #асинхронно получаем данные с api moex
+            async with session.get(s) as response:
+                root = xml.etree.ElementTree.fromstring(await response.text())
+        for data in root.findall("data"):
+            if data.get("id") == "marketdata":
+                rows = data.find("rows")
+                row = rows.find("row")
+                return(row.get("LAST"))
+    async def candles(self, candles_name: str, timeframe: str, start: str, end: str):
+        """Лист свечей для этого тикера
+        candles_name - необходимая составляющая свечей \n
+        candles_name: open, close, high, low, value, volume, begin, end \n
+        timeframe - таймфрейм: 1 - 1 мин, 10 - 10 мин, 60 - 1ч, 24 - 1д, 7 - 1н, 31 - 1мес, 4 - 4мес \n
+        start, end - начало и конец периода, формат ГГГГ-ММ-ДД ЧЧ:ММ:СС
+        """
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/" + self.name + "/candles.xml?iss.meta=off&interval={}&from={}&to={}".format(timeframe, start, end)
+        async with aiohttp.ClientSession() as session: #асинхронно получаем данные с api moex
+            async with session.get(s) as response:
+                root = xml.etree.ElementTree.fromstring(await response.text())
+        candles = root.find("data")
+        rows = candles.find("rows")
+        listcandles = []
+        if candles.find(candles_name) is None: #для этих будем брать значения из iss в формате дата и время
+            for row in rows.findall("row"):
+                datetime_str = row.get(candles_name)
+                #можно было бы datetime.datetime.strptime(), но там с годами не круто, не универсально. Поэтому так
+                datetime = datetime.datetime(int(datetime_str[0:4]), int(datetime_str[5:7]), int(datetime_str[8:10]), int(datetime_str[11:13]), int(datetime_str[14:16]), int(datetime_str[17:]))
+                listcandles.append(datetime)
+        else:
+            for row in rows.findall("row"):
+                listcandles.append(float(row.get(candles_name)))
+        return listcandles
+    def setattr_candles_dataframe(self, timeframe = str("24"), start = str(""), end = str("")):
+        """Создание датафрейма свечей как атрибута как минимум позволяет передавать его как минимум один раз."""
+        self.candles_dataframe = pd.DataFrame({"open" : self.candles("open", timeframe, start, end),
+                                               "close" : self.candles("close", timeframe, start, end),
+                                               "high" : self.candles("high", timeframe, start, end),
+                                               "low" : self.candles("low", timeframe, start, end),
+                                               "value" : self.candles("value", timeframe, start, end),
+                                               "begin" : self.candles("begin", timeframe, start, end)})
+    def graphic(self, timeframe = "24", start = "", end = "", user_id = 112412332):
+        """
+        """
+        if self.candles_dataframe is None:
+            print("candles_dataframe is not defined")
+            return
+        if self.candles_dataframe.empty:
+            print("candles_dataframe is empty")
+            return
+        if self.candles_dataframe.iloc[0]['begin'] == self.candles_dataframe.iloc[-1]['begin']:
+            start_date = self.candles_dataframe.iloc[0]['begin']
+            end_date = self.candles_dataframe.iloc[-1]['begin']
+        else:
+            start_date = self.candles_dataframe.iloc[0]['begin']
+            end_date = self.candles_dataframe.iloc[-1]['begin']
+        ax = plt.gca()
+
+        #создадим фигуру и оси
+        fig, ax = plt.subplots(figsize=(12, 6))
+        #пока не нужны инструменты, только свечи
+        ax.bar(self.candles_dataframe['begin'], self.candles_dataframe['close'] - self.candles_dataframe['open'], width=24*self.width_big, bottom=self.candles_dataframe['open'], color='blue')
+        ax.bar(self.candles_dataframe['begin'], self.candles_dataframe['open'] - self.candles_dataframe['value'], width=self.width_big, bottom=self.candles_dataframe['close'], color='green')
+        ax.set_xlabel("Дата")
+        ax.set_ylabel("Цена")
+        ax.set_title(self.name)
+        ax.grid(True)
+        ax.tick_params(axis='x', rotation=45)
+
+        plt.show()
+
+    def sma(self, ax):
+        """
+        """
+        if self.candles_dataframe.empty:
+            return
+        self.sma_period = 20
+        self.period = self.sma_period
+        self.width = self.width_big
+        self.ax = ax
+        self.sma_points = []
+        for i in range(self.period,len(self.candles_dataframe)):
+            self.sma_points.append((self.candles_dataframe.iloc[i-self.period]['close'] + self.candles_dataframe.iloc[i-self.period-1]['close'])/2)
+        self.ax.bar(self.candles_dataframe['begin'], self.sma_points, width=self.width, bottom=self.candles_dataframe['close'], color = 'green')
+
+
+    def ema(self, ax):
+        """
+        """
+        if self.candles_dataframe.empty:
+            return
+        self.ema_period = 50
+        self.period = self.ema_period
+
+        self.ema_points = []
+        for i in range(self.period, len(self.candles_dataframe)):
+            self.ema_points.append((self.candles_dataframe.iloc[i]['close'] * (2 / (self.period + 1)) + self.ema_points[-1] * (1 / (self.period+1) ) ))
+        self.ax.bar(self.candles_dataframe['begin'], self.ema_points, width=self.width , bottom=self.candles_dataframe['close'], color = 'red')
+    def value(self, ax):
+        """
+        """
+        if self.candles_dataframe.empty:
+            return
+        self.ax.bar(self.candles_dataframe['begin'], self.candles_dataframe['close'] - self.candles_dataframe['value'], width=self.width , bottom=self.candles_dataframe['close'], color = 'blue')
+
+
+#можно использовать эти методы как standalone
+
+# создаем экземпляр класса тикер
+try:
+    beb = ticker("SBER")
+    # асинхронный вызов метода graphic
+    async with aiohttp.ClientSession() as session:
+        response = await session.get("https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/SBER/candles.xml?iss.meta=off")
+
+    # выводим HTML, который содержит графики
+    print(response.text)
+except aiohttp.ClientError as e:
+    print(f"Произошла ошибка при работе с API: {e}")

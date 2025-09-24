@@ -1,0 +1,60 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-5, max_iters=1000):
+    """
+    Решает систему линейных уравнений Ax = b с использованием метода сопряженных градиентов.
+
+    Аргументы:
+    A (np.array): Симметричная положительно определённая матрица.
+    b (np.array): Вектор правой части.
+    x0 (np.array, optional): Начальное приближение. Если None, используется нулевой вектор. По умолчанию None.
+    tol (float, optional): Допуск сходимости. Метод останавливается, когда норма невязки
+                          становится меньше tol * норма(b). По умолчанию 1e-5.
+    max_iters (int, optional): Максимальное количество итераций. По умолчанию 1000.
+
+    Возвращает:
+    np.array: Решение x системы Ax = b.
+
+    Исключения:
+    ValueError: Если матрица A не является квадратной.
+    ValueError: Если размеры A, b и x0 несовместимы.
+    """
+    n = A.shape[0]
+    if A.shape[1] != n:
+        raise ValueError("Матрица A должна быть квадратной.")
+    if b.shape[0] != n:
+        raise ValueError("Размерность вектора b не совпадает с размерностью матрицы A.")
+
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        if x0.shape[0] != n:
+            raise ValueError("Размерность начального приближения x0 не совпадает с размерностью матрицы A.")
+        x = np.copy(x0)
+
+    # Инициализация
+    r = b - A @ x  # Невязка
+    p = np.copy(r)  # Направление поиска
+    rs_old = np.dot(r, r)  # Квадрат нормы невязки
+
+    if np.sqrt(rs_old) < tol * np.sqrt(np.dot(b, b)):
+        return x  # Начальное приближение уже достаточно точное
+
+    for i in range(max_iters):
+        Ap = A @ p
+        alpha = rs_old / np.dot(p, Ap)
+
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rs_new = np.dot(r, r)
+
+        if np.sqrt(rs_new) < tol * np.sqrt(np.dot(b, b)):
+            break  # Достигнута требуемая точность
+
+        beta = rs_new / rs_old
+        p = r + beta * p
+        rs_old = rs_new
+    else:
+        print(f"Предупреждение: Метод сопряженных градиентов не сошелся за {max_iters} итераций.")
+
+    return x

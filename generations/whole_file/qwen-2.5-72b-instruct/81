@@ -1,0 +1,137 @@
+import React from 'react';
+import styles from './CharacterStatUI.module.css';
+import Sprite from '../sprite/Sprite';
+import SingleCharacterStatUI from '../single-character-stat-ui/SingleCharacterStatUI';
+import MockChild from '../mock-child/MockChild';
+
+const CharacterStatUI = ({ charName, level, wpn, hp, atk, spd, def, res }) => {
+    const characterStats = [
+        { characterStatType: 'NAME', characterStatValue: charName },
+        { characterStatType: 'LV', characterStatValue: level },
+        { characterStatType: 'WPN', characterStatValue: wpn },
+        { characterStatType: 'HP', characterStatValue: hp },
+        { characterStatType: 'ATK', characterStatValue: atk },
+        { characterStatType: 'SPD', characterStatValue: spd },
+        { characterStatType: 'DEF', characterStatValue: def },
+        { characterStatType: 'RES', characterStatValue: res },
+    ];
+
+    console.log('Character Stats:', {
+        charName,
+        level,
+        wpn,
+        hp,
+        atk,
+        spd,
+        def,
+        res
+    });
+
+    const characterStatsSlice1 = characterStats.slice(0, 4);
+    const characterStatsSlice2 = characterStats.slice(4);
+
+    return (
+        <div className={styles.characterTable}>
+            <div className={styles.characterCell}>                
+                <div className={styles.spriteContainer}>
+                    <Sprite spriteName="PortraitAlfonse" />
+                </div>
+            </div>
+            <div className={styles.characterCell}>
+                {characterStatsSlice1.map((item, index) => (
+                    <SingleCharacterStatUI
+                        key={index}
+                        characterStatType={item.characterStatType}
+                        characterStatValue={item.characterStatValue}
+                        backgroundColor="white"
+                    />
+                ))}
+            </div>
+            <div className={styles.characterCell}>
+                {characterStatsSlice2.map((item, index) => (
+                    <SingleCharacterStatUI
+                        key={index}
+                        characterStatType={item.characterStatType}
+                        characterStatValue={item.characterStatValue}
+                        backgroundColor="white"
+                    />                        
+                ))}
+            </div>
+        </div>
+    );
+};
+
+export default CharacterStatUI;
+css
+.characterTable {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    grid-template-rows: 1fr;
+    gap: 0px;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    isolation: isolate;
+}
+
+.characterCell {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    overflow: hidden;
+}
+
+.characterHeader {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.characterLevel {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.statContainer {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    z-index: 0;
+    margin-bottom: 0;
+}
+
+.statText {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 16px;
+    color: white;
+    font-weight: bold;
+    z-index: 1;
+}
+
+.spriteContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+}
+
+.Sprite[spriteName="PortraitAlfonse"] {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}

@@ -1,0 +1,311 @@
+import pandas as pd
+import numpy as np
+
+class Stock:
+	def __init__(self, filename, name):
+		self.filename = filename
+		try:
+			self.data = pd.read_csv(self.filename,index_col=0,parse_dates=True)
+		except Exception as e:
+			print(f"Unable to read file {self.filename}")
+			raise e
+		self.data.index.name = 'time'
+		self.name = name
+		self.attrs = {}
+
+	def get_attr(self, key):
+		try:
+			return self.attrs[key]
+		except KeyError:
+			return None
+
+	def set_attr(self, key, value):
+		self.attrs[key] = value
+
+	def get(self, i):
+		return self.data.iloc[i]
+
+	def get_range(self, s, t):
+		return self.data.iloc[s:t+1]
+
+	def __len__(self):
+		return len(self.data)
+
+class Transaction:
+	def __init__(self, num, price):
+		self.num = num
+		self.price = price
+		self.date = None
+
+	def set_date(self, date):
+		self.date = date
+
+class Trade:
+	def __init__(self, stock, long=True, num=0, price=0.0):
+		self.stock = stock
+		self.num = 0
+		self.profit = 0
+		self.closed = False
+		self.long = long
+
+		self.opens = []
+		self.closes = []
+
+		if num != 0:
+			self.open(num, price)
+
+	def close(self, num, price):
+		if num > self.num:
+			raise ValueError(f"ERR: Trying to close {num} of {self.stock.name} but only {self.num} available")
+		self.num -= num
+		self.closes.append(Transaction(num, price))
+
+		if self.long:
+			self.profit = self.get_num_closed() * (self.get_avg_close_price() - self.get_avg_open_price())
+		else:
+			self.profit = self.get_num_closed() * (self.get_avg_open_price() - self.get_avg_close_price())
+
+		if self.num == 0:
+			self.closed = True
+
+	def open(self, num, price):
+		self.num += num
+
+		self.opens.append(Transaction(num, price))
+
+	def get_equity(self, i):
+		current_price = self.stock.get(i)["close"]
+		if self.long:
+			return self.num * current_price
+		else:
+			# For short trades, equity could reflect the potential cost to close the position
+			return self.num * (self.get_avg_open_price() - current_price)
+
+	def set_date(self, date):
+		[transaction.set_date(date) for transaction in self.opens if transaction.date is None]
+		[transaction.set_date(date) for transaction in self.closes if transaction.date is None]
+
+	def get_avg_open_price(self):
+		total_price = sum(transaction.price * transaction.num for transaction in self.opens)
+		total_num = sum(transaction.num for transaction in self.opens)
+		return total_price / total_num if total_num else 0
+	
+	def get_avg_close_price(self):
+		total_price = sum(transaction.price * transaction.num for transaction in self.closes)
+		total_num = sum(transaction.num for transaction in self.closes)
+		return total_price / total_num if total_num else 0
+
+	def get_num_opened(self):
+		return sum(transaction.num for transaction in self.opens)
+
+	def get_num_closed(self):
+		return sum(transaction.num for transaction in self.closes)
+
+class Strategy:
+	def __init__(self):
+		self.stocks = []
+		self.starting_money = 100000.0
+		self.money = self.starting_money
+		self.closed_trades = []
+		self.open_trades = []
+		self.attrs = {}
+		self.analyzers = []
+
+	def get_attr(self, key):
+		return self.attrs[key]
+
+	def set_attr(self, key, value):
+		self.attrs[key] = value
+
+	def add_analyzer(self, analyzer):
+		analyzer.strategy = self
+		self.analyzers.append(analyzer)
+
+	def has_open_trade(self, stock):
+		for trade in self.open_trades:
+			if stock is trade.stock:
+				return True
+		return False
+
+	def get_open_trade(self, stock):
+		for trade in self.open_trades:
+			if trade.stock is stock:
+				return trade
+		raise ValueError("No open trade on stock "+str(stock.name))
+
+	def open_trade(self, stock, num, price):
+		if self.money < num*price:
+			raise ValueError("Insufficient funds: have $"+str(self.money)+" available and trying to open "+str(num)+" of "+str(stock.name)+" at $"+str(price)+" on "+str(stock.get(self.get_attr("i")).name))
+
+		if self.has_open_trade(stock):
+			trade = self.get_open_trade(stock)
+			trade.open(num, price)
+			trade.set_date(stock.get(self.get_attr("i")).name)
+		else:
+			self.open_trades.append(Trade(stock, True, num, price))
+			self.open_trades[-1].set_date(stock.get(self.get_attr("i")).name)
+
+		self.money -= num*price
+
+	def sell(self, stock, num, price):
+		if self.has_open_trade(stock):
+			trade = self.get_open_trade(stock)
+			trade.close(num, price)
+			if trade.closed:
+				self.open_trades.remove(trade)
+				self.closed_trades.append(trade)
+			trade.set_date(stock.get(self.get_attr("i")).name)
+		else:
+			raise ValueError("No position to close in "+str(stock.name))
+
+		self.money += num*price
+
+	def get_equity(self, i):
+		res = self.money
+		for trade in self.open_trades:
+			res += trade.get_equity(i)
+		return res
+
+	def next(self, i):
+		pass
+
+class Computer:
+	def __init__(self):
+		self.stocks = []
+		self.strategies = []
+
+	def add_stock(self, stock):
+		if type(stock) is not Stock:
+			exit("ERR: called 'add_stock' on type: "+str(type(stock)))
+		self.stocks.append(stock)
+	
+	def add_strategy(self, strategy):
+		if not isinstance(strategy, Strategy):
+			exit("ERR: called 'add_strategy' on type: "+str(type(strategy)))
+		self.strategies.append(strategy)
+
+	def run(self):
+		# put stocks in strategies
+		for strategy in self.strategies:
+			j = 1
+			for stock in self.stocks:
+				strategy.stocks = [stock]
+				print(f"stock #{j}/{len(self.stocks)}")
+				j += 1
+
+				# run every day on the strategies
+				for i in range(len(stock)):
+					# Get base values from original data
+					base_values = stock.data.iloc[i].copy()
+					
+					# Determine number of samples to take per candle
+					samples_per_candle = strategy.get_attr("samples_per_candle") if strategy.get_attr("samples_per_candle") is not None else 5
+					
+					# Create temporary data frame to store sampled data
+					temp_data = pd.DataFrame([base_values], index=[stock.data.index[i]])
+					candle_start_time = stock.data.index[i]
+					
+					# Create samples
+					for sample_no in range(samples_per_candle):
+						# Create a sample with slightly varying OHLCV values
+						sample_data = base_values.copy()
+						
+						# Generate random variations (this is a simplified version - you can customize this)
+						# For simplicity, let's vary close price by up to 2% and volatility around the close
+						close_variation = np.random.uniform(-0.02, 0.02)
+						volume_variation = np.random.uniform(0.95, 1.05)  # Volume varies ±5%
+						
+						# Modify open, high, low, close
+						close_price = sample_data['close']
+						open_price = sample_data['open']
+						high_price = sample_data['high']
+						low_price = sample_data['low']
+						
+						# Update close and adjust other prices relative to close
+						sample_data['close'] = close_price * (1 + close_variation)
+						
+						# For OHLC, simulate price movements throughout the candle
+						if sample_data['close'] > open_price:
+							# Bullish candle
+							high_change = max(0, close_variation * 3)
+							low_change = min(0, close_variation / 2)
+						else:
+							# Bearish candle
+							high_change = max(0, close_variation / 2)
+							low_change = min(0, close_variation * 3)
+							
+						# Apply changes
+						sample_data['high'] = max(high_price, sample_data['close'] * (1 + high_change))
+						sample_data['low'] = min(low_price, sample_data['close'] * (1 + low_change))
+						sample_data['open'] = sample_data['close'] * (1 - close_variation/2)
+						
+						# Adjust volume
+						sample_data['volume'] = int(sample_data['volume'] * volume_variation)
+						
+						# Use the index and name convention to distinguish sample times
+						sample_time = f"{candle_start_time}_sample_{sample_no+1}"
+						
+						# Store the sample
+						temp_data.loc[sample_time] = sample_data
+					
+					# Add a final complete candle 
+					final_sample = base_values.copy()
+					final_sample['close'] = base_values['close']  # Restore original close
+					final_sample['open'] = base_values['open']
+					final_sample['high'] = base_values['high']
+					final_sample['low'] = base_values['low']
+					final_sample['volume'] = base_values['volume']
+					final_sample_time = f"{candle_start_time}_complete"
+					temp_data.loc[final_sample_time] = final_sample
+					
+					# Run simulation for each sample
+					for sample_index in temp_data.index[:-1]:  # Skip the completed candle
+						# Temporarily modify stock data for this sample run
+						current_sample = temp_data.loc[sample_index]
+
+						# Save the original data so we can restore it later
+						original_data = stock.data.iloc[i].copy()
+
+						# Modify stock data to reflect current sample
+						for col in ['open', 'high', 'low', 'close', 'volume']:
+							stock.data.iloc[i][col] = current_sample[col]
+							
+						# Set sample-specific attributes
+						strategy.set_attr("i", sample_index)
+						strategy.set_attr("sample", sample_index)
+						strategy.set_attr("is_complete_candle", False)
+						
+						# Run strategy on sample
+						strategy.next(i)
+
+						for analyzer in strategy.analyzers:
+							analyzer.next(i)
+							
+						# Restore original data for next sample iteration
+						for col in ['open', 'high', 'low', 'close', 'volume']:
+							stock.data.iloc[i][col] = original_data[col]
+
+					# Process the completed candle (last entry)
+					final_candle_data = temp_data.iloc[-1]
+					# Update stock data to completed candle values before processing
+					for col in ['open', 'high', 'low', 'close', 'volume']:
+						stock.data.iloc[i][col] = final_candle_data[col]
+						
+					# Process the final completed candle with original data
+					strategy.set_attr("i", i)
+					strategy.set_attr("sample", None)
+					strategy.set_attr("is_complete_candle", True)
+										
+					for analyzer in strategy.analyzers:
+						analyzer.next(i)
+
+					# close any open trades on the end of the last day
+					if i == len(stock)-1:
+						for strat in self.strategies:
+							while len(strat.open_trades) > 0:
+								trade = strat.open_trades[0]
+								strat.sell(trade.stock, trade.num, trade.stock.get(i)["close"])
+
+		# get rid of strategies
+		for strategy in self.strategies:
+			strategy.stocks = []

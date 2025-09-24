@@ -1,0 +1,41 @@
+import os
+import shutil
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+# Папка со всеми фотографиями / папка с фотографиями для тренировки
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+# Считываем названия директорий, которые и являются видом затмения
+ECLIPSE_LIST = {i: name for i, name in enumerate(os.listdir(TRAIN_DIR))}
+
+# Папка с фотографиями для валидации
+VAL_DIR = os.path.join(DATA_PATH, "val")
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Папка с фотографиями для теста
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+# Доля изображений в валидации
+VAL_FRAC = 0.3
+
+# Разбиваем train выборку на train и val
+for eclipse in ECLIPSE_LIST.values():
+    # Создаем директорию с валидационной выборкой для каждого вида затмения.
+    os.makedirs(os.path.join(VAL_DIR, eclipse), exist_ok=True)
+
+    # Считываем выборку изображений из train
+    class_train_dir = os.path.join(TRAIN_DIR, eclipse)
+    images = sorted(os.listdir(class_train_dir))
+
+    # Разделяем на train и val с сохранением reproducibility
+    train_imgs, val_imgs = train_test_split(
+        images, test_size=VAL_FRAC, random_state=42, shuffle=True
+    )
+
+    print(f'{eclipse} | train images = {len(train_imgs)} | val images = {len(val_imgs)}')
+
+    # Перемещаем файлы в val и оставляем остальные в train
+    for img_name in val_imgs:
+        src = os.path.join(class_train_dir, img_name)
+        dst = os.path.join(VAL_DIR, eclipse, img_name)
+        shutil.move(src, dst)

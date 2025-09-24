@@ -1,0 +1,64 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Метод сопряжённых градиентов для решения системы линейных уравнений Ax = b.
+    
+    Параметры:
+    A : ndarray, shape (n, n)
+        Симметричная положительно определённая матрица или объект,
+        поддерживающий операцию A.dot(v).
+    b : ndarray, shape (n,)
+        Вектор правой части.
+    x0 : ndarray, shape (n,), optional
+        Начальное приближение. По умолчанию нулевой вектор.
+    tol : float, optional
+        Допустимая точность по норме невязки. По умолчанию 1e-8.
+    max_iter : int, optional
+        Максимальное число итераций. По умолчанию не больше n.
+    
+    Возвращает:
+    x : ndarray, shape (n,)
+        Приближённое решение.
+    info : dict
+        Словарь с полями:
+            'num_iter'     -- число итераций,
+            'residual_norm'-- норма невязки ||b - A x|| при окончании.
+    """
+    n = b.shape[0]
+    if x0 is None:
+        x = np.zeros(n, dtype=float)
+    else:
+        x = x0.astype(float)
+    r = b - A.dot(x)
+    p = r.copy()
+    rs_old = np.dot(r, r)
+    if max_iter is None:
+        max_iter = n
+
+    info = {'num_iter': 0, 'residual_norm': np.sqrt(rs_old)}
+    for k in range(max_iter):
+        Ap = A.dot(p)
+        alpha = rs_old / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rs_new = np.dot(r, r)
+        info['num_iter'] = k + 1
+        info['residual_norm'] = np.sqrt(rs_new)
+        if np.sqrt(rs_new) < tol:
+            break
+        beta = rs_new / rs_old
+        p = r + beta * p
+        rs_old = rs_new
+
+    return x, info
+
+
+if __name__ == "__main__":
+    # Пример использования
+    A = np.array([[4.0, 1.0],
+                  [1.0, 3.0]])
+    b = np.array([1.0, 2.0])
+    x, info = conjugate_gradient(A, b)
+    print("Решение x:", x)
+    print("Информация о сходимости:", info)

@@ -1,0 +1,289 @@
+import os
+import random
+import torch
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import precision_score, recall_score
+from torch.nn import functional as F
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
+import seaborn as sns
+from colpali_engine.interpretability import (
+    get_similarity_maps_from_embeddings,
+    plot_all_similarity_maps,
+)
+
+# Path to extracted Flickr8k dataset
+FLICKR8K_IMAGES_PATH = "flickr8k/Images"
+FLICKR8K_CAPTIONS_PATH = "flickr8k/captions.txt"
+
+# Function to load image-text pairs from Flickr8k
+def load_flickr8k_data(images_path, captions_path, fraction=0.1):
+    # Read captions file
+    with open(captions_path, "r") as f:
+        captions_data = f.readlines()[1:]  # Skip header
+
+    # Parse captions
+    image_text_pairs = {}
+    for line in captions_data:
+        image_name, caption = line.strip().split(",", 1)
+        if image_name not in image_text_pairs:
+            image_text_pairs[image_name] = []
+        image_text_pairs[image_name].append(caption)
+
+    # Load only a fraction of the dataset
+    selected_images = random.sample(list(image_text_pairs.keys()), int(len(image_text_pairs) * fraction))
+    image_text_pairs = {k: image_text_pairs[k] for k in selected_images}
+
+    # Create pairs of images and captions
+    pairs = []
+    for image_name, captions in image_text_pairs.items():
+        image_path = os.path.join(images_path, image_name)
+        if os.path.exists(image_path):
+            pairs.append((Image.open(image_path), random.choice(captions)))
+    return pairs
+
+# Function to create unrelated pairs
+def create_unrelated_pairs(image_text_pairs):
+    """
+    Creates unrelated pairs of images and texts by randomly shuffling the texts.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing (image, text) pairs.
+
+    Returns:
+        list: A list of tuples containing (image, unrelated_text).
+    """
+    images, texts = zip(*image_text_pairs)
+    unrelated_texts = random.sample(texts, len(texts))
+    return list(zip(images, unrelated_texts))
+
+
+def create_visual_pairs(image_text_pairs):
+    """
+    Creates pairs of original and augmented images from image-text pairs.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing (image, text) pairs.
+
+    Returns:
+        list: A list of tuples containing (original_image, augmented_image).
+    """
+    from torchvision.transforms import ToTensor
+    images, _ = zip(*image_text_pairs)
+    augmented_images = [ToTensor()(image).flip(-1) for image in images]  # Example augmentation: horizontal flip
+    return list(zip(images, augmented_images))
+
+
+def get_embeddings(images, texts, model_id="google/siglip-base-patch16-224"):
+    """
+    Given lists of images and texts, returns normalized embeddings for both.
+    """
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = AutoModel.from_pretrained(model_id, ignore_mismatched_sizes=True).to(device)
+    processor = AutoProcessor.from_pretrained(model_id)
+
+    # Preprocess images and texts
+    image_inputs = processor(images=images, return_tensors="pt").to(device)
+    text_inputs = processor(text=texts, return_tensors="pt", padding="max_length").to(device)
+
+    with torch.no_grad():
+        image_embeds = model.get_image_features(**image_inputs)
+        text_embeds = model.get_text_features(**text_inputs)
+
+    # Normalize embeddings
+    image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+    text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+
+    return image_embeds, text_embeds
+
+
+def cosine_similarity_analysis(embeddings1, embeddings2, title):
+    """
+    Computes cosine similarity for matching and unrelated pairs and compares distributions.
+    """
+    similarities = cosine_similarity(embeddings1.cpu().numpy(), embeddings2.cpu().numpy())
+
+    # Matching pairs: Diagonal of the similarity matrix
+    matching_similarities = np.diag(similarities)
+
+    # Unrelated pairs: Off-diagonal similarities
+    unrelated_similarities = similarities[~np.eye(similarities.shape[0], dtype=bool)]
+
+    print(f"### {title} ###")
+    print(f"Mean Matching Similarity: {np.mean(matching_similarities):.4f}")
+    print(f"Mean Unrelated Similarity: {np.mean(unrelated_similarities):.4f}")
+
+    # Plot distributions
+    plt.figure(figsize=(10, 6))
+    sns.histplot(matching_similarities, kde=True, label="Matching Pairs", color="blue", bins=30)
+    sns.histplot(unrelated_similarities, kde=True, label="Unrelated Pairs", color="red", bins=30)
+    plt.title(f"{title}: Cosine Similarity Distributions")
+    plt.xlabel("Cosine Similarity")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.show()
+
+
+### b. Nearest-Neighbor Retrieval
+def retrieval_metrics(query_embeds, target_embeds, ground_truth_indices, k=5):
+    """
+    Computes Precision@k and Recall@k for nearest-neighbor retrieval.
+
+    Args:
+        query_embeds (torch.Tensor): Embeddings of the query data.
+        target_embeds (torch.Tensor): Embeddings of the target data (database).
+        ground_truth_indices (list): List of indices in the target data representing the true matches for each query.
+        k (int): The number of top results to consider.
+
+    Returns:
+        tuple: A tuple containing Precision@k and Recall@k.
+    """
+    similarities = cosine_similarity(query_embeds.cpu().numpy(), target_embeds.cpu().numpy())
+    sorted_indices = np.argsort(-similarities, axis=1)[:, :k]  # Top-k indices
+
+    # Compute metrics
+    precisions = []
+    recalls = []
+    for i, true_idx in enumerate(ground_truth_indices):
+        retrieved_indices = sorted_indices[i]
+        true_positives = int(true_idx in retrieved_indices)
+        precisions.append(true_positives / k)
+        recalls.append(true_positives / 1)  # Only one true match per query
+
+    mean_precision = np.mean(precisions)
+    mean_recall = np.mean(recalls)
+
+    return mean_precision, mean_recall
+
+def plot_query_token_importance(
+    pil_image,
+    similarity_maps,
+    query_tokens,
+    alpha: float = 0.5
+) -> None:
+    """
+    Plot a separate heatmap for each query token in the similarity_maps.
+
+    Args:
+        pil_image (PIL.Image.Image): The original image (e.g., loaded via Image.open(...)).
+        similarity_maps (torch.Tensor): Embeddings between images and queries.
+        query_tokens (List[str]): A list of strings for each token in the query.
+        alpha: Transparency for the heatmap overlays.
+    """
+    # Convert PIL to numpy array
+    image_np = np.array(pil_image)
+    H, W = image_np.shape[:2]
+
+    num_tokens = similarity_maps.size(0)
+    axs = []
+    if num_tokens == 1:
+        axs = [plt.subplots(1, 1)]
+    else:
+        fig, axs = plt.subplots(1, num_tokens, figsize=(5 * num_tokens, 5))
+    
+    for idx, token in enumerate(query_tokens):
+        # Convert to numpy to ensure it can be plotted
+        if isinstance(similarity_maps, torch.Tensor):
+            similarity_map = similarity_maps[idx].cpu().numpy()
+        else:
+            similarity_map = similarity_maps[idx]
+
+        pixel_map = np.zeros((H,W))
+        # Convert map to NumPy and upsample
+        if isinstance(similarity_map, torch.Tensor):
+            similarity_map = similarity_map.cpu().numpy()
+            similarity_map = torch.nn.functional.interpolate(similarity_map.float(), size=(H,W), mode='bilinear', align_corners=False).numpy()  # Correct usage
+        else:
+            similarity_map = similarity_map
+
+        # Normalize the map and convert to 0-1 range
+        similarity_map /= similarity_map.max()
+
+        # Add a heatmap to the subplot
+        ax = axs[idx]
+        ax.imshow(similarity_map, cmap='jet', alpha=alpha)
+        ax.set_title(f"Token: {token}")
+        ax.axis('off')
+    plt.tight_layout()
+    plt.show()
+
+
+
+def create_single_patch_image(
+    n_patches_x,
+    n_patches_y,
+    patch_size,
+    main_color,
+    special_color,
+    special_patch,
+    text="Hello",
+    text_color=(255, 255, 255),
+    font_size=16,
+):
+    """
+    Creates an image composed of colored patches, with one word (or text)
+    inside the special patch area.
+    """
+    # Create a 3D NumPy array for the image
+    img_height = n_patches_y * patch_size
+    img_width = n_patches_x * patch_size
+    image_data = np.zeros((img_height, img_width, 3), dtype=np.uint8)
+
+    # Fill the entire image with the main color
+    image_data[:, :] = main_color
+
+    # Assign the special color to the special patch
+    special_row, special_col = special_patch
+    image_data[
+        special_row * patch_size : (special_row + 1) * patch_size,
+        special_col * patch_size : (special_col + 1) * patch_size
+    ] = special_color
+
+    # Convert to PIL Image
+    img = Image.fromarray(image_data)
+    draw = ImageDraw.Draw(img)
+
+    # Load font with specified size
+    try:
+        url = "https://github.com/google/fonts/raw/main/apache/Roboto-Regular.ttf"
+        response = requests.get(url)
+        font_path = "Roboto-Regular.ttf"
+        with open(font_path, "wb") as font_file:
+            font_file.write(response.content)
+        font = ImageFont.truetype(font_path, font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Calculate text bounding box to center the text
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    text_x = (img_width - text_width) // 2
+    text_y = (img_height - text_height) // 2
+
+    draw.text((text_x, text_y), text, fill=text_color, font=font)
+
+    return img
+
+
+def write_on_images():
+
+    # Importing the PIL library
+    from PIL import Image, ImageDraw
+    
+    # Open an Image
+    img = Image.open('kirby.jpeg')
+    
+    # Call draw Method to add 2D graphics in an image
+    I1 = ImageDraw.Draw(img)
+    
+    # Add Text to an image
+    I1.text((28, 36), "nice Car", fill=(255, 0, 0))
+    
+    # Display edited image
+    img.show()
+    
+    # Save the edited image
+    img.save("car2.png")

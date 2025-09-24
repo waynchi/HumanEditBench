@@ -1,0 +1,25 @@
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+import numpy as np
+
+# Assuming brand_A, brand_B, brand_C, and all_data are defined
+# For the sake of completeness, let's define some example data
+brand_A = np.random.randn(10)
+brand_B = np.random.randn(10)
+brand_C = np.random.randn(10)
+all_data = np.concatenate([brand_A, brand_B, brand_C])
+
+data = {
+ 'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+ 'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# Perform ANOVA analysis
+model = sm.OLS(df['Cost'], sm.add_constant(pd.Categorical(df['Brand']).codes)).fit()
+anova_table = sm.stats.anova_lm(model, typ=2)
+
+# Print the ANOVA table
+print(anova_table)

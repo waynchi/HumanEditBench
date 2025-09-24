@@ -1,0 +1,30 @@
+import nltk
+from nltk.corpus import words
+
+# Ensure you have downloaded the 'words' corpus with nltk
+# nltk.download('words')
+
+def find_words_by_length(length):
+    word_list = [word for word in words.words() if len(word) == length]
+    return word_list[:10]
+
+def main():
+    while True:
+        try:
+            n = int(input("Podaj liczbę znaków (N): "))
+            if n <= 0:
+                print("Proszę podać liczbę większą od 0.")
+                continue
+            results = find_words_by_length(n)
+            if not results:
+                print(f"Brak słów o długości {n}.")
+            else:
+                print(f"Słowa o długości {n}:")
+                for word in results:
+                    print(word)
+            break
+        except ValueError:
+            print("Proszę wprowadzić poprawną liczbę.")
+
+if __name__ == "__main__":
+    main()

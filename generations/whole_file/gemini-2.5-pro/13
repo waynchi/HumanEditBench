@@ -1,0 +1,42 @@
+An `Extra data` error when parsing JSON from a streaming API, like Ollama's default `/api/generate` endpoint, typically means the client is receiving multiple JSON objects but is trying to parse them as a single object.
+
+The fix is to instruct the Ollama API to send the response as a single, non-streamed object. This is achieved by adding `"stream": False` to the request payload.
+
+Additionally, I've added a print statement to the exception handler to make future errors easier to diagnose.
+python
+import requests
+
+def interact_with_local_llm(prompt, base_url="http://localhost:11434"):
+    """
+    Interact with a local LLM using the Ollama API.
+
+    :param prompt: The input prompt for the LLM.
+    :param base_url: The base URL of the Ollama API.
+    :return: The response from the LLM.
+    """
+    endpoint = f"{base_url}/api/generate"
+    payload = {
+        "model": "llama3.2:latest",  # Replace with your model name
+        "prompt": prompt,
+        "max_tokens": 2048,  # Adjust as needed
+        "stream": False  # Add this line to disable streaming and fix the JSON error
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json().get('response', '')
+    except requests.exceptions.RequestException as e:
+        # Added a print statement for better error visibility
+        print(f"An error occurred: {e}")
+        return None
+
+# Example usage
+if __name__ == "__main__":
+    prompt = "Hello, how are you?"
+    response = interact_with_local_llm(prompt)
+    if response:
+        print(f"LLM Response: {response}")

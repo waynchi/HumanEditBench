@@ -1,0 +1,13 @@
+
+def can_be_expressed_as_sum_of_four_non_zero_squares(n):
+    # A number can be expressed as the sum of four non-zero squares if and only if it is not of the form 4^a(8b + 7)
+    while n % 4 == 0:
+        n //= 4
+    return n % 8 != 7
+
+# Example usage:
+number = 30
+if can_be_expressed_as_sum_of_four_non_zero_squares(number):
+    print(f"{number} can be expressed as the sum of four non-zero squares.")
+else:
+    print(f"{number} cannot be expressed as the sum of four non-zero squares.")

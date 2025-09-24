@@ -1,0 +1,11 @@
+import pandas as pd
+
+def create_column(df):
+    if 'EventId' not in df.columns:
+        return df
+    # Ensure the Frequency column exists
+    if 'Frequency' not in df.columns:
+        df['Frequency'] = pd.NA
+    # Set 117 for rows where EventId is 'E16'
+    df.loc[df['EventId'] == 'E16', 'Frequency'] = 117
+    return df

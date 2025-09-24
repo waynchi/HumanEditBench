@@ -1,0 +1,39 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    # Read and parse input data more efficiently
+    lines = parse_input_file()
+    
+    # Better error handling for input parsing
+    try:
+        cols = [line.split("   ") for line in lines if line.strip()]  # Skip empty lines
+        cols = np.array(cols, dtype=int).T  # Convert directly to int
+    except (ValueError, IndexError) as e:
+        print(f"Error parsing input data: {e}")
+        return
+
+    # Use numpy arrays for better performance
+    array_1 = cols[0]
+    array_2 = cols[1]
+    
+    # Calculate all distances at once using numpy operations
+    sorted_1 = np.sort(array_1)
+    sorted_2 = np.sort(array_2)
+    
+    # Vectorized calculation of absolute differences
+    all_dists = np.abs(sorted_1 - sorted_2)
+    
+    # Output result
+    total_distance = np.sum(all_dists)
+    print(f"Total distance: {total_distance}")
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

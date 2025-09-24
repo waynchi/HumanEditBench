@@ -1,0 +1,14 @@
+# 记录当前路径为cwd
+cwd = os.getcwd()
+from pymilvus import connections, FieldSchema, CollectionSchema, DataType, Collection
+
+# 创建向量数据库连接
+connections.connect("default", host="localhost", port="19530")
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+fields = [
+    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+    FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=DIM_VALUE)
+]
+schema = CollectionSchema(fields, "example collection")
+client = Collection(name=TABLE_NAME, schema=schema)

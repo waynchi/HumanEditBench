@@ -1,0 +1,26 @@
+import random
+from nltk.corpus import words
+
+def get_words_with_length(n):
+    word_list = words.words()
+    filtered_words = [word for word in word_list if len(word) == n]
+    return random.sample(filtered_words, min(10, len(filtered_words)))
+
+def main():
+    try:
+        n = int(input("Enter the number of characters: "))
+        if n <= 0:
+            print("Please enter a positive integer.")
+            return
+        result = get_words_with_length(n)
+        if result:
+            print("Here are 10 words with", n, "characters:")
+            for word in result:
+                print(word)
+        else:
+            print("No words found with", n, "characters.")
+    except ValueError:
+        print("Invalid input. Please enter a valid integer.")
+
+if __name__ == "__main__":
+    main()

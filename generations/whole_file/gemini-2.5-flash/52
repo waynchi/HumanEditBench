@@ -1,0 +1,29 @@
+from main13 import knn, mlp
+import pandas as pd
+
+for pclass in [1, 2, 3]:
+    for fare in range(10, 200, 10):
+        for embarked_port in ["S", "Q", "C"]:
+            # Create a DataFrame for a single passenger
+            my_df = pd.DataFrame([{
+                "Pclass": pclass,
+                "Name": 24,  # Assuming Name is a placeholder for a numerical feature
+                "Sex": 0,    # Assuming Sex is already encoded (e.g., 0 for male, 1 for female)
+                "Age": 19,
+                "SibSp": 0,
+                "Parch": 0,
+                "Fare": fare,
+                "Embarked": embarked_port
+            }])
+            my_df = pd.get_dummies(my_df, columns=["Embarked"], prefix="Embarked") #делаем one-hot
+            if "Embarked_S" in my_df.columns:
+                my_df["Embarked_S"] = my_df["Embarked_S"].map({True: 1, False: 0})
+            if "Embarked_C" in my_df.columns:
+                my_df["Embarked_C"] = my_df["Embarked_C"].map({True: 1, False: 0})
+            if "Embarked_Q" in my_df.columns:
+                my_df["Embarked_Q"] = my_df["Embarked_Q"].map({True: 1, False: 0})
+
+            print(f"""-------------------------------------------------------
+                  Параметры: класс {pclass}, плата {fare}, embarked {embarked_port}
+                  По knn: {knn.predict(my_df)}
+                  По mlp: {mlp.predict(my_df)}""")

@@ -1,0 +1,65 @@
+function createTurnState(allyStates, foeStates) {
+  // Encontrar el turno actual basado en qué grupo todavía tiene unidades que pueden actuar
+  let currentTurn = 'player'; // Initialize current turn to player
+  let turnNumber = 1;
+
+  // Determine initial turn based on available units
+  function initializeCurrentTurn() {
+    const allyAvailable = allyStates.some(unit => !unit.hasActed);
+    const foeAvailable = foeStates.some(unit => !unit.hasActed);
+    
+    if (!allyAvailable) {
+      currentTurn = 'cpu';
+    } else if (!foeAvailable) {
+      currentTurn = 'player';
+    }
+  }
+  
+  initializeCurrentTurn();
+
+  function getCurrentTurn() {
+    return currentTurn;
+  }
+
+  function getTurnNumber() {
+    return turnNumber;
+  }
+
+  function nextTurn() {
+    if (currentTurn === "player") {
+      currentTurn = "cpu";
+      allyStates.forEach(unit => unit.hasActed = true);
+      foeStates.forEach(unit => unit.hasActed = false);
+      cpuTurn();
+    } else {
+      currentTurn = "player";
+      foeStates.forEach(unit => unit.hasActed = true);
+      allyStates.forEach(unit => unit.hasActed = false);
+      turnNumber++; // Increment turn number only after player's turn
+    }
+    // Reset action availability for all units at the start of a new turn
+  }
+
+  function cpuTurn() {
+    // Example CPU behavior (replace with your actual AI logic)
+    for (const cpuUnit of foeStates) {
+      if (!cpuUnit.hasActed) { // Check if the unit has already acted this turn
+        // Perform CPU actions (e.g., movement, attack)
+        // ... your CPU AI logic here ...
+
+        cpuUnit.hasActed = true; // Mark the unit as having acted
+      }
+    }
+
+    // After all CPU units have acted (or decided not to), end the CPU's turn
+    nextTurn(); // Automatically switch back to player's turn
+  }  
+
+  return {
+    getCurrentTurn,
+    getTurnNumber,
+    nextTurn
+  };
+}
+
+export { createTurnState };

@@ -1,0 +1,173 @@
+import numpy as np
+from typing import Callable, Optional, Tuple, Union, Dict, Any
+
+ArrayLike = Union[np.ndarray, list, tuple]
+
+def _as_linear_operator(A: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]):
+    """
+    Вспомогательная оболочка: возвращает функцию matvec(x) для оператора A.
+    A может быть:
+      - numpy.ndarray (матрица),
+      - функция/объект, принимающий вектор и возвращающий A @ x.
+    """
+    if callable(A):
+        return A
+    A = np.asarray(A)
+    if A.ndim != 2 or A.shape[0] != A.shape[1]:
+        raise ValueError("Матрица A должна быть квадратной (или передан корректный callable).")
+    def matvec(x: np.ndarray) -> np.ndarray:
+        return A.dot(x)
+    return matvec
+
+def _as_preconditioner(M: Optional[Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]]):
+    """
+    Вспомогательная оболочка для предобуславливателя M.
+    M может быть:
+      - None (нет предобуславливания),
+      - numpy.ndarray (предполагается обратная матрица предобуславливателя, или сам предобуславливатель в форме умножения),
+      - callable: функция, выполняющая действие M^{-1} на вектор (то есть возвращающая z = M^{-1} r).
+    Мы требуем, чтобы M(r) возвращал z = M^{-1} r.
+    """
+    if M is None:
+        return lambda x: x.copy()
+    if callable(M):
+        return M
+    M = np.asarray(M)
+    if M.ndim != 2 or M.shape[0] != M.shape[1]:
+        raise ValueError("Предобуславливатель M должен быть квадратной матрицей или callable.")
+    # Попробуем применять M как приближение обратной матрицы: z = M @ r
+    def apply_Minv(r: np.ndarray) -> np.ndarray:
+        return M.dot(r)
+    return apply_Minv
+
+def conjugate_gradient(
+    A: Union[np.ndarray, Callable[[np.ndarray], np.ndarray]],
+    b: ArrayLike,
+    x0: Optional[ArrayLike] = None,
+    tol: float = 1e-8,
+    maxiter: Optional[int] = None,
+    M: Optional[Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]] = None,
+    callback: Optional[Callable[[np.ndarray], None]] = None,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Метод сопряжённых градиентов для решения задачи A x = b.
+    
+    Параметры:
+    - A: квадратная симметричная положительно определённая матрица (numpy.ndarray)
+         либо callable, выполняющий умножение на A: y = A(x).
+    - b: правая часть (вектор).
+    - x0: начальное приближение (по умолчанию нулевой вектор).
+    - tol: относительная точность по норме невязки (||r|| <= tol * ||b||). Если ||b|| == 0,
+           используется абсолютная норма: ||r|| <= tol.
+    - maxiter: максимальное число итераций. По умолчанию равен размерности задачи.
+    - M: предобуславливатель; должен реализовывать действие M^{-1} на вектор r (callable),
+         или быть матрицей, которую мы будем умножать: z = M @ r (аппроксимация M^{-1}).
+         Если None, предобуславливание не используется.
+    - callback: опциональная функция, вызываемая после каждой итерации с текущим x.
+    
+    Возвращает:
+    - x: приближённое решение.
+    - info: словарь с полями:
+        - 'nit': число выполненных итераций,
+        - 'residual_norms': список норм невязки ||r_k|| на каждой итерации (включая начальную),
+        - 'converged': булево, True если достигнута требуемая точность.
+    
+    Примечание: алгоритм реализован для (возможно) предобусловленного CG:
+    z_k = M^{-1} r_k, beta = (r_{k+1}^T z_{k+1}) / (r_k^T z_k).
+    """
+    A_matvec = _as_linear_operator(A)
+    apply_Minv = _as_preconditioner(M)
+
+    b = np.asarray(b, dtype=float)
+    n = b.shape[0]
+    if x0 is None:
+        x = np.zeros_like(b, dtype=float)
+    else:
+        x = np.asarray(x0, dtype=float).copy()
+        if x.shape != b.shape:
+            raise ValueError("Размерность x0 должна совпадать с размерностью b.")
+
+    if maxiter is None:
+        maxiter = n
+
+    # начальная невязка
+    r = b - A_matvec(x)
+    b_norm = np.linalg.norm(b)
+    r_norm = np.linalg.norm(r)
+    tol_eff = tol * (b_norm if b_norm != 0 else 1.0)
+
+    residual_norms = [r_norm]
+
+    if r_norm <= tol_eff:
+        return x, {'nit': 0, 'residual_norms': residual_norms, 'converged': True}
+
+    z = apply_Minv(r)
+    rz_old = np.dot(r, z)  # скалярное произведение r^T z
+
+    p = z.copy()  # начальное направление
+
+    converged = False
+    for k in range(1, maxiter + 1):
+        Ap = A_matvec(p)
+        pAp = np.dot(p, Ap)
+        if pAp == 0.0:
+            # Неожиданно нулевое p^T A p, дальнейшее обновление невозможно
+            break
+        alpha = rz_old / pAp
+
+        x += alpha * p
+        r -= alpha * Ap
+
+        r_norm = np.linalg.norm(r)
+        residual_norms.append(r_norm)
+        if callback is not None:
+            try:
+                callback(x)
+            except Exception:
+                # не прерываем алгоритм из-за исключения в callback
+                pass
+
+        if r_norm <= tol_eff:
+            converged = True
+            nit = k
+            break
+
+        z = apply_Minv(r)
+        rz_new = np.dot(r, z)
+        # защита от деления на ноль
+        if rz_old == 0.0:
+            break
+        beta = rz_new / rz_old
+
+        p = z + beta * p
+
+        rz_old = rz_new
+        nit = k
+
+    else:
+        # цикл завершился без break и не достигнут tol
+        nit = maxiter
+
+    info = {
+        'nit': nit,
+        'residual_norms': residual_norms,
+        'converged': converged
+    }
+    return x, info
+
+
+if __name__ == "__main__":
+    # Пример использования и простая проверка
+    # создаём симметричную положительно определённую матрицу A
+    np.random.seed(0)
+    n = 6
+    B = np.random.randn(n, n)
+    A = B.T.dot(B) + 1e-3 * np.eye(n)  # SPD
+    x_true = np.arange(1, n + 1).astype(float)
+    b = A.dot(x_true)
+
+    x_approx, info = conjugate_gradient(A, b, tol=1e-10)
+    print("Сошёлся:", info['converged'])
+    print("Итераций:", info['nit'])
+    print("Ошибка ||x-x_true||:", np.linalg.norm(x_approx - x_true))
+    print("Невязки:", info['residual_norms'])

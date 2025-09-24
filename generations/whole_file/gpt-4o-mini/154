@@ -1,0 +1,36 @@
+import random
+
+def create_dictionary():
+    # This function simulates a simple English dictionary.
+    # In a real scenario, you might want to use a comprehensive dictionary source.
+    return [
+        "apple", "banana", "grape", "orange", "kiwi",
+        "mango", "pear", "peach", "berry", "papaya",
+        "date", "fig", "plum", "apricot", "blueberry",
+        "cranberry", "lime", "lemon", "pomegranate", "guava"
+    ]
+
+def find_words_by_length(words, length):
+    # Filter words that have the specified length
+    return [word for word in words if len(word) == length]
+
+def main():
+    dictionary = create_dictionary()
+    
+    while True:
+        try:
+            n = int(input("请输入您想要的单词长度 (或输入-1退出): "))
+            if n == -1:
+                break
+
+            words_of_length = find_words_by_length(dictionary, n)
+            if words_of_length:
+                selected_words = random.sample(words_of_length, min(10, len(words_of_length)))
+                print("找到的单词: ", selected_words)
+            else:
+                print("找不到具有该字符数的单词。")
+        except ValueError:
+            print("请输入一个有效的整数。")
+
+if __name__ == "__main__":
+    main()

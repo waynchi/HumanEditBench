@@ -1,0 +1,68 @@
+# Папка со всеми фотографиями / папка с фотографиями для тренировки
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+# Считываем названия директорий-классов (только папки), сортируем для детерминизма
+ECLIPSE_LIST = {
+    i: name
+    for i, name in enumerate(
+        sorted(
+            d for d in os.listdir(TRAIN_DIR)
+            if os.path.isdir(os.path.join(TRAIN_DIR, d))
+        )
+    )
+}
+
+# Папка с фотографиями для валидации
+VAL_DIR = os.path.join(DATA_PATH, "val")
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Папка с фотографиями для теста
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+# Доля изображений в валидации
+VAL_FRAC = 0.3
+
+# Генератор случайных чисел для детерминированного сплита
+rng = np.random.RandomState(42)
+IMG_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tif", ".tiff", ".webp"}
+
+# Создаем директорию с валидационной выборкой для каждого вида затмения и переносим часть изображений
+for eclipse in ECLIPSE_LIST.values():
+    val_class_dir = os.path.join(VAL_DIR, eclipse)
+    os.makedirs(val_class_dir, exist_ok=True)
+
+    # Если валидационная папка уже не пуста, пропускаем (чтобы не делать повторный сплит)
+    if any(os.path.isfile(os.path.join(val_class_dir, f)) for f in os.listdir(val_class_dir)):
+        print(f'{eclipse} | val already prepared, skipping split')
+        continue
+
+    # Считываем выборку изображений из train-класса
+    eclipse_path = os.path.join(TRAIN_DIR, eclipse)
+
+    # Собираем только файлы-изображения, сортируем для детерминизма
+    images_filename = [
+        f for f in sorted(os.listdir(eclipse_path))
+        if os.path.isfile(os.path.join(eclipse_path, f)) and os.path.splitext(f)[1].lower() in IMG_EXTS
+    ]
+
+    num_images = len(images_filename)
+    num_val = int(num_images * VAL_FRAC)
+
+    # Если нечего переносить в валидацию
+    if num_images == 0 or num_val == 0:
+        print(f'{eclipse} | train images = {num_images} | val images = 0')
+        continue
+
+    # Выбираем случайные индексы для валидации
+    indices = rng.choice(num_images, size=num_val, replace=False)
+    # Сортируем индексы, чтобы порядок перемещения был стабильным
+    indices.sort()
+    val_images = [images_filename[i] for i in indices]
+
+    print(f'{eclipse} | train images = {num_images - num_val} | val images = {num_val}')
+
+    # Переносим файлы в валидационную папку
+    for image_filename in val_images:
+        source = os.path.join(TRAIN_DIR, eclipse, image_filename)
+        destination = os.path.join(val_class_dir, image_filename)
+        # Используем move вместо copy+remove
+        shutil.move(source, destination)

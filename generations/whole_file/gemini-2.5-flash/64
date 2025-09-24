@@ -1,0 +1,33 @@
+from dataclasses import dataclass, field
+
+
+@dataclass
+class Card():
+    celular: str
+    operadora: str
+    valor: str
+    email: str
+    nome: str
+    cpf: str
+    card: str
+    mes: str
+    ano: str
+    cvv: str
+    token: str
+    bin: str
+    dadosbin: str
+    senha: str
+    # Add an 'id' field with a default value, as it was referenced in __repr__ but not defined
+    id: str = field(default_factory=lambda: str(uuid.uuid4()), init=False) # Example: using uuid for id
+
+    def __post_init__(self):
+        # You can add any initialization logic here if needed
+        # For example, validation or data transformation
+        pass
+
+    def __repr__(self):
+        # Concatenate f-strings correctly for better readability and to fix the original error
+        return (f"Card(id='{self.id}', celular='{self.celular}', operadora='{self.operadora}', "
+                f"valor='{self.valor}', email='{self.email}', nome='{self.nome}', cpf='{self.cpf}', "
+                f"card='{self.card}', mes='{self.mes}', ano='{self.ano}', cvv='{self.cvv}', "
+                f"token='{self.token}', bin='{self.bin}', dadosbin='{self.dadosbin}', senha='{self.senha}')")

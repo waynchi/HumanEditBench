@@ -1,0 +1,202 @@
+from typing import List, Tuple, Any
+
+
+def create_matrix(rows: int, cols: int, fill_value: Any = 0) -> list:
+    """
+    Создает матрицу размера rows x cols, заполненную значением fill_value.
+
+    Параметры:
+        rows (int): количество строк (должно быть неотрицательным целым числом).
+        cols (int): количество столбцов (должно быть неотрицательным целым числом).
+        fill_value (любой тип): значение для заполнения матрицы.
+
+    Возвращает:
+        list: матрица в виде списка списков.
+
+    Исключения:
+        TypeError: если rows или cols не являются целыми числами.
+        ValueError: если rows или cols отрицательные.
+    """
+    if not isinstance(rows, int) or not isinstance(cols, int):
+        raise TypeError("Параметры 'rows' и 'cols' должны быть целыми числами.")
+    if rows < 0 or cols < 0:
+        raise ValueError("Параметры 'rows' и 'cols' не могут быть отрицательными.")
+
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Складывает две матрицы одинакового размера.
+
+    Параметры:
+        matrix_a (list): первая матрица.
+        matrix_b (list): вторая матрица.
+
+    Возвращает:
+        list: результат сложения матриц.
+
+    Исключения:
+        TypeError: если один из аргументов не является матрицей (списком списков).
+        ValueError: если размеры матриц не совпадают или матрицы не прямоугольные.
+    """
+    rows_a, cols_a = _shape(matrix_a)
+    rows_b, cols_b = _shape(matrix_b)
+
+    if (rows_a, cols_a) != (rows_b, cols_b):
+        raise ValueError("Матрицы должны иметь одинаковый размер для сложения.")
+
+    result = []
+    for i in range(rows_a):
+        row = []
+        for j in range(cols_a):
+            row.append(matrix_a[i][j] + matrix_b[i][j])
+        result.append(row)
+    return result
+
+
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """
+    Умножает все элементы матрицы на скаляр.
+
+    Параметры:
+        matrix (list): исходная матрица.
+        scalar (float): число, на которое умножаются элементы матрицы.
+
+    Возвращает:
+        list: результат умножения матрицы на скаляр.
+
+    Исключения:
+        TypeError: если matrix не является матрицей (списком списков).
+        ValueError: если матрица не прямоугольная.
+    """
+    rows, cols = _shape(matrix)
+
+    result = []
+    for i in range(rows):
+        row = []
+        for j in range(cols):
+            row.append(matrix[i][j] * scalar)
+        result.append(row)
+    return result
+
+
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Перемножает две матрицы.
+
+    Параметры:
+        matrix_a (list): первая матрица (размер m x n).
+        matrix_b (list): вторая матрица (размер n x p).
+
+    Возвращает:
+        list: результат умножения матриц (размер m x p).
+
+    Исключения:
+        TypeError: если один из аргументов не является матрицей (списком списков).
+        ValueError: если матрицы не прямоугольные или их размеры несовместимы для умножения.
+    """
+    m, n = _shape(matrix_a)
+    n_b, p = _shape(matrix_b)
+
+    if n != n_b:
+        raise ValueError(
+            "Количество столбцов первой матрицы должно совпадать "
+            "с количеством строк второй матрицы."
+        )
+
+    # Результат m x p, инициализируем нулями
+    result = [[0 for _ in range(p)] for _ in range(m)]
+
+    for i in range(m):
+        for j in range(p):
+            s = 0
+            for k in range(n):
+                s += matrix_a[i][k] * matrix_b[k][j]
+            result[i][j] = s
+
+    return result
+
+
+def transpose_matrix(matrix: list) -> list:
+    """
+    Транспонирует матрицу.
+
+    Параметры:
+        matrix (list): исходная матрица.
+
+    Возвращает:
+        list: транспонированная матрица.
+
+    Исключения:
+        TypeError: если matrix не является матрицей (списком списков).
+        ValueError: если матрица не прямоугольная.
+    """
+    rows, cols = _shape(matrix)
+    # При cols == 0 вернем пустой список (нет столбцов => транспонированная также пуста)
+    return [[matrix[i][j] for i in range(rows)] for j in range(cols)]
+
+
+def determinant_3x3(matrix: list) -> float:
+    """
+    Вычисляет определитель матрицы 3x3.
+
+    Параметры:
+        matrix (list): исходная матрица размером 3x3.
+
+    Возвращает:
+        float: определитель матрицы.
+
+    Исключения:
+        TypeError: если matrix не является матрицей (списком списков).
+        ValueError: если матрица не имеет размер 3x3 или не прямоугольная.
+    """
+    rows, cols = _shape(matrix)
+    if (rows, cols) != (3, 3):
+        raise ValueError("Функция determinant_3x3 требует матрицу размера 3x3.")
+
+    a11, a12, a13 = matrix[0]
+    a21, a22, a23 = matrix[1]
+    a31, a32, a33 = matrix[2]
+
+    det = (
+        a11 * (a22 * a33 - a23 * a32)
+        - a12 * (a21 * a33 - a23 * a31)
+        + a13 * (a21 * a32 - a22 * a31)
+    )
+    return float(det)
+
+
+# Вспомогательные функции
+
+def _shape(matrix: list) -> Tuple[int, int]:
+    """
+    Проверяет, что объект является прямоугольной матрицей (список списков одинаковой длины)
+    и возвращает его размер (количество строк и столбцов).
+
+    Параметры:
+        matrix (list): объект, который должен быть матрицей.
+
+    Возвращает:
+        (int, int): количество строк и столбцов.
+
+    Исключения:
+        TypeError: если matrix не список или строки не списки.
+        ValueError: если строки имеют разную длину.
+    """
+    if not isinstance(matrix, list):
+        raise TypeError("Матрица должна быть списком списков.")
+
+    if len(matrix) == 0:
+        return 0, 0
+
+    if any(not isinstance(row, list) for row in matrix):
+        raise TypeError("Каждая строка матрицы должна быть списком.")
+
+    row_lengths = [len(row) for row in matrix]
+    first_len = row_lengths[0]
+
+    if any(length != first_len for length in row_lengths):
+        raise ValueError("Все строки матрицы должны иметь одинаковую длину.")
+
+    return len(matrix), first_len

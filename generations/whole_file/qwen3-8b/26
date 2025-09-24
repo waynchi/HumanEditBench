@@ -1,0 +1,23 @@
+import numpy as np
+
+def conjugate_gradient(A, b, tol=1e-6, max_iter=1000):
+    n = len(b)
+    x = np.zeros(n)
+    r = b.copy()
+    p = r.copy()
+    r_norm = np.linalg.norm(r)
+    
+    for _ in range(max_iter):
+        if r_norm < tol:
+            break
+        # Compute step size alpha
+        alpha = np.dot(r, r) / np.dot(p, A @ p)
+        x = x + alpha * p
+        r_new = r - alpha * A @ p
+        # Compute next direction p
+        beta = np.dot(r_new, r_new) / np.dot(r, r)
+        p = r_new + beta * p
+        r = r_new
+        r_norm = np.linalg.norm(r)
+    
+    return x

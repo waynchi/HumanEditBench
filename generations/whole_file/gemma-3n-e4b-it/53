@@ -1,0 +1,701 @@
+def init_database():
+    """Initialize the settings database if it doesn't exist."""
+    with sqlite3.connect(SETTINGS_DB) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        conn.commit()
+
+class SettingsManager:
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._setup_pool()
+        return cls._instance
+
+    def _setup_pool(self):
+        self._pool = sqlite3.connect(
+            SETTINGS_DB,
+            check_same_thread=False,
+            timeout=30.0
+        )
+        with self._lock:
+            self._pool.row_factory = sqlite3.Row
+        
+        # Initialize cache
+        self._cache = {}
+
+    def get_cached(self, key: str) -> Any:
+        with self._lock:
+            if key in self._cache:
+                value, expires_at = self._cache[key]
+                if expires_at > time.time():
+                    return value
+                del self._cache[key]
+        return None
+
+    def set_cached(self, key: str, value: Any, ttl: int = 300):
+        with self._lock:
+            self._cache[key] = (value, time.time() + ttl)
+
+    def save_setting(self, key: str, value: Any):
+        with self._lock:
+            with self._pool:
+                self._pool.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                    (key, json.dumps(value))
+                )
+
+    def load_setting(self, key: str, default: Any = None) -> Any:
+        try:
+            with self._lock:
+                cursor = self._pool.execute(
+                    "SELECT value FROM settings WHERE key = ?",
+                    (key,)
+                )
+                result = cursor.fetchone()
+                return json.loads(result[0]) if result else default
+        except Exception as e:
+            logger.error(f"Error loading setting {key}: {e}")
+            return default
+
+    def close(self):
+        with self._lock:
+            if hasattr(self, '_pool'):
+                self._pool.close()
+
+class SecurityManager:
+    def __init__(self):
+        self.rate_limits = {}
+        self.max_requests = 100
+        self.time_window = 3600
+        self._lock = threading.Lock()
+
+    def check_rate_limit(self, key: str) -> bool:
+        now = time.time()
+        with self._lock:
+            if key not in self.rate_limits:
+                self.rate_limits[key] = []
+            self.rate_limits[key] = [t for t in self.rate_limits[key] if t > now - self.time_window]
+            if len(self.rate_limits[key]) >= self.max_requests:
+                return False
+            self.rate_limits[key].append(now)
+        return True
+
+def rate_limited(func: Callable[..., Awaitable]):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        if not SecurityManager().check_rate_limit(func.__name__):
+            raise Exception("Rate limit exceeded")
+        return await func(*args, **kwargs)
+    return wrapper
+
+@asynccontextmanager
+async def browser_session(config: "AgentConfig"):
+    runner = BrowserAgentRunner(config)
+    try:
+        yield runner
+    finally:
+        await runner.cleanup()
+
+class BrowserAgentRunner:
+    def __init__(self, config: "AgentConfig"):
+        self.config = config
+        self.playwright = None
+        self.browser_context = None
+        self.browser = None
+        self.resource_manager = ResourceManager()
+        self.security_manager = SecurityManager()
+        self._start_time = time.time()
+
+    @property
+    def execution_time(self) -> float:
+        return time.time() - self._start_time
+
+    async def run(self):
+        try:
+            async with async_playwright() as p:
+                self.browser = await p.chromium.launch(headless=self.config.headless)
+                self.browser_context = await self.browser.new_context(
+                    viewport={'width': self.config.window_w, 'height': self.config.window_h}
+                )
+                page = await self.browser_context.new_page()
+                await page.goto("https://example.com")
+                # Perform more actions here based on the task
+                return "Task completed successfully", "", "", ""
+        except Exception as e:
+            logger.error(f"Detailed error during run: {e}")
+            return "", str(e), "", ""
+        finally:
+            await self.cleanup()
+
+    async def cleanup(self):
+        logger.debug("Cleaning up browser session.")
+        try:
+            if self.browser_context:
+                await self.browser_context.close()
+                logger.debug("Browser context closed successfully.")
+                self.browser_context = None
+
+            if self.browser:
+                await self.browser.close()
+                logger.debug("Browser closed successfully.")
+                self.browser = None
+            await self.resource_manager.cleanup()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+
+class ProcessManager:
+    def __init__(self):
+        self.processes = []
+        self._lock = threading.Lock()
+
+    async def start_task(self, task):
+        with self._lock:
+            # Logic to start a task
+            pass
+
+    async def stop_task(self):
+        with self._lock:
+            return "", ""
+
+    def cleanup(self):
+        with self._lock:
+            # Logic for cleanup after tasks
+            pass
+
+class GradioInterface:
+    def __init__(self):
+        self.theme = gr.themes.Soft()
+        self.settings_manager = SettingsManager()
+        self.process_manager = ProcessManager()
+        self.security_manager = SecurityManager()
+
+    @rate_limited
+    async def _run_with_manager(self, *args):
+        try:
+            with self.settings_manager.lock:
+                config = self.settings_manager.load_setting("config", {})
+            
+            with self.settings_manager.lock:
+                if not config:
+                    config = {}
+
+            options = dict(config, **{arg: x for arg, x in locals().items() if arg not in ['_run_with_manager']})
+
+            try:
+                result, errors, model_actions, thoughts = await browser_session(**options)
+                return result, errors, model_actions, thoughts
+            except Exception as e:
+                logger.error(f"Error in _run_with_manager: {e}")
+                return "", str(e)
+        except Exception as e:
+            logger.error(f"Error in _run_with_manager (exception): {e}")
+            return "", str(e)
+
+    async def _stop_agent(self):
+        return await self.process_manager.stop_task()
+
+    def create_ui(self):
+        with self.settings_manager.lock:
+            saved_values = self.settings_manager.load_setting("saved_values", {})
+
+        def save_value(key: str, value: Any):
+            self.settings_manager.save_setting(key, value)
+
+        demo = gr.Blocks()
+        with demo:
+            gr.Markdown("<center><h1>Browser Use</h1></center>")
+            with gr.Accordion("Settings", open=False):
+                with gr.Row():
+                    agent = gr.Radio(choices=["org", "custom"], value=saved_values.get("agent_type"), label="Type")
+                    agent.change(save_value, inputs=agent)
+                
+                with gr.Row():
+                    llm = gr.Dropdown(choices=["google", "openai"], value=saved_values.get("llm_provider"), label="Provider")
+                    llm.change(save_value, inputs=llm)
+                
+                with gr.Row():
+                    model = gr.Textbox(value=saved_values.get("model_name"), label="Model ")
+                    model.change(save_value, inputs=model)
+                
+                with gr.Row():
+                    temp = gr.Slider(value=saved_values.get("temperature"), min=0.0, max=2.0, step=0.1, label="Temperature")
+                    temp.change(save_value, inputs=temp)
+                
+                with gr.Row():
+                    url = gr.Textbox(value=saved_values.get("url"), label="URL")
+                    url.change(save_value, inputs=url)
+
+            with gr.Accordion("Run", open=False):
+                run_button = gr.Button("Run")
+                result = gr.Textbox(label="Result")
+                error = gr.Textbox(label="Error")
+                run_button.click(self._run_with_manager, inputs=[], outputs=[result, error])
+
+        return demo
+
+    @staticmethod
+    def setup_logging(logger: logging.Logger = None):
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        else:
+            logger = logger
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        return logger
+
+if __name__ == "__main__":
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+
+    # Initialize the logger
+    logger: logging.Logger = GradioInterface.setup_logging()
+
+    # Initialize the database
+    SettingsManager.init_database()
+
+    # Create the UI
+    if __name__ == '__main__':
+        try:
+            from playwright.async_api import async_playwright
+            from pathlib import Path
+            import logging
+            import time
+            from functools import wraps
+            def init_database():
+                with sqlite3.connect(SETTINGS_DB) as conn:
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS settings (
+                            key TEXT PRIMARY KEY,
+                            value TEXT NOT NULL
+                        )
+                    """)
+                    conn.commit()
+            class SettingsManager:
+                _instance = None
+                _lock = threading.Lock()
+
+                def __new__(cls):
+                    if cls._instance is None:
+                        with cls._lock:
+                            if cls._instance is None:
+                                cls._instance = super().__new__(cls)
+                                cls._setup_pool()
+                    return cls._instance
+
+                def _setup_pool(self):
+                    self._pool = sqlite3.connect(
+                        SETTINGS_DB,
+                        check_same_thread=False,
+                        timeout=30.0
+                    )
+                    with self._lock:
+                        self._pool.row_factory = sqlite3.Row
+                    self._cache = {}
+                def get_cached(self, key: str) -> Any:
+                    with self._lock:
+                        if key in self._cache:
+                            value, expires_at = self._cache[key]
+                            if expires_at > time.time():
+                                return value
+                            del self._cache[key]
+                    return None
+
+                def set_cached(self, key: str, value: Any, ttl: int = 300):
+                    with self._lock:
+                        self._cache[key] = (value, time.time() + ttl)
+
+                def save_setting(self, key: str, value: Any):
+                    with self._lock:
+                        with self._pool:
+                            self._pool.execute(
+                                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                                (key, json.dumps(value))
+                            )
+                def load_setting(self, key: str, default: Any = None) -> Any:
+                    try:
+                        with self._lock:
+                            cursor = self._pool.execute(
+                                "SELECT value FROM settings WHERE key = ?",
+                                (key,)
+                            )
+                            result = cursor.fetchone()
+                            return json.loads(result[0]) if result else default
+                    except Exception as e:
+                        logger.error(f"Error loading setting {key}: {e}")
+                        return default
+                def close(self):
+                    with self._lock:
+                        if hasattr(self, '_pool'):
+                            self._pool.close()
+            class SecurityManager:
+                def __init__(self):
+                    self.rate_limits = {}
+                    self.max_requests = 100
+                    self.time_window = 3600
+                    self._lock = threading.Lock()
+                def check_rate_limit(self, key: str) -> bool:
+                    now = time.time()
+                    with self._lock:
+                        if key not in self.rate_limits:
+                            self.rate_limits[key] = []
+                        self.rate_limits[key] = [t for t in self.rate_limits[key] if t > now - self.time_window]
+                        if len(self.rate_limits[key]) >= self.max_requests:
+                            return False
+                        self.rate_limits[key].append(now)
+                    return True
+            @rate_limited
+            async def browser_session(config: "AgentConfig"):
+                runner = BrowserAgentRunner(config)
+                try:
+                    yield runner
+                finally:
+                    await runner.cleanup()
+            class BrowserAgentRunner:
+                def __init__(self, config: "AgentConfig"):
+                    self.config = config
+                    self.playwright = None
+                    self.browser_context = None
+                    self.browser = None
+                    self.resource_manager = ResourceManager()
+                    self.security_manager = SecurityManager()
+                    self._start_time = time.time()
+                @property
+                def execution_time(self) -> float:
+                    return time.time() - self._start_time
+                async def run(self):
+                    try:
+                        async with async_playwright() as p:
+                            self.browser = await p.chromium.launch(headless=self.config.headless)
+                            self.browser_context = await self.browser.new_context(
+                                viewport={'width': self.config.window_w, 'height': self.config.window_h}
+                            )
+                            page = await self.browser_context.new_page()
+                            await page.goto("https://example.com")
+                            return "Task completed successfully", "", "", ""
+                    except Exception as e:
+                        logger.error(f"Detailed error during run: {e}")
+                        return "", str(e), "", ""
+                async def cleanup(self):
+                    logger.debug("Cleaning up browser session.")
+                    try:
+                        if self.browser_context:
+                            await self.browser_context.close()
+                            logger.debug("Browser context closed successfully.")
+                            self.browser_context = None
+                        if self.browser:
+                            await self.browser.close()
+                            logger.debug("Browser closed successfully.")
+                            self.browser = None
+                        await self.resource_manager.cleanup()
+                    except Exception as e:
+                        logger.error(f"Error during cleanup: {e}")
+            class ProcessManager:
+                def __init__(self):
+                    self.processes = []
+                    self._lock = threading.Lock()
+                async def start_task(self, task):
+                    with self._lock:
+                        pass
+                async def stop_task(self):
+                    with self._lock:
+                        return "", ""
+                def cleanup(self):
+                    with self._lock:
+                        pass
+            class GradioInterface:
+                def __init__(self):
+                    self.theme = gr.themes.Soft()
+                    self.settings_manager = SettingsManager()
+                    self.process_manager = ProcessManager()
+                    self.security_manager = SecurityManager()
+                @rate_limited
+                async def _run_with_manager(self, *args):
+                    try:
+                        with self.settings_manager.lock:
+                            config = self.settings_manager.load_setting("config", {})
+
+                        with self.settings_manager.lock:
+                            if not config:
+                                config = {}
+
+                        options = dict(config, **{arg: x for arg, x in locals().items() if arg not in ['_run_with_manager']})
+
+                        try:
+                            result, errors, model_actions, thoughts = await browser_session(**options)
+                            return result, errors, model_actions, thoughts
+                        except Exception as e:
+                            logger.error(f"Error in _run_with_manager: {e}")
+                            return "", str(e)
+                    except Exception as e:
+                        logger.error(f"Error in _run_with_manager (exception): {e}")
+                        return "", str(e)
+                async def _stop_agent(self):
+                    return await self.process_manager.stop_task()
+                def create_ui(self):
+                    with self.settings_manager.lock:
+                        saved_values = self.settings_manager.load_setting("saved_values", {})
+
+                    def save_value(key: str, value: Any):
+                        self.settings_manager.save_setting(key, value)
+
+                    demo = gr.Blocks()
+                    with demo:
+                        gr.Markdown("<center><h1>Browser Use</h1></center>")
+                        with gr.Accordion("Settings", open=False):
+                            with gr.Row():
+                                agent = gr.Radio(choices=["org", "custom"], value=saved_values.get("agent_type"), label="Type")
+                                agent.change(save_value, inputs=agent)
+                            with gr.Row():
+                                llm = gr.Dropdown(choices=["google", "openai"], value=saved_values.get("llm_provider"), label="Provider")
+                                llm.change(save_value, inputs=llm)
+                            with gr.Row():
+                                model = gr.Textbox(value=saved_values.get("model_name"), label="Model ")
+                                model.change(save_value, inputs=model)
+                            with gr.Row():
+                                temp = gr.Slider(value=saved_values.get("temperature"), min=0.0, max=2.0, step=0.1, label="Temperature")
+                                temp.change(save_value, inputs=temp)
+                            with gr.Row():
+                                url = gr.Textbox(value=saved_values.get("url"), label="URL")
+                                url.change(save_value, inputs=url)
+                        with gr.Accordion("Run", open=False):
+                            run_button = gr.Button("Run")
+                            result = gr.Textbox(label="Result")
+                            error = gr.Textbox(label="Error")
+                            run_button.click(self._run_with_manager, inputs=[], outputs=[result, error])
+        return demo
+            # Initialize the UI
+        demo = self.create_ui()
+
+        demo.launch()
+    from pathlib import Path
+
+# Create the settings database if it doesn't exist.
+class SettingsManager:
+    __new__ = staticmethod(lambda cls: cls.__new__(cls))
+    @staticmethod
+    def init_database():
+        with sqlite3.connect(SETTINGS_DB) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS settings (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+    _instance = None
+    _lock = threading.Lock()
+    _pool = None
+    _cache = None
+
+    def __init__(self):
+        if self._instance is None:
+            with self._lock:
+                if self._instance is None:
+                    self._instance = super().__new__(self)
+                    self._setup_pool()
+
+    def _setup_pool(self):
+        self._pool = sqlite3.connect(
+            SETTINGS_DB,
+            check_same_thread=False,
+            timeout=30.0
+        )
+        with self._lock:
+            self._pool.row_factory = sqlite3.Row
+        self._cache = {}
+
+    def get_cached(self, key: str) -> Any:
+        with self._lock:
+            if key in self._cache:
+                value, expires_at = self._cache[key]
+                if expires_at > time.time():
+                    return value
+                del self._cache[key]
+        return None
+
+    def set_cached(self, key: str, value: Any, ttl: int = 300):
+        with self._lock:
+            self._cache[key] = (value, time.time() + ttl)
+
+    def save_setting(self, key: str, value: Any):
+        with self._lock:
+            with self._pool:
+                self._pool.execute(
+                    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                    (key, json.dumps(value))
+                )
+
+    def load_setting(self, key: str, default: Any = None) -> Any:
+        try:
+            with self._lock:
+                cursor = self._pool.execute(
+                    "SELECT value FROM settings WHERE key = ?",
+                    (key,)
+                )
+                result = cursor.fetchone()
+                return json.loads(result[0]) if result else default
+        except Exception as e:
+            logger.error(f"Error loading setting {key}: {e}")
+            return default
+
+    def close(self):
+        with self._lock:
+            if hasattr(self, '_pool'):
+                self._pool.close()
+class SecurityManager:
+    def check_rate_limit(self, key: str) -> bool:
+        now = time.time()
+        with self._lock:
+            if key not in self.rate_limits:
+                self.rate_limits[key] = []
+            self.rate_limits[key] = [t for t in self.rate_limits[key] if t > now - self.time_window]
+            if len(self.rate_limits[key]) >= self.max_requests:
+                return False
+            self.rate_limits[key].append(now)
+        return True
+class BrowserAgentRunner:
+    def __init__(self, config: "AgentConfig"):
+        self.config = config
+        self.playwright = None
+        self.browser_context = None
+        self.browser = None
+        self.resource_manager = ResourceManager()
+        self.security_manager = SecurityManager()
+        self._start_time = time.time()
+
+    @property
+    def execution_time(self) -> float:
+        return time.time() - self._start_time
+
+    async def run(self):
+        try:
+            async with async_playwright() as p:
+                self.browser = await p.chromium.launch(headless=self.config.headless)
+                self.browser_context = await self.browser.new_context(
+                    viewport={'width': self.config.window_w, 'height': self.config.window_h}
+                )
+                page = await self.browser_context.new_page()
+                await page.goto("https://example.com")
+                return "Task completed successfully", "", "", ""
+        except Exception as e:
+            logger.error(f"Detailed error during run: {e}")
+            return "", str(e), "", ""
+    async def cleanup(self):
+        logger.debug("Cleaning up browser session.")
+        try:
+            if self.browser_context:
+                await self.browser_context.close()
+                logger.debug("Browser context closed successfully.")
+                self.browser_context = None
+            if self.browser:
+                await self.browser.close()
+                logger.debug("Browser closed successfully.")
+                self.browser = None
+            await self.resource_manager.cleanup()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")
+class ProcessManager:
+    def __init__(self):
+        self.processes = []
+        self._lock = threading.Lock()
+    async def start_task(self, task):
+        with self._lock:
+            pass
+    async def stop_task(self):
+        with self._lock:
+            return "", ""
+    def cleanup(self):
+        with self._lock:
+            pass
+class GradioInterface:
+    def __init__(self):
+        self.theme = gr.themes.Soft()
+        self.settings_manager = SettingsManager()
+        self.process_manager = ProcessManager()
+        self.security_manager = SecurityManager()
+    @rate_limited
+    async def _run_with_manager(self, *args):
+        try:
+            with self.settings_manager.lock:
+                config = self.settings_manager.load_setting("config", {})
+
+            with self.settings_manager.lock:
+                if not config:
+                    config = {}
+
+            options = dict(config, **{arg: x for arg, x in locals().items() if arg not in ['_run_with_manager']})
+
+            try:
+                result, errors, model_actions, thoughts = await browser_session(**options)
+                return result, errors, model_actions, thoughts
+            except Exception as e:
+                logger.error(f"Error in _run_with_manager: {e}")
+                return "", str(e)
+        except Exception as e:
+            logger.error(f"Error in _run_with_manager (exception): {e}")
+            return "", str(e)
+    async def _stop_agent(self):
+        return await self.process_manager.stop_task()
+    def create_ui(self):
+        with self.settings_manager.lock:
+            saved_values = self.settings_manager.load_setting("saved_values", {})
+        def save_value(key: str, value: Any):
+            self.settings_manager.save_setting(key, value)
+        demo = gr.Blocks()
+        with demo:
+            gr.Markdown("<center><h1>Browser Use</h1></center>")
+            with gr.Accordion("Settings", open=False):
+                with gr.Row():
+                    agent = gr.Radio(choices=["org", "custom"], value=saved_values.get("agent_type"), label="Type")
+                    agent.change(save_value, inputs=agent)
+                with gr.Row():
+                    llm = gr.Dropdown(choices=["google", "openai"], value=saved_values.get("llm_provider"), label="Provider")
+                    llm.change(save_value, inputs=llm)
+                with gr.Row():
+                    model = gr.Textbox(value=saved_values.get("model_name"), label="Model ")
+                    model.change(save_value, inputs=model)
+                with gr.Row():
+                    temp = gr.Slider(value=saved_values.get("temperature"), min=0.0, max=2.0, step=0.1, label="Temperature")
+                    temp.change(save_value, inputs=temp)
+                with gr.Row():
+                    url = gr.Textbox(value=saved_values.get("url"), label="URL")
+                    url.change(save_value, inputs=url)
+            with gr.Accordion("Run", open=False):
+                run_button = gr.Button("Run")
+                result = gr.Textbox(label="Result")
+                error = gr.Textbox(label="Error")
+                run_button.click(self._run_with_manager, inputs=[], outputs=[result, error])
+        return demo
+    @staticmethod
+    def setup_logging(logger: logging.Logger = None):
+        if logger is None:
+            logger = logging.getLogger(__name__)
+        else:
+            logger = logger
+        logger.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        handler = logging.StreamHandler()
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+if __name__ == "__main__":
+    import os
+    from dotenv import load_dotenv
+    load_dotenv()
+    SettingsManager.init_database()
+    logger = GradioInterface.setup_logging()
+    demo = GradioInterface().create_ui()
+    demo.launch()

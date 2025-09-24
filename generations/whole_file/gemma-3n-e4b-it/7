@@ -1,0 +1,334 @@
+import os
+import random
+import torch
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import precision_score, recall_score
+from torch.nn import functional as F
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
+import seaborn as sns
+from colpali_engine.interpretability import (
+    get_similarity_maps_from_embeddings,
+    plot_all_similarity_maps,
+)
+import pandas as pd
+from matplotlib import cm
+from matplotlib.patches import Rectangle
+def load_flickr8k_data(images_path, captions_path, fraction=0.1):
+    # Read captions file
+    with open(captions_path, "r") as f:
+        captions_data = f.readlines()[1:]  # Skip header
+
+    # Parse captions
+    image_text_pairs = {}
+    for line in captions_data:
+        image_name, caption = line.strip().split(",", 1)
+        if image_name not in image_text_pairs:
+            image_text_pairs[image_name] = []
+        image_text_pairs[image_name].append(caption)
+
+    # Load only a fraction of the dataset
+    selected_images = random.sample(list(image_text_pairs.keys()), int(len(image_text_pairs) * fraction))
+    image_text_pairs = {k: image_text_pairs[k] for k in selected_images}
+
+    # Create pairs of images and captions
+    pairs = []
+    for image_name, captions in image_text_pairs.items():
+        image_path = os.path.join(images_path, image_name)
+        if os.path.exists(image_path):
+            pairs.append((Image.open(image_path), random.choice(captions)))
+    return pairs
+
+def create_unrelated_pairs(image_text_pairs):
+    """
+    Creates unrelated pairs of images and texts by randomly shuffling the texts.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing images and their corresponding texts.
+
+    Returns:
+        list: A list of tuples containing images and unrelated texts.
+    """
+    images, texts = zip(*image_text_pairs)
+    unrelated_texts = random.sample(texts, len(texts))
+    return list(zip(images, unrelated_texts))
+
+def create_visual_pairs(image_text_pairs):
+    """
+    Creates pairs of original and augmented images from image-text pairs.
+    
+    This function takes a list of image-text pairs and creates new pairs consisting
+    of the original images and their augmented versions. The augmentation used
+    in this implementation is a horizontal flip.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing (image, text) pairs,
+            where images are PIL Image objects and texts are strings.
+
+    Returns:
+        list: A list of tuples containing (original_image, augmented_image) pairs,
+            where both elements are PIL Image objects.
+    """
+    from torchvision.transforms import ToTensor
+    images, _ = zip(*image_text_pairs)
+    augmented_images = [ToTensor()(image).flip(-1) for image in images]  # Example augmentation: horizontal flip
+    return list(zip(images, augmented_images))
+
+def get_embeddings(images, texts, model_id="google/siglip-base-patch16-224"):
+    """
+    Given lists of images and texts, returns normalized embeddings for both.
+    """
+    # Ensure texts is a list of strings
+    if not all(isinstance(t, str) for t in texts):
+        raise ValueError("All text inputs must be strings.")
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = AutoModel.from_pretrained(model_id, ignore_mismatched_sizes=True).to(device)
+    processor = AutoProcessor.from_pretrained(model_id)
+    
+    # Preprocess images and texts
+    image_inputs = processor(images=images, return_tensors="pt").to(device)
+    text_inputs = processor(text=texts, return_tensors="pt", padding="max_length").to(device)
+    
+    with torch.no_grad():
+        image_embeds = model.get_image_features(**image_inputs)
+        text_embeds = model.get_text_features(**text_inputs)
+
+    # Normalize embeddings
+    image_embeds = image_embeds / image_embeds.norm(dim=-1, keepdim=True)
+    text_embeds = text_embeds / text_embeds.norm(dim=-1, keepdim=True)
+
+    return image_embeds, text_embeds
+
+def cosine_similarity_analysis(embeddings1, embeddings2, title):
+    """
+    Computes cosine similarity for matching and unrelated pairs and compares distributions.
+    """
+    similarities = cosine_similarity(embeddings1.cpu().numpy(), embeddings2.cpu().numpy())
+
+    # Matching pairs: Diagonal of the similarity matrix
+    matching_similarities = np.diag(similarities)
+
+    # Unrelated pairs: Off-diagonal similarities
+    unrelated_similarities = similarities[~np.eye(similarities.shape[0], dtype=bool)]
+
+    print(f"### {title} ###")
+    print(f"Mean Matching Similarity: {np.mean(matching_similarities):.4f}")
+    print(f"Mean Unrelated Similarity: {np.mean(unrelated_similarities):.4f}")
+    print()
+
+    # Plot distributions
+    plt.figure(figsize=(10, 6))
+    sns.histplot(matching_similarities, kde=True, label="Matching Pairs", color="blue", bins=30)
+    sns.histplot(unrelated_similarities, kde=True, label="Unrelated Pairs", color="red", bins=30)
+    plt.title(f"{title}: Cosine Similarity Distributions")
+    plt.xlabel("Cosine Similarity")
+    plt.ylabel("Frequency")
+    plt.legend()
+    plt.show()
+
+def retrieval_metrics(query_embeds, target_embeds, ground_truth_indices, k=5):
+    """
+    Computes Precision@k and Recall@k for nearest-neighbor retrieval.
+
+    This function evaluates the effectiveness of retrieval by calculating Precision@k and Recall@k.
+    Precision@k measures the accuracy of the top-k retrieved items, while Recall@k measures the ability 
+    to find the relevant item within the top-k retrieved items.  It assumes there's only one true
+    match per query.
+
+    Args:
+        query_embeds (torch.Tensor): Embeddings of the query data.
+        target_embeds (torch.Tensor): Embeddings of the target data (database).
+        ground_truth_indices (list): List of indices in the target data representing the true matches for each query.
+        k (int): The number of top results to consider.
+
+    Returns:
+        tuple: A tuple containing Precision@k and Recall@k.
+    """
+    similarities = cosine_similarity(query_embeds.cpu().numpy(), target_embeds.cpu().numpy())
+    sorted_indices = np.argsort(-similarities, axis=1)[:, :k]  # Top-k indices
+
+    # Compute metrics
+    precisions = []
+    recalls = []
+    for i, true_idx in enumerate(ground_truth_indices):
+        retrieved_indices = sorted_indices[i]
+        true_positives = int(true_idx in retrieved_indices)
+        precisions.append(true_positives / k)
+        recalls.append(true_positives / 1)  # Only one true match per query
+
+    mean_precision = np.mean(precisions)
+    mean_recall = np.mean(recalls)
+
+    return mean_precision, mean_recall
+
+def plot_query_token_importance(
+    pil_image, similarity_maps, query_tokens, alpha: float = 0.5
+):
+    """
+    Plot a separate heatmap for each query token in the similarity_maps.
+    """
+    # Convert PIL to numpy array
+    image_np = np.array(pil_image)
+    # Display the image, the heatmap, and a colorbar
+    fig, axes = plt.subplots(1, len(query_tokens) + 1, figsize=(15, 6))
+    axes[0].imshow(image_np)
+    axes[0].set_title("Raw Image")
+    axes[0].axis('off')
+    for i, token in enumerate(query_tokens):
+        # Compute a colormap for image
+        patches = np.array(image_np)
+    # Convert map to NumPy
+    #image_np_map = np.array(similarity_maps)
+
+    #  Convert image to a full image if it’s stored as a patch
+    with Image.open(image.filename) as image_obj:
+        image_size = (image_obj.size[0], image_obj.size[1])
+        res = image.resize((image_size[0], image_size[1]), Image.Resampling.LANCZOS)
+        #conversion to numpy
+        image_np = np.array(res)
+    # Reshape image;
+    # flip image;
+    image_np = np.flip(image_np, axis=1)
+    # Density weighting the heatmap
+    try:
+         map = np.float32(similarity_maps);
+        # Find the location of the most similar tokens to plot to make the hotspots
+    except Exception as e:
+        print(e)
+    # The heatmap goes in color in place of the static color
+    def plotting_map(img, x, y, c):
+
+        plt.imshow(img)
+        plt.axis("off")
+
+    for i, token in enumerate(query_tokens):
+        image_size = (image_np.shape[1], image_np.shape[0])
+        # Get the sector from the whole image to extract the corresponding part
+        x_min = i * image_size[0]
+        x_max = (i + 1) * image_size[0]
+        y_min = 0
+        y_max = image_size[1]
+        map_token = similarity_maps[[i], :, :, :];
+        plt.figure( figsize=(15, 6))
+        plt.imshow(map_token, cmap='jet', vmin=0, vmax=1, interpolation='nearest', extent=[x_min, x_max, y_min, y_max], axes=axes[i])
+
+    axes[0].set_title("Extra token Plotting")
+
+
+
+def evaluate_map(image, mask, color=None, axis=0):
+    from PIL import Image, ImageDraw, ImageFont
+    def evaluate_map(image, mask, color=np.uint8(0), axis=0):
+        """Evaluate the map metrics"""
+    # Optimized metrics with matrix
+        imshow = np.cmap('gray', image)
+        overlay = np.cmap('jet', mask)
+        color = np.cmap('viridis', mask) # to make sure the full image displays
+        result = 1.0
+        area = 2
+        for i in range(axis):
+            mask = np.fft.fftshift(mask)
+            image = np.fft.fftshift(image)
+            if color is not None:
+                imag
+0
+    
+    from PIL import Image
+    # Unpack parameters
+    image = np.uint8(image)
+    mask = np.uint8(mask)
+    # Locate areas. Use a findContours
+    tool = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Calculate dataset scores
+    X = [x for x in polygon]
+    for i in range(len(X)):
+        pixel_count = polygon[i].size
+        pixels = pixel_count/area
+
+    # Apply assessment parameters
+    #: print("Value : " + px)
+    # Select the region of interest with its appropriate parameters
+    from cv2 import imutils, findContours
+    # Process the region
+    mask = np.squeeze(mask)  # Scale dimensions to be correct
+    mask = mask.astype(np.float32)
+    mask[mask>1] = 1        # setting any pixels above 1 to 1
+    return
+    from cv2 import thresholding, morphology, numpy as np
+    #Scaling of images: 0 to 255, output 0-1
+    new_map, threshold = thresholding.threshold(mask, threshold=128, trace=False)
+    density = np.count_nonzero(new_map)
+
+def create_visual_pairs(image_text_pairs):
+    """
+    Creates pairs of original and augmented images from image-text pairs.
+    
+    This function takes a list of image-text pairs and creates new pairs consisting
+    of the original images and their augmented versions. The augmentation used
+    in this implementation is a horizontal flip.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing (image, text) pairs,
+            where images are PIL Image objects and texts are strings.
+
+    Returns:
+        list: A list of tuples containing (original_image, augmented_image) pairs,
+            where both elements are PIL Image objects.
+    """
+    from torchvision.transforms import ToTensor
+    images, _ = zip(*image_text_pairs)
+    augmented_images = [ToTensor()(image).flip(-1) for image in images]  # Example augmentation: horizontal flip
+    return list(zip(images, augmented_images))
+def plot_patch_value(i, images_np, maps) -> None:
+    """
+    Plots the map values given a patch from the images(np array);
+
+    Args:
+        i (int): Patch indices
+        images_np(np array): images in numpy arrays.
+        maps : (torch,tensor) shapes of (patch)
+    """
+
+    # _Convert tensors in the list to numpy array
+    n_textures = 4
+    patches_x = (images_np.shape[0]) // int(np.sqrt(n_textures))
+    patches_y = (images_np.shape[1]) // int(np.sqrt(n_textures))
+    plot_img = np.zeros( (n_textures * patches_y,
+                            n_textures * patches_x),dtype=float)
+
+    # Combines image values
+    for i in range(n_textures):
+        for j in range(n_textures):
+            patch = images_np[i*patches_y:(i+1)*patches_y,
+                             j*patches_x:(j+1)*patches_x
+                             ]
+            plot_img[i * patches_y:(i+1) * patches_y,
+                             j * patches_x:(j+1) * patches_x] = \
+                maps[ (i * patches_y):(i+1) * patches_y,
+                  (j * patches_x):(j+1) * patches_x]
+    img = Image.fromarray([plot_img])
+    # Evaluate The map
+    fig, axes = plt.subplots(1, n_textures, figsize = (n_textures * 2))
+    patch_value = np.uint8(np.fft.fftshift(plot_img) /
+                            np.max(plot_img) * 255)
+    Axes[  0].imshow(image_np, cmap="viridis")
+    Axes[0].set_title("Plot")
+
+    Ima
+    def f_eval(image, mask:np.array):
+        # initialize value map
+        map = np.float32(image)
+        # convert map from zeros/ones to value scale
+        [im = (im / 100)]
+
+    #   main execution
+    img  = #plot image and display
+    
+ plot_img1 = np.array(imags:  =
+    from PIL import Image, ImageDraw, ImageFont
+    def create_chr(route_0, name):
+      result = open((route_0, name), 'r')
+      print(result.read())
+# new

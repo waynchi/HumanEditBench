@@ -1,0 +1,19 @@
+from langchain.chat_models import ChatOpenAI
+
+import json
+
+# Instantiate the ChatOpenAI client
+client = ChatOpenAI(model="llama3.2", temperature=0.0, host="http://localhost:11434")
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+response = client({"role": "user", "content": prompt}, system_message={"content": sys_prompt})
+
+print(response["content"])

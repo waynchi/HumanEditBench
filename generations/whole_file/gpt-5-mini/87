@@ -1,0 +1,81 @@
+import tkinter as tk
+import random
+import math
+
+class Square:
+    def __init__(self, canvas, size, x, y):
+        self.canvas = canvas
+        self.size = int(size)
+        self.x = float(x)
+        self.y = float(y)
+        # Ensure non-zero velocity and add some variety in speed
+        self.dx = random.choice([-3, -2, 2, 3])
+        self.dy = random.choice([-3, -2, 2, 3])
+        # Random color for each square
+        self.color = "#{:06x}".format(random.randint(0, 0xFFFFFF))
+        # Create rectangle and store its id
+        self.square = canvas.create_rectangle(self.x, self.y,
+                                              self.x + self.size, self.y + self.size,
+                                              fill=self.color, outline="black")
+        # Make sure the canvas geometry is realized (helps get correct width/height)
+        try:
+            self.canvas.update_idletasks()
+        except Exception:
+            pass
+
+    def move(self):
+        # Move internal position tracking and the canvas object
+        self.x += self.dx
+        self.y += self.dy
+        self.canvas.move(self.square, self.dx, self.dy)
+
+        # Get current coords from the canvas (more robust than stored values)
+        coords = self.canvas.coords(self.square)
+        if len(coords) >= 4:
+            x1, y1, x2, y2 = coords[0], coords[1], coords[2], coords[3]
+        else:
+            x1, y1, x2, y2 = self.x, self.y, self.x + self.size, self.y + self.size
+
+        # Get canvas size, fall back to requested size if actual size not available yet
+        canvas_width = self.canvas.winfo_width() or self.canvas.winfo_reqwidth()
+        canvas_height = self.canvas.winfo_height() or self.canvas.winfo_reqheight()
+
+        # Check boundaries - if any edge touches or goes beyond the canvas, split/delete
+        if (x1 <= 0 or x2 >= canvas_width or y1 <= 0 or y2 >= canvas_height):
+            # Delete current square
+            self.canvas.delete(self.square)
+            # Create two new squares if size is big enough
+            if self.size > 10:
+                new_size = max(6, int(self.size / 2))
+                # Place the new squares near the center but offset so they don't immediately collide
+                cx = canvas_width / 2
+                cy = canvas_height / 2
+                squares.append(Square(self.canvas, new_size,
+                               cx - new_size - 2, cy - new_size - 2))
+                squares.append(Square(self.canvas, new_size,
+                               cx + 2, cy + 2))
+            return False
+        return True
+
+def update():
+    global squares
+    # Move all squares and remove those that hit boundaries
+    squares = [square for square in squares if square.move()]
+    root.after(20, update)  # Update every 20ms
+
+# Create main window
+root = tk.Tk()
+root.title("Splitting Squares")
+
+# Create canvas
+canvas = tk.Canvas(root, width=600, height=600, bg="white")
+canvas.pack(expand=True, fill="both")
+
+# Create initial square
+squares = [Square(canvas, 100, 250, 250)]
+
+# Start animation
+update()
+
+# Start main loop
+root.mainloop()

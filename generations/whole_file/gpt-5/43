@@ -1,0 +1,47 @@
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# Perform ANOVA analysis
+# Python-style (no formula): build design matrix explicitly and compute ANOVA
+X = pd.get_dummies(df['Brand'], drop_first=True)
+X = sm.add_constant(X)
+y = df['Cost']
+model = sm.OLS(y, X).fit()
+
+# Manual one-way ANOVA table (equivalent to type II/III for single factor)
+from scipy import stats
+
+groups = [g.values for _, g in df.groupby('Brand')['Cost']]
+k = len(groups)
+N = sum(len(g) for g in groups)
+grand_mean = df['Cost'].mean()
+ss_between = sum(len(g) * (g.mean() - grand_mean) ** 2 for g in groups)
+ss_within = sum(((g - g.mean()) ** 2).sum() for g in groups)
+df_between = k - 1
+df_within = N - k
+ms_between = ss_between / df_between
+ms_within = ss_within / df_within
+F = ms_between / ms_within
+p = stats.f.sf(F, df_between, df_within)
+
+anova_table = pd.DataFrame(
+    {
+        'sum_sq': [ss_between, ss_within],
+        'df': [df_between, df_within],
+        'F': [F, float('nan')],
+        'PR(>F)': [p, float('nan')],
+    },
+    index=['Brand', 'Residual']
+)
+
+# Print the ANOVA table
+print(anova_table)

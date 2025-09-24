@@ -1,0 +1,88 @@
+import requests #для запроса к API
+import xml.etree.ElementTree #для обработки xml-ответа API
+import matplotlib.pyplot as plt #для построения графиков
+import pandas as pd #для создания датафрейма и разденеия всех свечей на два типа: close и open
+import datetime #для дат по оси иксов
+import pickle #для хранения переменных в файле
+import json
+import aiohttp # Для асинхронных HTTP запросов
+import asyncio # Для асинхронного программирования
+
+#фак ю нигер
+#допиши чтобы set_valutes заполнялось!!! оно факинг нигер и не заполняется
+
+
+#класс валюта
+class valute():
+    """Валюта и всё с ней связанное, через ЦБ РФ \n
+    Требуются библеотеки: \n
+    requests \n
+    xml.etree.ElementTree \n
+    matplotlib.pyplot as plt \n
+    pandas as pd \n
+    datetime \n
+    pickle \n
+    json \n
+    """
+    def __init__(self, name):
+        self.name = name
+    async def correct_name(self):
+        """Проверка имени валюты на наличие в множестве валют. Множество обновляется не чаще раза в день"""
+        # Использование asyncio.to_thread для блокирующих операций с файлами
+        info = await asyncio.to_thread(self._load_json_file, r"D:\MoexAPI_bot_aiogram3\data_files\Info.json")
+
+        if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["valute"], "%Y-%m-%d %H:%M:%S.%f"): #проверяем условие что дата перезаписи списка валют это хотя бы 1 день назад
+            #если отличается более чем на 1 день, то переписываем список (множество) валют:
+            set_valutes = set() #создаём пустое множество, в него будем заливать валюты
+            s = "http://www.cbr.ru/scripts/XML_daily.asp"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(s) as response:
+                    r_content = await response.text()
+            root = xml.etree.ElementTree.fromstring(r_content) #запрос всё равно выдаёт данные сайта как строку, так что без fromstring никак
+            for Valute in root.findall("Valute"):
+                CharCode = Valute.find("CharCode")
+                set_valutes.add(CharCode.text) #заливаем валюты в наше множество
+            
+            await asyncio.to_thread(self._dump_pickle_file, r"D:\MoexAPI_bot_aiogram3\data_files\set_valutes.bin", set_valutes) #закидываем созданное множество в файл. Если что, каждый раз будет перезаписываться (проверено)
+            
+            #поменяем время последнего обновления
+            info["last_day_check"]["valute"] = str(datetime.datetime.now())
+            await asyncio.to_thread(self._dump_json_file, r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", info)
+            
+        #теперь просто проверим есть ли валюта в списке валют
+        set_valutes = await asyncio.to_thread(self._load_pickle_file, r"D:\MoexAPI_bot_aiogram3\data_files\set_valutes.bin")
+        
+        if self.name in set_valutes: #просто проверяем есть ли валюта в множестве тикеров
+            return True
+        else:
+            return False
+
+    async def CurrentExchangeRate(self):
+        '''Текущий курс обмена валюты на рубль'''
+        s = "http://www.cbr.ru/scripts/XML_daily.asp"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(s) as response:  # Api ЦБ РФ
+                r_content = await response.text()
+        
+        root = xml.etree.ElementTree.fromstring(r_content)
+        for Valute in root.findall("Valute"): #ищем контейнеры валюты
+            for CharCode in Valute.findall("CharCode"): #ищем контейнеры чаркодов
+                if CharCode.text == self.name: #находим контейнер с нужной валютой
+                    return (Valute.find("VunitRate").text)
+
+    # Вспомогательные синхронные методы для работы с файлами
+    def _load_json_file(self, filename):
+        with open(filename, "r", encoding="utf-8") as f:
+            return json.load(f)
+
+    def _dump_json_file(self, filename, data):
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=3, ensure_ascii=False)
+
+    def _load_pickle_file(self, filename):
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+
+    def _dump_pickle_file(self, filename, data):
+        with open(filename, "wb") as f:
+            pickle.dump(data, f)

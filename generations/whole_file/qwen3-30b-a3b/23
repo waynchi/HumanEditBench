@@ -1,0 +1,9 @@
+import nltk
+nltk.download('words')
+from nltk.corpus import words as nltk_words
+
+n = int(input("Enter the number of characters: "))
+word_list = nltk_words.words()
+filtered = [word for word in word_list if len(word) == n]
+for word in filtered[:10]:
+    print(word)

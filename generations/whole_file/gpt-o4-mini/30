@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+def is_sum_of_four_nonzero_squares(n):
+    """
+    Verifica se n pode ser expresso como soma de quatro quadrados não nulos.
+    Retorna (True, (a,b,c,d)) se sim, com um exemplo de (a,b,c,d);
+    caso contrário retorna (False, ()).
+    """
+    # percorre todas as combinações possíveis de três quadrados não nulos
+    for a in range(1, int(n**0.5) + 1):
+        a2 = a*a
+        for b in range(1, int((n - a2)**0.5) + 1):
+            b2 = b*b
+            for c in range(1, int((n - a2 - b2)**0.5) + 1):
+                c2 = c*c
+                d2 = n - a2 - b2 - c2
+                if d2 <= 0:
+                    continue
+                d = int(d2**0.5)
+                if d*d == d2:
+                    return True, (a, b, c, d)
+    return False, ()
+
+def numbers_with_four_nonzero_squares(limit):
+    """
+    Retorna uma lista de tuplas (n, (a,b,c,d)) para todo 1<=n<=limit
+    que podem ser escritos como soma de quatro quadrados não nulos.
+    """
+    result = []
+    for n in range(1, limit + 1):
+        ok, quad = is_sum_of_four_nonzero_squares(n)
+        if ok:
+            result.append((n, quad))
+    return result
+
+def main():
+    try:
+        limit = int(input("Digite o valor máximo (inteiro positivo): "))
+    except ValueError:
+        print("Entrada inválida.")
+        return
+
+    if limit < 1:
+        print("O limite deve ser um inteiro positivo.")
+        return
+
+    encontrados = numbers_with_four_nonzero_squares(limit)
+    print("\nNúmeros que podem ser expressos como a soma de quatro quadrados não nulos:")
+    for n, (a, b, c, d) in encontrados:
+        print(f"{n} = {a}² + {b}² + {c}² + {d}²")
+
+if __name__ == "__main__":
+    main()

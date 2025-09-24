@@ -1,0 +1,25 @@
+def is_prime(n):
+    """
+    Check if n is a prime number.
+
+    Args:
+        n (int): The number to check.
+
+    Returns:
+        bool: True if n is prime, False otherwise.
+    """
+    if not isinstance(n, int):
+        return False
+    if n < 2:
+        return False
+    if n % 2 == 0:
+        return n == 2
+    if n % 3 == 0:
+        return n == 3
+
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True

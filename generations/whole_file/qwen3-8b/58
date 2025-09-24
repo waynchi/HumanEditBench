@@ -1,0 +1,9 @@
+def write_on_images(font_size=16):
+    """Adds a font_size parameter to the function, which is used to specify the size of the text."""
+    from PIL import Image
+    from PIL import ImageDraw
+    img = Image.open('kirby.jpeg')
+    I1 = ImageDraw.Draw(img)
+    I1.text((28, 36), "nice Car", fill=(255, 0, 0), font_size=font_size)
+    img.show()
+    img.save("car2.png")

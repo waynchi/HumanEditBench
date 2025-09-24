@@ -1,0 +1,17 @@
+import nltk
+nltk.download('words')
+from nltk.corpus import words
+
+def find_words_with_n_characters(n):
+    word_list = words.words()
+    filtered_words = [word for word in word_list if len(word) == n]
+    print(f"Words with {n} characters:")
+    for word in filtered_words[:10]:
+        print(word)
+
+if __name__ == "__main__":
+    try:
+        n = int(input("Enter the number of characters: "))
+        find_words_with_n_characters(n)
+    except ValueError:
+        print("Please enter a valid integer for the number of characters.")

@@ -1,0 +1,39 @@
+import nltk
+from nltk.corpus import words
+
+nltk.download('words')
+
+def find_words_with_length(n):
+    """
+    Finds 10 words with a specific length from the English dictionary.
+
+    Args:
+        n: The desired length of the words.
+
+    Returns:
+        A list of up to 10 words with the specified length, or an empty list if no such words exist.
+    """
+    word_list = words.words()
+    result = []
+    for word in word_list:
+        if len(word) == n:
+            result.append(word)
+            if len(result) == 10:
+                break
+    return result
+
+if __name__ == "__main__":
+    try:
+        n = int(input("Enter the desired word length: "))
+        if n <= 0:
+            print("Please enter a positive integer.")
+        else:
+            words_found = find_words_with_length(n)
+            if words_found:
+                print(f"10 words with {n} characters:")
+                for word in words_found:
+                    print(word)
+            else:
+                print(f"No words found with {n} characters.")
+    except ValueError:
+        print("Invalid input. Please enter an integer.")

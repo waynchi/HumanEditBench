@@ -1,0 +1,58 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the relative path to the chromedriver
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+# Set the path to the Chrome browser binary (not chromedriver)
+chrome_binary_candidates = [
+    os.environ.get("CHROME_BINARY"),
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+]
+for p in chrome_binary_candidates:
+    if p and os.path.exists(p):
+        options.binary_location = p
+        break
+
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options, driver_executable_path=chromedriver_path) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)
+import time
+
+options = uc.ChromeOptions()
+# Set the path to the Chrome browser binary (not chromedriver)
+chrome_binary_candidates = [
+    os.environ.get("CHROME_BINARY"),
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+]
+for p in chrome_binary_candidates:
+    if p and os.path.exists(p):
+        options.binary_location = p
+        break
+
+print("wde")
+with uc.Chrome(
+    use_subprocess=True,
+    options=options,
+    driver_executable_path=r"C:\Programming\Test\IP_Test\chromedriver-win64\chromedriver.exe",
+) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)

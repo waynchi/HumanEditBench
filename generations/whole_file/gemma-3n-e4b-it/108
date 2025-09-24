@@ -1,0 +1,326 @@
+import torch
+from transformers import TrainerCallback, Trainer
+import numpy as np
+import re
+from datasets import Dataset
+import os
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    TrainingArguments,
+    get_linear_schedule_with_warmup,
+)
+from peft import (
+    get_peft_model,
+    LoraConfig,
+    PeftModel,
+    TaskType,
+)
+from trl.trainer import ConstantLengthDataset
+from trl import SFTConfig, SFTTrainer, DataCollatorForCompletionOnlyLM
+from torch.utils.data import DataLoader
+
+from my_eval import factual_score
+from my_datasets import gen_mod_dataset, format_and_load_data, load_sample_data
+from utils import clear_directory, merge_lora_model
+
+from dotenv import load_dotenv
+
+
+import time
+load_dotenv()
+
+DATA_SAVE_PATH = os.getenv("DATA_SAVE_PATH")
+MODEL_PATH = os.getenv("MODEL_PATH")
+
+# Mocks
+def factual_score_dataloader(*args):
+    pass
+
+batch_size = 16
+
+def default_data_collator(*args):
+    pass
+
+x = {}
+
+def initialize_model_and_tokenizer(
+    model_name_or_path,
+    tokenizer_name_or_path=None,
+    config=None,
+):
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path)
+    if config:
+        model = get_peft_model(model, config)
+    if tokenizer_name_or_path is None:
+        tokenizer_name_or_path = model_name_or_path
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name_or_path)
+    tokenizer.pad_token = tokenizer.eos_token
+    tokenizer.padding_side = "left"
+    return model, tokenizer
+
+
+def data_collator(batch):
+
+    inputs = {
+        # .to(device),
+        "input_ids": torch.stack([item["input_ids"] for item in batch]),
+        # .to(device),
+        "labels": torch.stack([item["labels"] for item in batch]),
+    }
+    return inputs
+
+
+def formatting_prompts_func(example):
+    output_texts = []
+    for i in range(len(example["instruction"])):
+        text = f"### Question: {x['question']} ### Answer: {x['answer']}"
+        output_texts.append(text)
+    return output_texts
+
+
+def train_model(
+    dataset, model, tokenizer, training_args, callbacks=None, verbose=False
+):
+    # Split dataset
+    train_test_split = dataset.train_test_split(test_size=0.2)
+
+    # Create ConstantLengthDataset instances
+    train_dataset = ConstantLengthDataset(
+        tokenizer,
+        train_test_split["train"],
+        formatting_func=lambda x: f"### Question: {x['question']} ### Answer: {x['answer']}",
+        seq_length=18,
+        num_of_sequences=20,
+    )
+
+    eval_dataset = ConstantLengthDataset(
+        tokenizer,
+        train_test_split["test"],
+        formatting_func=lambda x: f"### Question: {x['question']} ### Answer: {x['answer']}",
+        seq_length=18,
+        num_of_sequences=20,
+    )
+
+    # optimizer = AdamW(model.parameters(), lr=training_args.learning_rate)
+
+    # num_epochs = training_args.num_epochs
+    # num_warmup_steps = int(0.1 * len(train_dataset))  # 10% of training steps
+    # total_training_steps = len(train_dataset) * num_epochs
+    # # Set up the scheduler
+    # scheduler = get_linear_schedule_with_warmup(
+    #     optimizer,
+    #     num_warmup_steps=num_warmup_steps,
+    #     num_training_steps=total_training_steps,
+    # )
+
+    collator = DataCollatorForCompletionOnlyLM(
+        " ### Answer: ",
+        tokenizer=tokenizer,
+    )  # Must match formatting_func
+
+    trainer = SFTTrainer(
+        model=model,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        # optimizers=None,(optimizer, scheduler),
+        data_collator=collator,  # Use the collator you defined
+        # formatting_func=formatting_prompts_func,
+        packing=False,
+        callbacks=callbacks,
+        args=SFTConfig(**training_args.to_dict()),
+    )
+
+    if verbose:
+        print("Training init done. Starting training...")
+    trainer.train()
+
+    if verbose:
+        print(f"Training completed in {time.time() - start_time:.2f} seconds.")
+    trainer.evaluate()
+
+    if verbose:
+        print(f"Evaluation completed in {time.time() - start_time:.2f} seconds.")
+
+    return trainer
+
+
+def setup_training_args(
+    save_path,
+    model_name,
+    learning_rate,
+    num_epochs,
+    total_train_examples,
+    batch_size=1024,
+    footer="",
+):
+    if len(footer) == 0:
+        checkpoint_dir = os.path.join(save_path, model_name + "_checkpoints")
+        logging_dir = os.path.join(save_path, model_name + "_logs")
+    else:
+        checkpoint_dir = os.path.join(save_path, model_name + f"_checkpoints_{footer}")
+        logging_dir = os.path.join(save_path, model_name + f"_logs_{footer}")
+
+    clear_directory(checkpoint_dir)
+
+    # Calculate the steps per epoch based on total number of training examples and batch size
+    steps_per_epoch = total_train_examples // batch_size
+
+    # Calculate eval_steps, save_steps, and logging_steps based on the steps per epoch
+    eval_steps = max(
+        1, steps_per_epoch // 10
+    )  # Evaluate 10 times per epoch, at least once per epoch
+    save_steps = steps_per_epoch  # Save at the end of every epoch
+    logging_steps = max(
+        1, steps_per_epoch // 20
+    )  # Log 20 times per epoch, at least once per epoch
+
+    return TrainingArguments(
+        output_dir=checkpoint_dir,
+        learning_rate=learning_rate,
+        per_device_train_batch_size=batch_size,
+        per_device_eval_batch_size=batch_size,
+        num_train_epochs=num_epochs,
+        eval_steps=eval_steps,
+        save_steps=save_steps,
+        logging_steps=logging_steps,
+        save_total_limit=2,  # Keep only the 2 best checkpoints
+        weight_decay=0.01,
+        evaluation_strategy="steps",  # Changed to steps to make use of eval_steps
+        logging_strategy="steps",
+        save_strategy="steps",  # Changed to steps to make use of save_steps
+        logging_dir=logging_dir,  # Uncomment this if you define a logging directory
+        report_to="none",  # Report to tensorboard for visual monitoring
+        load_best_model_at_end=True,
+        dataloader_pin_memory=False,
+    )
+
+
+class FactualAccuracyCallbackBETTER(TrainerCallback):
+    """
+    A callback to evaluate and log the factual accuracy of the model during training.
+    """
+
+    def __init__(
+        self, model, tokenizer, dataset, verbose=False, output_format=False
+    ):
+        super().__init__()
+        self.model = model
+        self.tokenizer = tokenizer
+        self.n_samp = len(dataset)
+        self.verbose = verbose
+        self.output_format = output_format
+
+    def on_log(self, args, state, control, model=None, **kwargs):
+        """
+        Called after logging the last logs.
+        """
+        if model is not None:
+            self.model = model
+        elif self.model is None:
+            print("Model is not available.")
+            return
+
+        if state.is_local_process_zero:  # Only log from the main process every 100 steps
+            start_time = time.time()
+            try:
+                if self.output_format:
+                    fact_results, format_hard_results, format_soft_results = (
+                        factual_score_dataloader(
+                            model=self.model,
+                            tokenizer=self.tokenizer,
+                            dataloader=self.tokenizer.batch_size,
+                            output_format=self.output_format,
+                        )
+                    )
+                    # Calculate and log the formatted result
+                    format_hard_avg = sum(format_hard_results) / self.n_samp
+                    format_soft_avg = sum(format_soft_results) / self.n_samp
+                else:
+                    fact_results = factual_score_dataloader(
+                        model=self.model,
+                        tokenizer=self.tokenizer,
+                        dataloader=self.tokenizer.batch_size,
+                    )
+                factual_accuracy_avg = sum(fact_results) / self.n_samp
+
+                if len(state.log_history) > 0:
+                    state.log_history[-1]["factual_accuracy"] = factual_accuracy_avg
+                    if self.output_format:
+                        state.log_history[-1]["format_hard"] = format_hard_avg
+                        state.log_history[-1]["format_soft"] = format_soft_avg
+                else:
+                    print("No log entries available to update")
+
+                time_taken = time.time() - start_time
+                if self.verbose:
+                    print(
+                        f"[TIME] {time_taken:.2f} seconds: Model evaluated on FactualAccuracy."
+                    )
+            except Exception as e:
+                print(f"Error during factual accuracy evaluation: {e}")
+
+
+class FactualAccuracyCallback(TrainerCallback):
+    """
+    A callback to evaluate and log the factual accuracy of the model during training.
+    """
+
+    def __init__(
+        self, model, tokenizer, dataset, n_samples=30, verbose=False, output_format=False
+    ):
+        super().__init__()
+        self.model = model
+        self.tokenizer = tokenizer
+        self.n_samples = n_samples
+        self.verbose = verbose
+        self.output_format = output_format
+
+    def on_log(self, args, state, control, model=None, **kwargs):
+        """
+        Called after logging the last logs.
+        """
+        if model is not None:
+            self.model = model
+        elif self.model is None:
+            print("Model is not available.")
+            return
+
+        if state.is_local_process_zero:  # Only log from the main process every 100 steps
+            start_time = time.time()
+            try:
+                if self.output_format:
+                    fact_results, format_hard_results, format_soft_results = (
+                        factual_score_dataloader(
+                            model=self.model,
+                            tokenizer=self.tokenizer,
+                            dataloader=self.tokenizer.batch_size,
+                            output_format=self.output_format,
+                        )
+                    )
+                    # Calculate and log the formatted result
+                    format_hard_avg = sum(format_hard_results) / self.n_samples
+                    format_soft_avg = sum(format_soft_results) / self.n_samples
+                else:
+                    fact_results = factual_score_dataloader(
+                        model=self.model,
+                        tokenizer=self.tokenizer,
+                        dataloader=self.tokenizer.batch_size,
+                    )
+                factual_accuracy_avg = sum(fact_results) / self.n_samples
+
+                if len(state.log_history) > 0:
+                    state.log_history[-1]["factual_accuracy"] = factual_accuracy_avg
+                    if self.output_format:
+                        state.log_history[-1]["format_hard"] = format_hard_avg
+                        state.log_history[-1]["format_soft"] = format_soft_avg
+                else:
+                    print("No log entries available to update")
+
+                time_taken = time.time() - start_time
+                if self.verbose:
+                    print(
+                        f"[TIME] {time_taken:.2f} seconds: Model evaluated on FactualAccuracy."
+                    )
+            except Exception as e:
+                print(f"Error during factual accuracy evaluation: {e}")

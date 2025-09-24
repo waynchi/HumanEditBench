@@ -1,0 +1,78 @@
+import sys
+
+def load_words():
+    """
+    Load a set of English words from a system dictionary file if available,
+    otherwise fall back to a small built‑in word list.
+    """
+    word_file = '/usr/share/dict/words'
+    words = set()
+    try:
+        with open(word_file, 'r') as f:
+            for line in f:
+                word = line.strip()
+                if word.isalpha():
+                    words.add(word.lower())
+    except FileNotFoundError:
+        # Fallback minimal dictionary
+        fallback = """
+        apple
+        banana
+        cherry
+        date
+        eggplant
+        fig
+        grape
+        honeydew
+        iceberg
+        jackfruit
+        kiwi
+        lemon
+        mango
+        nectarine
+        orange
+        papaya
+        quince
+        raspberry
+        strawberry
+        tomato
+        ugli
+        vanilla
+        watermelon
+        xigua
+        yam
+        zucchini
+        """
+        for word in fallback.split():
+            if word.isalpha():
+                words.add(word.lower())
+    return words
+
+def find_words_of_length(words, length, max_results=10):
+    """
+    Return up to max_results words of the specified length.
+    """
+    results = [w for w in words if len(w) == length]
+    return results[:max_results]
+
+def main():
+    words = load_words()
+    try:
+        n = int(input("Enter the number of characters for the words: "))
+        if n <= 0:
+            print("Please enter a positive integer.")
+            return
+    except ValueError:
+        print("Invalid input. Please enter a valid integer.")
+        return
+
+    matched = find_words_of_length(words, n)
+    if not matched:
+        print(f"No English words found with {n} characters.")
+    else:
+        print(f"Here are up to {len(matched)} English words with {n} characters:")
+        for w in matched:
+            print(w)
+
+if __name__ == "__main__":
+    main()

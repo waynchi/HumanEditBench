@@ -1,0 +1,41 @@
+import torch
+import torch.nn as nn
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_shape):  # Принимаем input_shape вместо flattened_size
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        # Вычисляем размер выхода после сверточных слоев, чтобы определить flattened_size
+        # Для этого нам нужен фиктивный проход
+        with torch.no_grad():
+            dummy_input = torch.zeros(1, *input_shape)  # Создаем фиктивный входной тензор
+            dummy_output = self.conv1(dummy_input)
+            dummy_output = self.conv2(dummy_output)
+            flattened_size = dummy_output.view(1, -1).size(1)
+
+
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Sequential(
+            nn.Linear(flattened_size, 512),  # Используем вычисленный flattened_size здесь
+            nn.ReLU(),
+            nn.Linear(512, 3)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

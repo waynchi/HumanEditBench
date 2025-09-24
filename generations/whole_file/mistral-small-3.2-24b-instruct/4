@@ -1,0 +1,16 @@
+Since the user provided an empty code block to be modified, I'll create a complete Flask app that shows the current date and time. Here's the implementation:
+python
+from flask import Flask
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route('/')
+def show_datetime():
+    current_datetime = datetime.now()
+    return f"Current Date and Time: {current_datetime}"
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+This code creates a simple Flask application with a single route that displays the current date and time when you visit the root URL ('/'). The datetime module is used to get the current date and time, which is then formatted and displayed in the response.

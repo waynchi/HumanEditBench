@@ -1,0 +1,152 @@
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """
+    Создает матрицу размера rows x cols, заполненную значением fill_value.
+    Параметры:
+    rows (int): количество строк.
+    cols (int): количество столбцов.
+    fill_value (любой тип): значение для заполнения матрицы.
+    Возвращает:
+    list: матрица в виде списка списков.
+    """
+    # Проверяем, что размеры неотрицательны
+    if rows < 0 or cols < 0:
+        raise ValueError("Количество строк и столбцов должно быть неотрицательным")
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Складывает две матрицы одинакового размера.
+    Параметры:
+    matrix_a (list): первая матрица.
+    matrix_b (list): вторая матрица.
+    Возвращает:
+    list: результат сложения матриц.
+    """
+    if not matrix_a or not matrix_b:
+        raise ValueError("Матрицы не должны быть пустыми")
+    rows_a = len(matrix_a)
+    rows_b = len(matrix_b)
+    if rows_a != rows_b:
+        raise ValueError("Матрицы должны быть одинакового размера")
+    cols_a = len(matrix_a[0])
+    cols_b = len(matrix_b[0])
+    if cols_a != cols_b:
+        raise ValueError("Матрицы должны быть одинакового размера")
+    result = []
+    for i in range(rows_a):
+        row_a = matrix_a[i]
+        row_b = matrix_b[i]
+        if len(row_a) != cols_a or len(row_b) != cols_b:
+            raise ValueError("Некорректная форма матрицы")
+        result_row = []
+        for j in range(cols_a):
+            result_row.append(row_a[j] + row_b[j])
+        result.append(result_row)
+    return result
+
+
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """
+    Умножает все элементы матрицы на скаляр.
+    Параметры:
+    matrix (list): исходная матрица.
+    scalar (float): число, на которое умножаются элементы матрицы.
+    Возвращает:
+    list: результат умножения матрицы на скаляр.
+    """
+    if not matrix:
+        return []
+    rows = len(matrix)
+    cols = len(matrix[0])
+    result = []
+    for i in range(rows):
+        row = matrix[i]
+        if len(row) != cols:
+            raise ValueError("Некорректная форма матрицы")
+        result.append([element * scalar for element in row])
+    return result
+
+
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Перемножает две матрицы.
+    Параметры:
+    matrix_a (list): первая матрица.
+    matrix_b (list): вторая матрица.
+    Возвращает:
+    list: результат умножения матриц.
+    """
+    if not matrix_a or not matrix_b:
+        raise ValueError("Матрицы не должны быть пустыми")
+    rows_a = len(matrix_a)
+    cols_a = len(matrix_a[0])
+    rows_b = len(matrix_b)
+    cols_b = len(matrix_b[0])
+    if cols_a != rows_b:
+        raise ValueError("Число столбцов первой матрицы должно совпадать с числом строк второй матрицы")
+    # Проверим, что все строки корректной длины
+    for row in matrix_a:
+        if len(row) != cols_a:
+            raise ValueError("Некорректная форма первой матрицы")
+    for row in matrix_b:
+        if len(row) != cols_b:
+            raise ValueError("Некорректная форма второй матрицы")
+    # Вычисление произведения
+    result = []
+    for i in range(rows_a):
+        result_row = []
+        for j in range(cols_b):
+            s = 0
+            for k in range(cols_a):
+                s += matrix_a[i][k] * matrix_b[k][j]
+            result_row.append(s)
+        result.append(result_row)
+    return result
+
+
+def transpose_matrix(matrix: list) -> list:
+    """
+    Транспонирует матрицу.
+    Параметры:
+    matrix (list): исходная матрица.
+    Возвращает:
+    list: транспонированная матрица.
+    """
+    if not matrix:
+        return []
+    rows = len(matrix)
+    cols = len(matrix[0])
+    # Проверка формы
+    for row in matrix:
+        if len(row) != cols:
+            raise ValueError("Некорректная форма матрицы")
+    # Транспонирование
+    transposed = []
+    for j in range(cols):
+        new_row = []
+        for i in range(rows):
+            new_row.append(matrix[i][j])
+        transposed.append(new_row)
+    return transposed
+
+
+def determinant_3x3(matrix: list) -> float:
+    """
+    Вычисляет определитель матрицы 3x3.
+    Параметры:
+    matrix (list): исходная матрица размером 3x3.
+    Возвращает:
+    float: определитель матрицы.
+    """
+    if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+        raise ValueError("Матрица должна быть размером 3x3")
+    a11, a12, a13 = matrix[0]
+    a21, a22, a23 = matrix[1]
+    a31, a32, a33 = matrix[2]
+    det = (
+        a11 * (a22 * a33 - a23 * a32)
+        - a12 * (a21 * a33 - a23 * a31)
+        + a13 * (a21 * a32 - a22 * a31)
+    )
+    return float(det)

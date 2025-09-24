@@ -1,0 +1,34 @@
+class SimpleConvNet1(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.flatten = nn.Flatten()
+        # Calculate the flattened size based on the output of conv2
+        # Assuming input size is 32x32 (common for CIFAR-10)
+        # Output size after conv1: (32-3+1)/1 = 30 -> 15 after pooling
+        # Output size after conv2: (15-3+1)/1 = 13 -> 6 after pooling
+        # Flattened size: 6 * 6 * 64 = 2304
+        self.fc1 = nn.Sequential(
+            nn.Linear(2304, 512),  # Updated flattened_size to 2304
+            nn.ReLU(),
+            nn.Linear(512, 3)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

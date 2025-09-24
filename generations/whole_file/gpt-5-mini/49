@@ -1,0 +1,181 @@
+from typing import Any, List
+
+
+def _validate_matrix(matrix: list) -> (int, int):
+    """
+    Вспомогательная функция, проверяющая, что matrix — прямоугольная матрица (список списков).
+    Возвращает кортеж (rows, cols).
+    Вызывает ValueError, если вход некорректен.
+    """
+    if not isinstance(matrix, list):
+        raise ValueError("Matrix must be a list of lists.")
+    if len(matrix) == 0:
+        return 0, 0
+    # Every row must be a list and have the same length
+    if not all(isinstance(row, list) for row in matrix):
+        raise ValueError("Matrix must be a list of lists.")
+    cols = len(matrix[0])
+    for i, row in enumerate(matrix):
+        if len(row) != cols:
+            raise ValueError(f"All rows must have the same number of columns. Row 0 has {cols}, row {i} has {len(row)}.")
+    return len(matrix), cols
+
+
+def create_matrix(rows: int, cols: int, fill_value: Any = 0) -> List[List[Any]]:
+    """
+    Создает матрицу размера rows x cols, заполненную значением fill_value.
+
+    Параметры:
+    rows (int): количество строк.
+    cols (int): количество столбцов.
+    fill_value (любой тип): значение для заполнения матрицы.
+
+    Возвращает:
+    list: матрица в виде списка списков.
+    """
+    if not isinstance(rows, int) or not isinstance(cols, int):
+        raise ValueError("rows and cols must be integers.")
+    if rows < 0 or cols < 0:
+        raise ValueError("rows and cols must be non-negative.")
+    # Создаем новые списки для каждой строки, чтобы изменения в одной строке не влияли на другие
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+def add_matrices(matrix_a: List[List[Any]], matrix_b: List[List[Any]]) -> List[List[Any]]:
+    """
+    Складывает две матрицы одинакового размера.
+
+    Параметры:
+    matrix_a (list): первая матрица.
+    matrix_b (list): вторая матрица.
+
+    Возвращает:
+    list: результат сложения матриц.
+    """
+    rows_a, cols_a = _validate_matrix(matrix_a)
+    rows_b, cols_b = _validate_matrix(matrix_b)
+
+    if (rows_a, cols_a) != (rows_b, cols_b):
+        raise ValueError("Matrices must have the same dimensions to be added.")
+
+    # Для пустых матриц возвращаем пустую матрицу
+    if rows_a == 0 or cols_a == 0:
+        return []
+
+    result = []
+    for i in range(rows_a):
+        row = []
+        for j in range(cols_a):
+            row.append(matrix_a[i][j] + matrix_b[i][j])
+        result.append(row)
+    return result
+
+
+def scalar_multiply(matrix: List[List[Any]], scalar: float) -> List[List[Any]]:
+    """
+    Умножает все элементы матрицы на скаляр.
+
+    Параметры:
+    matrix (list): исходная матрица.
+    scalar (float): число, на которое умножаются элементы матрицы.
+
+    Возвращает:
+    list: результат умножения матрицы на скаляр.
+    """
+    rows, cols = _validate_matrix(matrix)
+
+    if rows == 0 or cols == 0:
+        return []
+
+    result = []
+    for i in range(rows):
+        row = []
+        for j in range(cols):
+            row.append(matrix[i][j] * scalar)
+        result.append(row)
+    return result
+
+
+def multiply_matrices(matrix_a: List[List[float]], matrix_b: List[List[float]]) -> List[List[float]]:
+    """
+    Перемножает две матрицы.
+
+    Параметры:
+    matrix_a (list): первая матрица.
+    matrix_b (list): вторая матрица.
+
+    Возвращает:
+    list: результат умножения матриц.
+    """
+    rows_a, cols_a = _validate_matrix(matrix_a)
+    rows_b, cols_b = _validate_matrix(matrix_b)
+
+    # Проверка совместимости для умножения: число столбцов A == число строк B
+    if cols_a != rows_b:
+        raise ValueError("Number of columns of matrix_a must equal number of rows of matrix_b.")
+
+    # Если одна из матриц пустая (например 0x0), результат — пустая матрица
+    if rows_a == 0 or cols_b == 0:
+        return []
+
+    # Инициализируем результат нулями
+    result = create_matrix(rows_a, cols_b, 0)
+
+    for i in range(rows_a):
+        for j in range(cols_b):
+            s = 0
+            for k in range(cols_a):  # cols_a == rows_b
+                s += matrix_a[i][k] * matrix_b[k][j]
+            result[i][j] = s
+    return result
+
+
+def transpose_matrix(matrix: List[List[Any]]) -> List[List[Any]]:
+    """
+    Транспонирует матрицу.
+
+    Параметры:
+    matrix (list): исходная матрица.
+
+    Возвращает:
+    list: транспонированная матрица.
+    """
+    rows, cols = _validate_matrix(matrix)
+
+    if rows == 0 or cols == 0:
+        return []
+
+    transposed = []
+    for j in range(cols):
+        row = []
+        for i in range(rows):
+            row.append(matrix[i][j])
+        transposed.append(row)
+    return transposed
+
+
+def determinant_3x3(matrix: List[List[float]]) -> float:
+    """
+    Вычисляет определитель матрицы 3x3.
+
+    Параметры:
+    matrix (list): исходная матрица размером 3x3.
+
+    Возвращает:
+    float: определитель матрицы.
+    """
+    rows, cols = _validate_matrix(matrix)
+    if (rows, cols) != (3, 3):
+        raise ValueError("Matrix must be 3x3 to compute the determinant with this function.")
+
+    a11, a12, a13 = matrix[0]
+    a21, a22, a23 = matrix[1]
+    a31, a32, a33 = matrix[2]
+
+    det = (
+        a11 * (a22 * a33 - a23 * a32)
+        - a12 * (a21 * a33 - a23 * a31)
+        + a13 * (a21 * a32 - a22 * a31)
+    )
+    # Приводим к float, как в условии
+    return float(det)

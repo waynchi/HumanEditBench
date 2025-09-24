@@ -1,0 +1,70 @@
+function createTurnState(allyStates, foeStates) {
+  // Znajdź bieżącą turę na podstawie tego, która grupa nadal ma jednostki mogące działać
+
+  let currentTurn = "player"; // Ustawienie domyślnej tury na gracza
+  let turnNumber = 1;
+
+  function determineCurrentTurn() {
+    const allyActive = allyStates.some(unit => !unit.hasActed);
+    const foeActive = foeStates.some(unit => !unit.hasActed);
+    
+    // Zmieniamy bieżącą turę w zależności od dostępności jednostek
+    if (allyActive && !foeActive) {
+      currentTurn = "player"; 
+    } else if (!allyActive && foeActive) {
+      currentTurn = "cpu"; 
+    } else if (allyActive && foeActive) {
+      currentTurn = currentTurn; // Pozostaw bieżącą turę niezmienioną
+    } else {
+      // Jeśli nie ma aktywnych jednostek, można zresetować grę lub zakończyć
+      console.warn("Brak aktywnych jednostek w obu grupach!");
+    }
+  }
+
+  function getCurrentTurn() {
+    return currentTurn;
+  }
+
+  function getTurnNumber() {
+    return turnNumber;
+  }
+
+  function nextTurn() {
+    if (currentTurn === "player") {
+      currentTurn = "cpu";
+      // Logika CPU tutaj (np. ruchy i akcje AI)
+      allyStates.forEach(unit => unit.hasActed = true);
+      foeStates.forEach(unit => unit.hasActed = false);
+      cpuTurn();
+    } else {
+      currentTurn = "player";
+      foeStates.forEach(unit => unit.hasActed = true);
+      allyStates.forEach(unit => unit.hasActed = false);
+      turnNumber++; // Inkrementuj numer tury tylko po turze gracza
+    }
+     // Zresetuj dostępność akcji dla wszystkich jednostek na początku nowej tury
+  }
+
+  function cpuTurn() {
+    // Przykładowe zachowanie CPU (zastąp własną logiką AI)
+    for (const cpuUnit of foeStates) {
+      if (!cpuUnit.hasActed) { // Sprawdź, czy jednostka już działała w tej turze
+        // Wykonaj akcje CPU (np. ruch, atak)
+        // ... tutaj twoja logika AI CPU ...
+
+        cpuUnit.hasActed = true; // Oznacz jednostkę jako działającą
+      }
+    }
+
+    // „Po tym, jak wszystkie jednostki CPU wykonały ruch (lub zdecydowały się nie działać), zakończ turę CPU”
+    nextTurn(); // Automatycznie przełącz na turę gracza
+  }  
+
+  return {
+    getCurrentTurn,
+    getTurnNumber,
+    nextTurn
+  };
+}
+
+export { createTurnState };

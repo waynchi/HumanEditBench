@@ -1,0 +1,41 @@
+# Step-by-step analysis of the problem:
+1. **The error message indicates that there is a problem with creating a new Chrome session**. This could be due to a variety of reasons such as the Chrome driver not being properly set up or the browser not being able to connect to the driver.
+2. **The issue seems to be related to the `binary_location` of the Chrome driver**. The current code sets the `binary_location` to a specific path which might not be correct.
+3. **Instead of hardcoding the `binary_location`, we can use the `undetected_chromedriver` to automatically install and manage the Chrome driver**.
+
+# Fixed solution:python
+import os
+import time
+import undetected_chromedriver as uc
+
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+options = uc.ChromeOptions()
+# Removed the binary_location to let undetected_chromedriver manage it
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)
+
+options = uc.ChromeOptions()
+# Removed the binary_location to let undetected_chromedriver manage it
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)
+
+# Explanation of changes:
+* **Removed the hardcoded `binary_location`**: Let `undetected_chromedriver` manage the Chrome driver installation and location.
+* **No changes to other parts of the code**: The rest of the code remains the same.
+
+# Tests and example uses:
+* Run the script and verify that it can successfully create a new Chrome session and navigate to the specified URL.

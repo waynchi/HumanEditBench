@@ -1,0 +1,53 @@
+# (Código inalterado)
+
+# -------------------- Seção Destacada Iniciada --------------------
+def expressible_as_four_nonzero_squares(n):
+    """
+    Verifica se o número n pode ser expresso como a soma de quatro quadrados não nulos.
+    Cada quadrado é o quadrado de um inteiro positivo (>= 1).
+    Para reduzir repetições, assumimos que a representação pode ser ordenada: a <= b <= c <= d.
+    """
+    if n < 4:
+        return False
+
+    # O menor valor possível para a é tal que 4 * a^2 <= n.
+    max_a = int((n / 4) ** 0.5)
+    for a in range(1, max_a + 1):
+        a2 = a * a
+        # Para b, tendo em vista que b >= a e que a^2 + 3 * b^2 <= n:
+        max_b = int(((n - a2) / 3) ** 0.5)
+        for b in range(a, max_b + 1):
+            b2 = b * b
+            # Para c, considerando c >= b e a^2 + b^2 + 2 * c^2 <= n:
+            max_c = int(((n - a2 - b2) / 2) ** 0.5)
+            for c in range(b, max_c + 1):
+                c2 = c * c
+                remaining = n - (a2 + b2 + c2)
+                # d deve ser pelo menos c, ou seja, d^2 >= c^2.
+                if remaining < c * c:
+                    break  # Para c maior, remaining será ainda menor.
+                # Verifica se remaining é um quadrado perfeito e se a raíz é >= c.
+                d = int(remaining ** 0.5)
+                if d >= c and d * d == remaining:
+                    return True
+    return False
+
+def numeros_soma_quatro_quadrados_nao_nulos(limite):
+    """
+    Retorna uma lista de números até 'limite' que podem ser expressos
+    como a soma de quatro quadrados não nulos.
+    """
+    resultados = []
+    for n in range(4, limite + 1):
+        if expressible_as_four_nonzero_squares(n):
+            resultados.append(n)
+    return resultados
+
+if __name__ == "__main__":
+    limite = 100  # Altere o limite conforme necessário
+    numeros = numeros_soma_quatro_quadrados_nao_nulos(limite)
+    print("Números que podem ser expressos como a soma de quatro quadrados não nulos:")
+    print(numeros)
+# --------------------- Seção Destacada Finalizada ---------------------
+
+# (Código inalterado)

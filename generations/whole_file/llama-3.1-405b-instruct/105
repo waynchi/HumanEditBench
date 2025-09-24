@@ -1,0 +1,67 @@
+def fill_gaps_for_all_tickers(self):
+        """Riempie i gap per tutti i ticker nel database."""
+        with sqlite3.connect(self.db_path) as conn:
+            for ticker in self.tickers:
+                try:
+                    missing_days = self._find_missing_days(ticker)
+                    if missing_days is None:
+                        write_log(f"datafeed.py - Nessun dato esistente per {ticker}")
+                        continue
+
+                    # use missing days to fill gaps...
+                    write_log(f"datafeed.py - Inizio riempimento gap per {ticker}")
+                    # Ottieni le date minime e massime per il ticker
+                    write_log(f"datafeed.py - {ticker}: Esecuzione query SQL per load dati in dataframe")
+                    df = pd.read_sql_query(
+                        """
+                        SELECT date, open, high, low, close, adj_close, volume
+                        FROM daily_data
+                        WHERE ticker =?
+                        ORDER BY date
+                        """,
+                        conn,
+                        params=(ticker,),
+                    )
+                    write_log(f"datafeed.py - {ticker}: Query SQL completata")
+                    if df.empty:
+                        write_log(f"datafeed.py - Nessun dato esistente per {ticker}")
+                        continue
+
+                    # Converti la colonna date in datetime
+                    write_log(f"datafeed.py - {ticker}: Conversione colonna 'date' in datetime")
+                    df['date'] = pd.to_datetime(df['date'])
+                    write_log(f"datafeed.py - {ticker}: Conversione completata")
+
+                    # Ottieni il range di date
+                    existing_start = df['date'].min()
+                    existing_end = df['date'].max()
+                    write_log(f"datafeed.py - {ticker}: Data inizio esistente: {existing_start}")
+                    write_log(f"datafeed.py - {ticker}: Data fine esistente: {existing_end}")
+
+                    # Ottieni i business days
+                    write_log(f"datafeed.py - {ticker}: Calcolo business days")
+                    business_days = self.trade_calendar.get_business_days(
+                        existing_start, existing_end, self.italy_holidays
+                    )
+                    write_log(f"datafeed.py - {ticker}: Calcolo business days completato")
+
+                    # Identifica e riempi i gap
+                    write_log(f"datafeed.py - {ticker}: Impostazione indice del DataFrame su date")
+                    df = df.set_index('date')
+                    write_log(f"datafeed.py - {ticker}: Indice impostato")
+
+                    write_log(f"datafeed.py - {ticker}: Identificazione gap")
+                    df_filled = self.identify_gaps(df, ticker, business_days)
+                    write_log(f"datafeed.py - {ticker}: Identificazione gap completata")
+
+                    write_log(f"datafeed.py - {ticker}: Riempimento gap")
+                    df_filled = self.fill_gaps(df_filled, ticker)
+                    write_log(f"datafeed.py - {ticker}: Riempimento gap completato")
+
+                    # Salva i dati riempiti
+                    write_log(f"datafeed.py - {ticker}: Salvataggio dati")
+                    self.save_data_to_db(df_filled)
+                    write_log(f"datafeed.py - {ticker}: Salvataggio dati completato")
+
+                except Exception as e:
+                    write_log(f"datafeed.py - Errore durante il riempimento dei gap per {ticker}: {str(e)}")

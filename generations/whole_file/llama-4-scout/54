@@ -1,0 +1,12 @@
+import os
+from pymilvus import MilvusClient
+
+# 记录当前路径为cwd
+# 创建向量数据库链接
+cwd = os.getcwd()
+client = MilvusClient(uri=f"http://localhost:19530")
+
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+
+# rest of your code here...

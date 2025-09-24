@@ -1,0 +1,74 @@
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """ Crea una matriz de tamaño rows x cols, llena con el valor fill_value.
+    
+    Parámetros:
+    rows (int): número de filas.
+    cols (int): número de columnas.
+    fill_value (cualquier tipo): valor para llenar la matriz.
+
+    Retorna:
+    list: matriz como lista de listas.
+    """
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """ Suma dos matrices del mismo tamaño.
+
+    Parámetros:
+    matrix_a (list): primera matriz.
+    matrix_b (list): segunda matriz.
+
+    Retorna:
+    list: resultado de la suma de matrices.
+    """
+    return [[matrix_a[i][j] + matrix_b[i][j] for j in range(len(matrix_a[0]))] for i in range(len(matrix_a))]
+
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """ Multiplica todos los elementos de la matriz por un escalar.
+
+    Parámetros:
+    matrix (list): matriz original.
+    scalar (float): número por el cual se multiplican los elementos de la matriz.
+
+    Retorna:
+    list: resultado de la multiplicación de la matriz por el escalar.
+    """
+    return [[element * scalar for element in row] for row in matrix]
+
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """ Multiplica dos matrices.
+
+    Parámetros:
+    matrix_a (list): primera matriz.
+    matrix_b (list): segunda matriz.
+
+    Retorna:
+    list: resultado de la multiplicación de matrices.
+    """
+    result_rows = len(matrix_a)
+    result_cols = len(matrix_b[0])
+    return [[sum(matrix_a[i][k] * matrix_b[k][j] for k in range(len(matrix_b))) for j in range(result_cols)] for i in range(result_rows)]
+
+def transpose_matrix(matrix: list) -> list:
+    """ Transpone una matriz.
+
+    Parámetros:
+    matrix (list): matriz original.
+
+    Retorna:
+    list: matriz transpuesta.
+    """
+    return [[matrix[j][i] for j in range(len(matrix))] for i in range(len(matrix[0]))]
+
+def determinant_3x3(matrix: list) -> float:
+    """ Calcula el determinante de una matriz 3x3.
+
+    Parámetros:
+    matrix (list): matriz original de tamaño 3x3.
+
+    Retorna:
+    float: determinante de la matriz.
+    """
+    return (matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1])
+            - matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0])
+            + matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]))

@@ -1,0 +1,78 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar(texto: str):
+    return "count me " in texto
+
+def is_own_author(autor: str):
+    return author == 'subidu'
+
+def is_banned(autor: str):
+    list_banned = []
+    return autor in list_banned
+
+def generar_permlink_unico() -> str:
+    return "".join(random.choices(string.digits, k=10))
+
+def procesar_replies(replies: Comment):
+    pass
+
+def preparar_comentario(parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu', body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+q = Query()
+d = Discussions()
+
+posts_generator = d.get_discussions("created", q, limit=6000)
+X = 0
+
+def build_hierarchy(comment):
+    hierarchy = []
+    for r in comment.get_replies():
+        node = {
+            "author": r["author"],
+            "permlink": r["permlink"],
+            "body": r["body"],
+            "replies": []
+        }
+        sub_comment = Comment(authorperm=f"{r['author']}/{r['permlink']}")
+        node["replies"] = build_hierarchy(sub_comment)
+        hierarchy.append(node)
+    return hierarchy
+
+for post in posts_generator:
+    post_author = post['author']
+    post_permlink = post['permlink']
+    post_children_count = post['children']
+    X += 1
+    key = f"{post_author}/{post_permlink}"
+    # Construir la entrada jerárquica del post en el diccionario
+    diccionario[key] = {
+        "author": post_author,
+        "permlink": post_permlink,
+        "replies": build_hierarchy(Comment(authorperm=key))
+    }
+    cnt = 0
+    if post_children_count > n_respuestas_minimas:
+        comment = Comment(authorperm=key)
+        direct_replies = comment.get_replies()
+        for reply in direct_replies:
+            author = reply['author']
+            body = reply['body']
+            if is_own_author(author) or is_banned(author):
+                break
+            if procesar(body):
+                cnt += 1
+    if cnt > 3:
+        print("Iterador:", X)
+        print(reply['author'], '/', reply['permlink'])

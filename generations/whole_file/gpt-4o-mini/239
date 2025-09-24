@@ -1,0 +1,48 @@
+# создать модуль полусумматора на Verilog с помощью Python
+
+# код на verilog
+verilog_code = """
+module half_adder(a, b, c, sum, carry);
+    input a, b;
+    output c, sum, carry;
+    assign c = a ^ b;
+    assign sum = a & b;
+    assign carry = a & b;
+endmodule
+"""
+
+# имя модуля verilog
+module_name = "half_adder"
+
+# входные и выходные порты модуля verilog
+input_ports = ["a", "b"]
+output_ports = ["c", "sum", "carry"]
+
+# параметры модуля verilog
+parameters = ["WIDTH"]
+
+# значение параметров модуля verilog
+parameter_values = ["8"]
+
+# тело модуля verilog
+module_body = """
+    input a, b, d, e;  // добавлены новые входные сигналы d и e
+    output c, sum, carry;
+    assign c = a ^ b ^ d ^ e;  // изменена логика для учета новых входов
+    assign sum = (a & b) | (d & e); // изменена логика для нового сумматора
+    assign carry = (a & b) | (a & d) | (b & d) | (d & e); // изменена логика для нового переноса
+endmodule
+"""
+
+# инстанцирование модуля verilog
+module_instantiation = """
+half_adder half_adder_inst(
+    .a(a),
+    .b(b),
+    .d(d),  // добавлено соответствие новым входным сигналам
+    .e(e),  // добавлено соответствие новым входным сигналам
+    .c(c),
+    .sum(sum),
+    .carry(carry)
+);
+"""

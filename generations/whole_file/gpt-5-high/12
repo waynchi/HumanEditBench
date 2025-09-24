@@ -1,0 +1,6 @@
+import pandas as pd
+
+def create_column(df):
+    df['Frequency'] = pd.Series(pd.NA, index=df.index, dtype='Int64')
+    df.loc[df['EventId'] == 'E16', 'Frequency'] = 117
+    return df

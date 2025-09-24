@@ -1,0 +1,34 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0, max_iter=100, tol=1e-6):
+    """
+    Решает систему линейных уравнений Ax = b методом сопряженных градиентов.
+
+    Args:
+        A (numpy.ndarray): Матрица коэффициентов (квадратная, симметричная, положительно определенная).
+        b (numpy.ndarray): Вектор правой части.
+        x0 (numpy.ndarray): Начальное приближение.
+        max_iter (int): Максимальное количество итераций.
+        tol (float): Допустимая погрешность.
+
+    Returns:
+        numpy.ndarray: Решение системы линейных уравнений.
+    """
+    x = x0
+    r = b - A @ x
+    p = r
+    
+    for i in range(max_iter):
+        # Вычисляем направляющий вектор
+        alpha = r @ r / (p @ A @ p)
+        x = x + alpha * p
+        r = r - alpha * A @ p
+        
+        # Вычисляем новое сопряженное направление
+        p = r + (r @ r) / (p @ A @ p) * p
+        
+        # Проверяем сходимость
+        if np.linalg.norm(r) < tol:
+            break
+    
+    return x

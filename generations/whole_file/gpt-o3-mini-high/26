@@ -1,0 +1,69 @@
+import numpy as np
+
+# Остальной код не изменяется
+
+# === Начало изменённого фрагмента ===
+def conjugate_gradient(A, b, x0=None, tol=1e-10, max_iter=None):
+    """
+    Решает систему линейных уравнений Ax = b методом сопряжённых градиентов.
+
+    Параметры:
+        A : numpy.ndarray, shape (n, n)
+            Симметричная и положительно определённая матрица.
+        b : numpy.ndarray, shape (n,)
+            Вектор правой части.
+        x0 : numpy.ndarray, shape (n,), optional
+            Начальное приближение решения. Если не задан, используется нулевой вектор.
+        tol : float, optional
+            Допуск для сходимости (по умолчанию 1e-10).
+        max_iter : int, optional
+            Максимальное количество итераций. Если не задано, берётся размер вектора b.
+
+    Возвращает:
+        x : numpy.ndarray
+            Найденное решение системы Ax = b.
+        num_iter : int
+            Количество выполненных итераций.
+    """
+    # Инициализация начального приближения
+    if x0 is None:
+        x = np.zeros_like(b, dtype=float)
+    else:
+        x = x0.astype(float)
+
+    n = b.shape[0]
+    if max_iter is None:
+        max_iter = n
+
+    # Начальное значение невязки
+    r = b - A @ x
+    d = r.copy()  # первое направление поиска совпадает с градиентом
+    rs_old = np.dot(r, r)
+
+    for i in range(max_iter):
+        Ad = A @ d
+        alpha = rs_old / np.dot(d, Ad)
+        x = x + alpha * d
+        r = r - alpha * Ad
+        rs_new = np.dot(r, r)
+        if np.sqrt(rs_new) < tol:
+            return x, i+1
+        d = r + (rs_new / rs_old) * d
+        rs_old = rs_new
+
+    return x, max_iter
+# === Конец изменённого фрагмента ===
+
+# Остальная часть кода не изменяется
+if __name__ == '__main__':
+    # Пример использования метода сопряженных градиентов:
+    # Решаем систему:
+    # | 4 1 | | x1 | = | 1 |
+    # | 1 3 | | x2 |   | 2 |
+    A = np.array([[4, 1],
+                  [1, 3]], dtype=float)
+    b = np.array([1, 2], dtype=float)
+    
+    solution, iterations = conjugate_gradient(A, b, tol=1e-6)
+    print("Решение системы:", solution)
+    print("Количество итераций:", iterations)

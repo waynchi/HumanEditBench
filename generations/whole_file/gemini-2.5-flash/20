@@ -1,0 +1,55 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    
+    # Improved parsing: use a more robust split, e.g., by space and filter empty strings
+    # or ideally, specify the delimiter correctly if it's always three spaces.
+    # Assuming '   ' is the actual delimiter and there are no extra spaces.
+    cols = [list(map(int, l.strip().split("   "))) for l in lines if l.strip()] # Convert to int immediately and handle empty lines
+    
+    # Check if cols is empty after parsing
+    if not cols:
+        print("No valid data found in the input file.")
+        print(0) # Or handle this case as per problem requirements
+        return
+
+    # Convert to NumPy array for easier column access
+    cols_array = np.array(cols).T
+
+    if cols_array.shape[0] < 2:
+        print("Less than two columns found in the input data.")
+        print(0)
+        return
+
+    # Sort each list individually
+    list_1 = sorted(cols_array[0])
+    list_2 = sorted(cols_array[1])
+
+    # Calculate the sum of absolute differences of sorted lists
+    # This assumes we want to pair the smallest from one with the smallest from another, etc.
+    # which results in the minimal sum of absolute differences.
+    # If the original pairing logic (popping min from unsorted lists) was intentional for a specific problem,
+    # then this simplification might change the problem's intent.
+    # However, the original code had `argmin` and `pop` on *unsorted* lists,
+    # which means it was always taking the current minimum. This is equivalent to sorting and summing differences.
+    # The original loop would effectively sort them implicitly by repeatedly finding and removing the minimum.
+    
+    # To be strictly equivalent to the original logic's effect (always picking the smallest available from each list),
+    # sorting upfront is more efficient.
+    
+    all_dists = [abs(val1 - val2) for val1, val2 in zip(list_1, list_2)]
+    
+    print(sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

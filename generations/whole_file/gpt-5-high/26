@@ -1,0 +1,198 @@
+import numpy as np
+from typing import Callable, Optional, Union, Tuple, Dict, Any
+
+
+def _as_matvec(A: Any) -> Callable[[np.ndarray], np.ndarray]:
+    """
+    Convert a matrix-like object or callable into a matvec function: y = A(x).
+    Supported:
+      - Callable A(x) -> y
+      - NumPy arrays with @ operator
+      - Objects exposing .dot(x) or .matvec(x)
+    """
+    if callable(A):
+        return A
+    if isinstance(A, np.ndarray):
+        return lambda x: A @ x
+    if hasattr(A, "dot"):
+        return lambda x: A.dot(x)
+    if hasattr(A, "matvec"):
+        return lambda x: A.matvec(x)
+    raise TypeError("A must be a callable, numpy.ndarray, or an object with .dot/.matvec")
+
+
+def _as_preconditioner(M: Optional[Any]) -> Callable[[np.ndarray], np.ndarray]:
+    """
+    Convert a preconditioner-like object into an operator z = M(r).
+    Supported:
+      - None -> identity
+      - Callable M(r) -> z
+      - NumPy arrays with @ operator
+      - Objects exposing .dot(x) or .matvec(x)
+
+    Note: The preconditioner M is expected to approximate A^{-1} (as in SciPy),
+    i.e., it is applied as z = M r.
+    """
+    if M is None:
+        return lambda r: r
+    if callable(M):
+        return M
+    if isinstance(M, np.ndarray):
+        return lambda r: M @ r
+    if hasattr(M, "dot"):
+        return lambda r: M.dot(r)
+    if hasattr(M, "matvec"):
+        return lambda r: M.matvec(r)
+    raise TypeError("M must be None, a callable, numpy.ndarray, or an object with .dot/.matvec")
+
+
+def conjugate_gradient(
+    A: Any,
+    b: Union[np.ndarray, list, tuple],
+    x0: Optional[Union[np.ndarray, list, tuple]] = None,
+    tol: float = 1e-8,
+    maxiter: Optional[int] = None,
+    M: Optional[Any] = None,
+    rtol: Optional[float] = None,
+    atol: Optional[float] = None,
+    callback: Optional[Callable[[np.ndarray, float, int], None]] = None,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Метод спряжённых градиентов (CG) для решения СЛАУ A x = b,
+    где A — симметричная положительно определённая матрица или линейный оператор.
+
+    Параметры:
+      - A: матрица (numpy.ndarray) или оператор матрично-векторного умножения (callable x -> A@x).
+      - b: вектор правой части (shape: (n,)).
+      - x0: начальное приближение (по умолчанию нулевой вектор).
+      - tol: допуск для относительной невязки, если rtol не задан.
+      - maxiter: максимум итераций; по умолчанию min(10*n, 10000).
+      - M: предобуславливатель, аппроксимирующий A^{-1}; либо матрица, либо callable z = M(r).
+      - rtol: относительная точность; если None, используется tol.
+      - atol: абсолютная точность; по умолчанию 0.0.
+      - callback: функция вида callback(x, res_norm, k), вызывается после каждой итерации.
+
+    Критерий остановки:
+      ||r_k||_2 <= max(atol, rtol * ||b||_2), где rtol = tol, если rtol не задан.
+
+    Возвращает:
+      - x: найденное решение.
+      - info: словарь с диагностикой:
+          {
+              'num_iter': число выполненных итераций,
+              'res_norm': норма невязки ||r||_2,
+              'converged': bool,
+              'flag': 0 если успех, 1 если достигнут maxiter, -1 приbreakdown,
+              'history': список норм невязки по итерациям
+          }
+
+    Примечания:
+      - Для корректной работы A должен быть SPD (симметричный положительно определённый).
+      - Предобуславливатель M используется как оператор z = M r.
+    """
+    b = np.asarray(b, dtype=float).reshape(-1)
+    n = b.size
+
+    matvec = _as_matvec(A)
+    Mop = _as_preconditioner(M)
+
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = np.asarray(x0, dtype=float).reshape(-1)
+        if x.size != n:
+            raise ValueError("x0 has incompatible shape with b")
+
+    if maxiter is None:
+        maxiter = min(10 * n, 10000)
+
+    # Устанавливаем пороги
+    rel = rtol if rtol is not None else tol
+    abs_tol = atol if atol is not None else 0.0
+
+    # Инициализация
+    r = b - matvec(x)
+    b_norm = np.linalg.norm(b)
+    if b_norm == 0.0:
+        b_norm = 1.0  # чтобы избежать деления на ноль, решаемая система тривиальна
+
+    tol_norm = max(abs_tol, rel * b_norm)
+    res_norm = np.linalg.norm(r)
+
+    history = [res_norm]
+
+    # Проверка тривиального случая
+    if res_norm <= tol_norm:
+        info = {
+            "num_iter": 0,
+            "res_norm": float(res_norm),
+            "converged": True,
+            "flag": 0,
+            "history": history,
+        }
+        return x, info
+
+    z = Mop(r)
+    p = z.copy()
+    rz_old = float(np.dot(r, z))
+
+    eps = np.finfo(float).eps
+    converged = False
+    flag = 1  # 1 — по умолчанию считаем, что остановка по лимиту итераций
+    k_done = 0
+
+    for k in range(1, maxiter + 1):
+        Ap = matvec(p)
+        denom = float(np.dot(p, Ap))
+
+        if not np.isfinite(denom) or abs(denom) <= eps:
+            # breakdown либо A не SPD
+            flag = -1
+            k_done = k - 1
+            break
+
+        alpha = rz_old / denom
+        x += alpha * p
+        r -= alpha * Ap
+
+        res_norm = np.linalg.norm(r)
+        history.append(res_norm)
+
+        if callback is not None:
+            try:
+                callback(x, res_norm, k)
+            except Exception:
+                # callback не должен ломать итерации
+                pass
+
+        if res_norm <= tol_norm:
+            converged = True
+            flag = 0
+            k_done = k
+            break
+
+        z = Mop(r)
+        rz_new = float(np.dot(r, z))
+
+        if not np.isfinite(rz_new):
+            flag = -1
+            k_done = k
+            break
+
+        beta = rz_new / rz_old
+        p = z + beta * p
+        rz_old = rz_new
+        k_done = k
+
+    info = {
+        "num_iter": int(k_done),
+        "res_norm": float(res_norm),
+        "converged": bool(converged),
+        "flag": int(flag),
+        "history": history,
+    }
+    return x, info
+
+
+# Синоним краткого имени
+cg = conjugate_gradient

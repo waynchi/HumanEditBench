@@ -1,0 +1,15 @@
+import requests
+
+def get_words(length, num_words):
+    url = f"https://random-word-api.herokuapp.com/word?length={length}&number={num_words}"
+    response = requests.get(url)
+    return response.json()
+
+def main():
+    length = int(input("Enter the length of the words you are looking for: "))
+    words = get_words(length, 10)
+    for word in words:
+        print(word)
+
+if __name__ == "__main__":
+    main()

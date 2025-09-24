@@ -1,0 +1,50 @@
+import sys
+from math import isqrt
+
+def numbers_as_sum_of_four_nonzero_squares(limit: int):
+    """
+    Return a list of integers `n` (1 <= n <= limit) that can be expressed
+    as the sum of four non‑zero perfect squares:
+        n = a^2 + b^2 + c^2 + d^2   with a,b,c,d >= 1
+
+    The algorithm enumerates all quadruples (a,b,c,d) with 1 <= a,b,c,d <= sqrt(limit)
+    and marks the sums that fall within the desired range. This approach is
+    sufficient for medium sized `limit` (e.g., up to several thousands); for
+    larger limits a more sophisticated number‑theoretical method would be required.
+    """
+    max_root = isqrt(limit)
+    seen = [False] * (limit + 1)
+
+    for a in range(1, max_root + 1):
+        a2 = a * a
+        for b in range(1, max_root + 1):
+            ab2 = a2 + b * b
+            if ab2 > limit:
+                break
+            for c in range(1, max_root + 1):
+                abc2 = ab2 + c * c
+                if abc2 > limit:
+                    break
+                for d in range(1, max_root + 1):
+                    sum_sq = abc2 + d * d
+                    if sum_sq > limit:
+                        break
+                    seen[sum_sq] = True
+
+    return [n for n in range(1, limit + 1) if seen[n]]
+
+if __name__ == "__main__":
+    # Read a single integer from standard input
+    data = sys.stdin.read().strip()
+    if not data:
+        sys.exit(0)
+    try:
+        N = int(data)
+    except ValueError:
+        print("Please provide an integer input.")
+        sys.exit(1)
+
+    results = numbers_as_sum_of_four_nonzero_squares(N)
+    # Output each number on its own line
+    for num in results:
+        print(num)

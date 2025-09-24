@@ -1,0 +1,246 @@
+import random
+import torch
+from torchvision import transforms
+from datasets import load_dataset
+from PIL import Image
+import numpy as np
+import warnings
+
+class AlignmentDatasetCreator:
+    def __init__(self, sample_size=1000):
+        self.sample_size = sample_size
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                              std=[0.229, 0.224, 0.225])
+        ])
+
+    def _ensure_pil(self, img):
+        if isinstance(img, Image.Image):
+            return img.convert("RGB")
+        if isinstance(img, np.ndarray):
+            if img.dtype != np.uint8:
+                img = np.clip(img, 0, 255).astype(np.uint8)
+            if img.ndim == 2:
+                img = np.stack([img] * 3, axis=-1)
+            return Image.fromarray(img).convert("RGB")
+        if isinstance(img, torch.Tensor):
+            tensor = img.detach().cpu()
+            if tensor.ndim == 3 and tensor.shape[0] in (1, 3):
+                tensor = tensor.permute(1, 2, 0)
+            tensor = tensor.numpy()
+            tensor = np.clip(tensor * 255.0, 0, 255).astype(np.uint8) if tensor.max() <= 1.0 else tensor.astype(np.uint8)
+            return self._ensure_pil(tensor)
+        return None
+
+    def _extract_caption(self, item):
+        # Try multiple common caption fields/structures
+        # 1) captions: list[str] or list[dict]
+        if "captions" in item and item["captions"] is not None:
+            caps = item["captions"]
+            strings = []
+            if isinstance(caps, list):
+                for c in caps:
+                    if isinstance(c, str):
+                        strings.append(c)
+                    elif isinstance(c, dict):
+                        for k in ("raw", "caption", "text", "sentence", "S"):
+                            if k in c and isinstance(c[k], str):
+                                strings.append(c[k])
+                                break
+            elif isinstance(caps, dict):
+                for k in ("raw", "caption", "text", "sentence"):
+                    if k in caps and isinstance(caps[k], str):
+                        strings.append(caps[k])
+            if strings:
+                return max(strings, key=len)
+
+        # 2) Single caption field variants
+        for k in ("caption", "text", "sentence", "description", "alt_text"):
+            if k in item and isinstance(item[k], str):
+                return item[k]
+
+        # 3) Nested structures occasionally used
+        if "sentences" in item and isinstance(item["sentences"], list):
+            strings = []
+            for c in item["sentences"]:
+                if isinstance(c, str):
+                    strings.append(c)
+                elif isinstance(c, dict):
+                    for k in ("raw", "caption", "text", "sentence"):
+                        if k in c and isinstance(c[k], str):
+                            strings.append(c[k])
+                            break
+            if strings:
+                return max(strings, key=len)
+
+        return None
+
+    def _extract_image(self, item):
+        # Try typical keys
+        for k in ("image", "img", "image_0", "images"):
+            if k in item:
+                v = item[k]
+                if isinstance(v, Image.Image):
+                    return v
+                if isinstance(v, list) and len(v) > 0:
+                    # sometimes multiple images; take the first
+                    if isinstance(v[0], Image.Image):
+                        return v[0]
+                    if isinstance(v[0], np.ndarray) or isinstance(v[0], torch.Tensor):
+                        return self._ensure_pil(v[0])
+                if isinstance(v, np.ndarray) or isinstance(v, torch.Tensor):
+                    return self._ensure_pil(v)
+        # Fallback: search any PIL image in the item
+        for _, v in item.items():
+            pil = self._ensure_pil(v)
+            if pil is not None:
+                return pil
+        return None
+
+    def _generate_synthetic_pairs(self, n=10):
+        rng = np.random.default_rng(0)
+        pairs = []
+        for _ in range(n):
+            color = tuple(int(c) for c in rng.integers(0, 255, size=3))
+            img = Image.new("RGB", (256, 256), color=color)
+            caption = f"A {color} colored square."
+            pairs.append((img, caption))
+        return pairs
+
+    def create_unrelated_pairs(self, image_text_pairs):
+        """Creates unrelated image-text pairs by shuffling the text descriptions"""
+        if not image_text_pairs:
+            return []
+        images, texts = zip(*image_text_pairs)
+        shuffled_texts = list(texts)
+        random.shuffle(shuffled_texts)
+        return list(zip(images, shuffled_texts))
+
+    def create_textual_pairs(self, dataset_name='quora'):
+        """Creates semantically similar text pairs using paraphrase datasets"""
+        dataset = load_dataset(dataset_name, split=f'train[:{self.sample_size}]')
+        textual_pairs = []
+        for item in dataset:
+            # Handle bool or int labels
+            is_dup = item.get('is_duplicate', 0)
+            try:
+                is_dup = int(is_dup)
+            except Exception:
+                is_dup = 1 if is_dup else 0
+            if is_dup == 1 and item.get('question1') and item.get('question2'):
+                pair = (item['question1'], item['question2'])
+                textual_pairs.append(pair)
+        return textual_pairs[:self.sample_size]
+
+    def create_visual_pairs(self, image_text_pairs):
+        """Creates augmented image pairs while maintaining semantic meaning"""
+        if not image_text_pairs:
+            return []
+        augmentation_transforms = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.RandomRotation(15)
+        ])
+
+        visual_pairs = []
+        for image, _ in image_text_pairs:
+            pil_img = self._ensure_pil(image)
+            if pil_img is not None:
+                augmented = augmentation_transforms(pil_img)
+                visual_pairs.append((pil_img, augmented))
+        return visual_pairs
+
+    def load_mscoco_dataset(self):
+        """Loads and preprocesses MSCOCO-like captions dataset with improved robustness and streaming-friendly sources."""
+        # Prefer HF-hosted COCO variants that stream cleanly (no zip:// indirection).
+        # Fall back to a tiny dummy dataset or synthetic data to avoid FileNotFoundError.
+        candidates = [
+            # Widely used HF-hosted COCO variant with images stored on the Hub
+            {"path": "HuggingFaceM4/COCO", "split": "train"},
+            # Other community mirrors (may or may not be available)
+            {"path": "yuntian-deng/mscoco_2014_captions", "split": "train"},
+            {"path": "yizhongw/mscoco_2014_captions", "split": "train"},
+            # Small internal dummy for guaranteed availability
+            {"path": "hf-internal-testing/coco_captions_dummy", "split": "train"},
+        ]
+
+        image_text_pairs = []
+        last_error = None
+
+        for cand in candidates:
+            try:
+                # Use streaming to avoid downloading entire dataset
+                dataset = load_dataset(cand["path"], split=cand["split"], streaming=True)
+            except Exception as e:
+                last_error = e
+                continue
+
+            # Collect up to sample_size items that pass basic filtering
+            count = 0
+            scanned = 0
+            scan_limit = max(self.sample_size * 20, self.sample_size + 10)
+            try:
+                for item in dataset:
+                    scanned += 1
+                    img = self._extract_image(item)
+                    cap = self._extract_caption(item)
+                    if img is None or not isinstance(cap, str):
+                        if scanned >= scan_limit:
+                            break
+                        continue
+
+                    if len(cap.split()) >= 5:
+                        image_text_pairs.append((img, cap))
+                        count += 1
+                    if count >= self.sample_size:
+                        break
+                    if scanned >= scan_limit:
+                        break
+            except Exception as e:
+                # Skip this candidate if anything goes wrong while iterating/decoding
+                last_error = e
+                image_text_pairs = []
+
+            if image_text_pairs:
+                break  # Successfully gathered samples from this candidate
+
+        if not image_text_pairs:
+            warn_msg = "Failed to load a streaming COCO-like dataset"
+            if last_error:
+                warn_msg += f" (last error: {type(last_error).__name__}: {last_error})."
+            else:
+                warn_msg += "."
+            warn_msg += " Falling back to synthetic image-text pairs."
+            warnings.warn(warn_msg)
+            image_text_pairs = self._generate_synthetic_pairs(n=self.sample_size)
+
+        return image_text_pairs
+
+def main():
+    # Initialize dataset creator
+    creator = AlignmentDatasetCreator(sample_size=100)
+    
+    # Load and create datasets
+    print("Loading MSCOCO dataset...")
+    image_text_pairs = creator.load_mscoco_dataset()
+    
+    print("Creating unrelated pairs...")
+    unrelated_pairs = creator.create_unrelated_pairs(image_text_pairs)
+    
+    print("Creating textual pairs...")
+    textual_pairs = creator.create_textual_pairs()
+    
+    print("Creating visual pairs...")
+    visual_pairs = creator.create_visual_pairs(image_text_pairs)
+    
+    # Print sample from each dataset
+    print("Dataset Samples:")
+    print(f"Image-Text Pair: {image_text_pairs[0]}")
+    print(f"Unrelated Pair: {unrelated_pairs[0]}")
+    print(f"Textual Pair: {textual_pairs[0]}")
+    print(f"Visual Pair: {visual_pairs[0]}")
+
+if __name__ == "__main__":
+    main()

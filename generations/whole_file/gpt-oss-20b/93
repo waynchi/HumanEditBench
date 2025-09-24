@@ -1,0 +1,56 @@
+# ------------------------------ Highlighted Section ------------------------------ #
+def initialize_chat_and_prompt():
+    """
+    Initializes the ChatOllama model, loads SHAP values and system prompt from
+    files, creates a ChatPromptTemplate, and prepares the JSON string to be
+    sent as user input. All variables are set as module globals so they can
+    be used later in the script.
+    """
+    # Import locally to keep the global namespace clean
+    from langchain_ollama import ChatOllama
+    from langchain_core.prompts.chat import ChatPromptTemplate
+    import json
+
+    # Initialize the ChatOllama model
+    global chat_model
+    chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+    # chat_model = ChatOllama(
+    #     model="llama3.1:70b",
+    #     base_url="http://ada-open-webui.serveo.net/ollama",
+    #     client_kwargs={
+    #         "headers": {"authorization": "Bearer <MASKED>"}
+    #     },
+    # )
+
+    # Load SHAP values from JSON file
+    with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+
+    # Load system prompt from file
+    with open("system.prompt", "r") as file:
+        sys_prompt = file.read().strip()
+
+    # Prepare the messages
+    global prompt
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+
+    # Prepare the JSON‑encoded user input
+    global user_input
+    user_input = json.dumps(shap_values_json)  # Prepare user input
+
+
+# Call the initializer to populate the global variables
+initialize_chat_and_prompt()
+# ------------------------- End of Highlighted Section --------------------------- #
+
+# Generate the response
+chain = prompt | chat_model
+
+# Print the response
+response = chain.invoke(user_input)
+print(response.content)

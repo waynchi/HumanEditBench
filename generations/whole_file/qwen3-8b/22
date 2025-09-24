@@ -1,0 +1,18 @@
+#
+# @lc app=leetcode id=2379 lang=python3
+#
+# [2379] Minimum Recolors to Get K Consecutive Black Blocks
+#
+
+# @lc code=start
+class Solution:
+    def minimumRecolors(self, blocks: str, k: int) -> int:
+        n = len(blocks)
+        min_ops = n  # Initialize with maximum possible operations
+        for i in range(n - k + 1):
+            window = blocks[i:i+k]
+            w_count = window.count('W')
+            if w_count < min_ops:
+                min_ops = w_count
+        return min_ops
+# @lc code=end

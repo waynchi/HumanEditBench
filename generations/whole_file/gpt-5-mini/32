@@ -1,0 +1,111 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return author == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+
+q = Query()
+d = Discussions()
+posts_generator = d.get_discussions("created", q, limit=6000)
+X = 0
+
+for post in posts_generator:
+    post_author = post['author']
+    post_permlink = post['permlink']
+    post_replies = post['children']
+    X += 1
+
+    # Crear una entrada jerárquica en el diccionario para este post
+    post_key = f"{post_author}/{post_permlink}"
+    diccionario[post_key] = {
+        "author": post_author,
+        "permlink": post_permlink,
+        "children_count": post_replies,
+        "replies": []  # lista de replies de primer nivel (cada uno puede tener 'children')
+    }
+
+    cnt = 0
+    if post_replies > n_respuestas_minimas:
+        comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+        post_replies_list : list = comment.get_replies()
+
+        # Función recursiva para procesar y construir la jerarquía de replies.
+        def recurse_replies(replies, parent_node, child_key='replies'):
+            """
+            replies: lista de replies (dicts) obtenida desde beem
+            parent_node: diccionario donde se añadirá cada nodo
+            child_key: 'replies' para nivel raíz del post, 'children' para niveles internos
+            Retorna: número de matches encontrados por procesar()
+            """
+            matches = 0
+            for r in replies:
+                r_author = r.get('author')
+                r_permlink = r.get('permlink')
+                r_body = r.get('body', '')
+
+                # Nodo base para este reply
+                node = {
+                    "author": r_author,
+                    "permlink": r_permlink,
+                    "body": r_body,
+                    "children": []
+                }
+
+                # Añadir el nodo al padre en la clave correspondiente
+                parent_node.setdefault(child_key, [])
+                parent_node[child_key].append(node)
+
+                # Reglas de corte / filtrado
+                if is_own_author(r_author):
+                    # Reevaluar el comentario (según lógica original: cortar procesamiento de esta rama)
+                    continue
+                if is_banned(r_author):
+                    continue
+
+                # Procesar el body
+                if procesar(r_body):
+                    matches += 1
+
+                # Intentar obtener replies anidados y recursar
+                try:
+                    nested_comment = Comment(authorperm=f"{r_author}/{r_permlink}")
+                    nested_replies = nested_comment.get_replies()
+                    if nested_replies:
+                        matches += recurse_replies(nested_replies, node, 'children')
+                except Exception:
+                    # En caso de cualquier fallo al recuperar replies anidados, se ignora y se continúa
+                    pass
+
+            return matches
+
+        # Ejecutar la recursión para el post (nivel raíz usa la clave 'replies')
+        try:
+            cnt = recurse_replies(post_replies_list, diccionario[post_key], 'replies')
+        except Exception:
+            cnt = 0
+
+    if cnt > 3:
+        print("Iterador: ",X)
+        print(post_author,'/',post_permlink)

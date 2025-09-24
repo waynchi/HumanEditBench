@@ -1,0 +1,32 @@
+import random
+
+def get_words_with_length(n, dictionary):
+    words_of_length_n = [word for word in dictionary if len(word) == n]
+    return random.sample(words_of_length_n, min(10, len(words_of_length_n)))
+
+def main():
+    with open('english_dictionary.txt', 'r') as file:
+        dictionary = file.read().splitlines()
+    
+    while True:
+        try:
+            n = int(input("Enter the number of characters for the words you want to look up: "))
+            if n < 1:
+                print("Please enter a positive integer.")
+                continue
+            words = get_words_with_length(n, dictionary)
+            if not words:
+                print(f"No words found with {n} characters.")
+            else:
+                print(f"Here are {len(words)} words with {n} characters:")
+                for word in words:
+                    print(word)
+        except ValueError:
+            print("Please enter a valid integer.")
+        except FileNotFoundError:
+            print("Dictionary file not found. Please ensure 'english_dictionary.txt' is in the same directory.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+if __name__ == "__main__":
+    main()

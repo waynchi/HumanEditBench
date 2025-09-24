@@ -1,0 +1,53 @@
+def test_model_position_distribution(fast_app, n_trials):
+    """Test if each model appears roughly equally often in first and second position"""
+    # Track positions for each model
+    position_counts = {}  # {model: [first_position_count, second_position_count]}
+
+    # Collect samples
+    for _ in range(n_trials):
+        models, _, _ = fast_app.select_models(tags=[])
+
+        # Initialize counters for new models
+        for model in models:
+            if model not in position_counts:
+                position_counts[model] = [0, 0]
+
+        # Count positions (index 0 for first position, 1 for second position)
+        position_counts[models[0]][0] += 1
+        position_counts[models[1]][1] += 1
+
+    # Print and analyze results
+    print("\nPosition Distribution Analysis:")
+    print(f"{'Model':<30} {'First Pos %':<12} {'Second Pos %':<12} {'Diff %':<10}")
+    print("-" * 65)
+
+    # For each model, perform a binomial test
+    for model in sorted(position_counts.keys()):
+        first_count = position_counts[model][0]
+        second_count = position_counts[model][1]
+        total_count = first_count + second_count
+
+        if total_count == 0:
+            continue
+
+        first_percent = (first_count / total_count) * 100
+        second_percent = (second_count / total_count) * 100
+        diff_percent = first_percent - second_percent
+
+        print(
+            f"{model:<30} {first_percent:>11.1f} {second_percent:>11.1f} "
+            f"{diff_percent:>+9.1f}"
+        )
+
+        # Perform binomial test for this model
+        # H0: p = 0.5 (equal probability of first/second position)
+        # Use first position count as successes
+        p_value = stats.binomtest(
+            k=first_count, n=total_count, p=0.5, alternative="two-sided"
+        ).pvalue
+
+        # Check if the distribution is within 2% of equal
+        assert abs(diff_percent) <= 2, (
+            f"Model {model} shows significant position bias "
+            f"(first={first_percent:.1f}%, second={second_percent:.1f}%, diff={diff_percent:.1f}%)"
+        )

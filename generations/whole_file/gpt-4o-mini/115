@@ -1,0 +1,85 @@
+plik = open("dane_obrazki.txt")
+maxbitybledne = 0
+bityBledne = list()
+
+def czyPoprawny(obrazek): 
+    for wiersz in obrazek[:-1]: 
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            return False
+    for i in range(20): 
+        kolumna = ""
+        for j in range(21):  
+            kolumna += obrazek[j][i]
+        if kolumna[:-1].count('1') % 2 != int(kolumna[-1]):
+            return False
+    return True
+
+def czyNaprawialny(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: 
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne += 1
+    for i in range(20): 
+        kolumna = ""
+        for j in range(21):  
+            kolumna += obrazek[j][i]
+        if kolumna[:-1].count('1') % 2 != int(kolumna[-1]):
+            bityKolBleden += 1
+    global maxbitybledne
+    if maxbitybledne < (bityKolBleden + bityWierBledne):
+        maxbitybledne = bityKolBleden + bityWierBledne
+    bityBledne.append(bityKolBleden + bityWierBledne)
+
+    if bityWierBledne > 1:
+        return False
+    if bityKolBleden > 1:
+        return False
+
+    return True
+
+def napraw(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    bledny_wiersz = -1
+    bledna_kolumna = -1
+
+    for i in range(len(obrazek) - 1):
+        if obrazek[i][:-1].count('1') % 2 != int(obrazek[i][-1]):
+            bledny_wiersz = i
+            bityWierBledne += 1
+
+    for j in range(len(obrazek[0]) - 1):
+        kolumna = ''.join([obrazek[i][j] for i in range(len(obrazek))])
+        if kolumna[:-1].count('1') % 2 != int(kolumna[-1]):
+            bledna_kolumna = j
+            bityKolBleden += 1
+
+    if bityWierBledne == 1 and bityKolBleden == 1:
+        # Repair the incorrect bit
+        if obrazek[bledny_wiersz][bledna_kolumna] == '0':
+            obrazek[bledny_wiersz] = obrazek[bledny_wiersz][:bledna_kolumna] + '1' + obrazek[bledny_wiersz][bledna_kolumna + 1:]
+        else:
+            obrazek[bledny_wiersz] = obrazek[bledny_wiersz][:bledna_kolumna] + '0' + obrazek[bledny_wiersz][bledna_kolumna + 1:]
+
+    return obrazek
+
+poprawne = 0
+naprawialne = 0
+obrazek = list()
+
+for linia in plik:
+    wiersz = linia.strip()
+    obrazek.append(wiersz)
+    if len(obrazek) == 21:
+        if czyPoprawny(obrazek):
+            poprawne += 1
+        elif czyNaprawialny(obrazek):
+            naprawialne += 1
+            naprawiony = napraw(obrazek)
+
+    if len(obrazek) == 22:
+        obrazek = list()
+
+print(poprawne, naprawialne, 200 - poprawne - naprawialne)
+print(maxbitybledne, max(bityBledne))

@@ -1,0 +1,56 @@
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# Perform ANOVA analysis
+from scipy import stats
+
+# Drop missing values for a clean ANOVA
+_df = df[['Brand', 'Cost']].dropna()
+
+# Group statistics
+groups = _df.groupby('Brand')['Cost']
+k = groups.ngroups
+n_total = len(_df)
+
+grand_mean = _df['Cost'].mean()
+group_stats = groups.agg(['size', 'mean'])
+
+# Sum of squares
+ss_between = (group_stats['size'] * (group_stats['mean'] - grand_mean) ** 2).sum()
+ss_total = ((_df['Cost'] - grand_mean) ** 2).sum()
+ss_within = ss_total - ss_between
+
+# Degrees of freedom
+df_between = k - 1
+df_within = n_total - k
+
+# Mean squares
+ms_between = ss_between / df_between if df_between > 0 else float('nan')
+ms_within = ss_within / df_within if df_within > 0 else float('nan')
+
+# F-statistic and p-value
+F_stat = ms_between / ms_within if ms_within > 0 else float('nan')
+p_value = stats.f.sf(F_stat, df_between, df_within) if (df_between > 0 and df_within > 0 and ms_within > 0) else float('nan')
+
+# Assemble ANOVA-like table (Python style, no formula)
+anova_table = pd.DataFrame(
+    {
+        'sum_sq': [ss_between, ss_within],
+        'df': [df_between, df_within],
+        'F': [F_stat, float('nan')],
+        'PR(>F)': [p_value, float('nan')],
+    },
+    index=['Brand', 'Residual']
+)
+
+# Print the ANOVA table
+print(anova_table)

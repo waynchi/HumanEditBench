@@ -1,0 +1,33 @@
+import torch.nn as nn
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_channels, num_classes):  # Używamy input_channels i num_classes jako argumenty
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(input_channels, 32, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.flatten = nn.Flatten()
+        # Oblicz flattened_size po przejściu przez warstwy konwolucyjne
+        self.flattened_size = 64 * 6 * 6  # Zmien to w zależności od rozmiaru wejściowego obrazu
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.flattened_size, 512),  # Używamy calculated flattened_size
+            nn.ReLU(),
+            nn.Linear(512, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

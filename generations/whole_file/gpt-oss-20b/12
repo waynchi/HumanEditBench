@@ -1,0 +1,7 @@
+import pandas as pd
+
+def create_column(df):
+    # Ensure the Frequency column exists, defaulting to 0
+    df['Frequency'] = 0
+    # Set Frequency to 117 for rows where EventId is 'E16'
+    df.loc[df['EventId'] == 'E16', 'Frequency'] = 117

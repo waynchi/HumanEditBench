@@ -1,0 +1,81 @@
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """Tworzy macierz o rozmiarze rows x cols, wypełnioną wartością fill_value.
+    
+    Parametry:
+    rows (int): liczba wierszy.
+    cols (int): liczba kolumn.
+    fill_value (dowolny typ): wartość do wypełnienia macierzy.
+    
+    Zwraca:
+    list: macierz w postaci listy list.
+    """
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """Dodaje dwie macierze o tym samym rozmiarze.
+    
+    Parametry:
+    matrix_a (list): pierwsza macierz.
+    matrix_b (list): druga macierz.
+    
+    Zwraca:
+    list: wynik dodawania macierzy.
+    """
+    return [[matrix_a[i][j] + matrix_b[i][j] for j in range(len(matrix_a[0]))] for i in range(len(matrix_a))]
+
+
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """Mnoży wszystkie elementy macierzy przez skalar.
+    
+    Parametry:
+    matrix (list): macierz źródłowa.
+    scalar (float): liczba, przez którą mnożone są elementy macierzy.
+    
+    Zwraca:
+    list: wynik mnożenia macierzy przez skalar.
+    """
+    return [[element * scalar for element in row] for row in matrix]
+
+
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """Mnoży dwie macierze.
+    
+    Parametry:
+    matrix_a (list): pierwsza macierz.
+    matrix_b (list): druga macierz.
+    
+    Zwraca:
+    list: wynik mnożenia macierzy.
+    """
+    result = create_matrix(len(matrix_a), len(matrix_b[0])) 
+    for i in range(len(matrix_a)):
+        for j in range(len(matrix_b[0])):
+            result[i][j] = sum(matrix_a[i][k] * matrix_b[k][j] for k in range(len(matrix_b))) 
+    return result
+
+
+def transpose_matrix(matrix: list) -> list:
+    """Transponuje macierz.
+    
+    Parametry:
+    matrix (list): macierz źródłowa.
+    
+    Zwraca:
+    list: macierz transponowana.
+    """
+    return [[matrix[j][i] for j in range(len(matrix))] for i in range(len(matrix[0]))]
+
+
+def determinant_3x3(matrix: list) -> float:
+    """Oblicza wyznacznik macierzy 3x3.
+    
+    Parametry:
+    matrix (list): macierz źródłowa o rozmiarze 3x3.
+    
+    Zwraca:
+    float: wyznacznik macierzy.
+    """
+    return (matrix[0][0] * (matrix[1][1] * matrix[2][2] - matrix[1][2] * matrix[2][1]) -
+            matrix[0][1] * (matrix[1][0] * matrix[2][2] - matrix[1][2] * matrix[2][0]) +
+            matrix[0][2] * (matrix[1][0] * matrix[2][1] - matrix[1][1] * matrix[2][0]))

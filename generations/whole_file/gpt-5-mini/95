@@ -1,0 +1,207 @@
+import random
+import logging
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    WebDriverException,
+    TimeoutException,
+    ElementNotInteractableException,
+    StaleElementReferenceException,
+)
+import time
+
+class SearchModule:
+    def __init__(self, driver, config):
+        self.driver = driver
+        self.config = config
+
+        # Safely read configuration with fallbacks and logging
+        try:
+            self.search_engine = config.get('Search', 'search_engine')
+        except Exception as e:
+            logging.warning(f"Could not read 'search_engine' from config: {e}. Falling back to 'google'.")
+            self.search_engine = 'google'
+
+        try:
+            queries_raw = config.get('Search', 'queries')
+            self.queries = [q.strip() for q in queries_raw.split(',') if q.strip()]
+            if not self.queries:
+                raise ValueError("No queries specified after parsing.")
+        except Exception as e:
+            logging.warning(f"Could not read 'queries' from config: {e}. Falling back to ['test'].")
+            self.queries = ['test']
+
+        try:
+            self.random_query = config.getboolean('Search', 'random_query')
+        except Exception as e:
+            logging.warning(f"Could not read 'random_query' from config: {e}. Falling back to False.")
+            self.random_query = False
+
+    def perform_search(self):
+        query = random.choice(self.queries) if self.random_query else self.queries[0]
+        logging.info(f"Performing search with query: {query}")
+
+        try:
+            engine = self.search_engine.lower()
+        except Exception:
+            logging.warning("Search engine not set properly; defaulting to 'google'.")
+            engine = 'google'
+
+        try:
+            if engine == 'google':
+                try:
+                    self.driver.get("https://www.google.com")
+                except WebDriverException as e:
+                    logging.error(f"Failed to load Google: {e}")
+                    return
+                try:
+                    search_box = self.driver.find_element(By.NAME, "q")
+                except NoSuchElementException:
+                    logging.error("Google search box not found.")
+                    return
+
+            elif engine == 'yandex':
+                try:
+                    self.driver.get("https://ya.ru")
+                except WebDriverException as e:
+                    logging.error(f"Failed to load Yandex: {e}")
+                    return
+                try:
+                    search_box = self.driver.find_element(By.CSS_SELECTOR, 'input[placeholder="Найдётся всё"]')
+                except NoSuchElementException:
+                    logging.error("Yandex search box not found.")
+                    return
+
+            elif engine == 'bing':
+                try:
+                    self.driver.get("https://www.bing.com")
+                except WebDriverException as e:
+                    logging.error(f"Failed to load Bing: {e}")
+                    return
+                try:
+                    search_box = self.driver.find_element(By.NAME, "q")
+                except NoSuchElementException:
+                    logging.error("Bing search box not found.")
+                    return
+
+            else:
+                logging.error(f"Unsupported search engine: {self.search_engine}")
+                return
+
+            try:
+                search_box.clear()
+            except Exception:
+                # Not critical if clear fails; continue to send keys
+                pass
+
+            try:
+                search_box.send_keys(query + Keys.RETURN)
+            except (ElementNotInteractableException, StaleElementReferenceException) as e:
+                logging.error(f"Could not interact with the search box: {e}")
+                return
+            except Exception as e:
+                logging.exception(f"Unexpected error when sending keys to search box: {e}")
+                return
+
+            # Wait a bit for results to load
+            time.sleep(random.uniform(2, 4))
+
+        except Exception as e:
+            logging.exception(f"An unexpected error occurred during perform_search: {e}")
+            return
+
+    def navigate_random_link(self):
+        logging.info("Navigating to a random search result link.")
+
+        try:
+            engine = self.search_engine.lower()
+        except Exception:
+            logging.warning("Search engine not set properly; defaulting to 'google'.")
+            engine = 'google'
+
+        try:
+            if engine == 'google':
+                try:
+                    links = self.driver.find_elements(By.CSS_SELECTOR, 'div.yuRUbf > a')
+                except Exception as e:
+                    logging.error(f"Error finding Google result links: {e}")
+                    links = []
+
+            elif engine == 'yandex':
+                try:
+                    links = self.driver.find_elements(By.CSS_SELECTOR, 'a.link')
+                except Exception as e:
+                    logging.error(f"Error finding Yandex result links: {e}")
+                    links = []
+
+            elif engine == 'bing':
+                try:
+                    links = self.driver.find_elements(By.CSS_SELECTOR, 'li.b_algo h2 a')
+                except Exception as e:
+                    logging.error(f"Error finding Bing result links: {e}")
+                    links = []
+
+            else:
+                logging.error(f"Unsupported search engine: {self.search_engine}")
+                return
+
+            if not links:
+                logging.warning("No links found on the search results page.")
+                return
+
+            # Filter out elements that might be stale or not have href
+            valid_links = []
+            for el in links:
+                try:
+                    href = el.get_attribute('href')
+                    if href:
+                        valid_links.append((el, href))
+                except StaleElementReferenceException:
+                    continue
+                except Exception:
+                    continue
+
+            if not valid_links:
+                logging.warning("No valid links with href attribute found; attempting to use raw link elements.")
+                # As a fallback, try to use original links list
+                valid_links = []
+                for el in links:
+                    try:
+                        valid_links.append((el, None))
+                    except Exception:
+                        continue
+
+            if not valid_links:
+                logging.warning("No usable links found after filtering.")
+                return
+
+            el, href = random.choice(valid_links)
+            if href:
+                logging.info(f"Navigating to: {href}")
+                try:
+                    self.driver.get(href)
+                except WebDriverException as e:
+                    logging.error(f"Failed to navigate to href {href}: {e}. Attempting to click the element instead.")
+                    try:
+                        el.click()
+                    except Exception as click_exc:
+                        logging.error(f"Failed to click the link element: {click_exc}")
+                        return
+            else:
+                # If no href available, try clicking the element
+                try:
+                    logging.info("Clicking on a chosen link element (no href).")
+                    el.click()
+                except (ElementNotInteractableException, StaleElementReferenceException) as e:
+                    logging.error(f"Could not click the chosen link element: {e}")
+                    return
+                except Exception as e:
+                    logging.exception(f"Unexpected error while clicking link element: {e}")
+                    return
+
+            time.sleep(random.uniform(3, 6))  # Wait for the page to load
+
+        except Exception as e:
+            logging.exception(f"An unexpected error occurred during navigate_random_link: {e}")
+            return

@@ -1,0 +1,29 @@
+Here is the updated code with the font_size parameter added:
+python
+def write_on_images(font_size=12):
+
+    # Importing the PIL library
+    from PIL import Image
+    from PIL import ImageDraw
+    from PIL import ImageFont
+    
+    # Open an Image
+    img = Image.open('kirby.jpeg')
+    
+    # Call draw Method to add 2D graphics in an image
+    I1 = ImageDraw.Draw(img)
+    
+    # Load font with specified size
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Add Text to an image
+    I1.text((28, 36), "nice Car", fill=(255, 0, 0), font=font)
+    
+    # Display edited image
+    img.show()
+    
+    # Save the edited image
+    img.save("car2.png")

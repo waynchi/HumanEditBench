@@ -1,0 +1,49 @@
+import random
+
+def load_dictionary():
+    # Unchanged: Load the list of English words from the system dictionary.
+    try:
+        with open('/usr/share/dict/words', 'r') as f:
+            return f.read().splitlines()
+    except FileNotFoundError:
+        print("Dictionary file not found. Please ensure '/usr/share/dict/words' exists on your system.")
+        return []
+
+def get_user_input():
+    # Unchanged: Prompt the user for the number of characters.
+    try:
+        n = int(input("Enter the number of characters for the word: "))
+        return n
+    except ValueError:
+        print("Invalid input! Please enter a valid integer.")
+        return None
+
+def main():
+    dictionary = load_dictionary()
+    if not dictionary:
+        return
+    
+    n = get_user_input()
+    if n is None:
+        return
+    
+    # >>>>> Highlighted Section (Modified as per user instruction) <<<<<
+    # Look up words with exactly n characters in the dictionary.
+    words_with_n_chars = [word for word in dictionary if len(word) == n]
+    # If there are 10 or more matching words, randomly choose exactly 10,
+    # otherwise return whatever is available.
+    if len(words_with_n_chars) >= 10:
+        selected_words = random.sample(words_with_n_chars, 10)
+    else:
+        selected_words = words_with_n_chars
+    # >>>>> End of Highlighted Section <<<<<
+    
+    if selected_words:
+        print(f"Words with {n} characters:")
+        for word in selected_words:
+            print(word)
+    else:
+        print(f"No words found with {n} characters.")
+
+if __name__ == '__main__':
+    main()

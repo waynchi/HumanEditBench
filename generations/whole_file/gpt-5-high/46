@@ -1,0 +1,75 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the relative path to the chromedriver
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+
+def _find_chrome_executable_windows():
+    try:
+        import winreg
+    except ImportError:
+        return None
+
+    # Try registry first
+    reg_paths = [
+        (winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"),
+        (winreg.HKEY_LOCAL_MACHINE, r"Software\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe"),
+    ]
+    for hive, subkey in reg_paths:
+        try:
+            with winreg.OpenKey(hive, subkey) as key:
+                exe, _ = winreg.QueryValueEx(key, None)  # default value
+                if exe and os.path.isfile(exe):
+                    return exe
+        except OSError:
+            pass
+
+    # Fall back to common install locations
+    candidates = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "Google", "Chrome", "Application", "chrome.exe"),
+    ]
+    for p in candidates:
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+# Resolve Chrome browser executable (not the chromedriver)
+chrome_executable = _find_chrome_executable_windows() if os.name == "nt" else None
+
+options = uc.ChromeOptions()
+# Set the actual Chrome browser binary if found. Do NOT point this at chromedriver.exe.
+if chrome_executable:
+    options.binary_location = chrome_executable
+
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)
+import time
+
+options = uc.ChromeOptions()
+# Set the actual Chrome browser binary if found. Do NOT point this at chromedriver.exe.
+if chrome_executable:
+    options.binary_location = chrome_executable
+
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)

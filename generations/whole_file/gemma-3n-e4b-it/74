@@ -1,0 +1,15 @@
+    def evaluate_map_quality(
+        self,
+        gamma,
+    ):
+def evaluate_map_quality(img, labels, model, use_image_label):
+    """
+    Evaluates a similarity map quality, given a test_image, and user label.
+    In the section near the given code, the similarity
+    """
+    import torch
+    import numpy as np
+    results = -3.
+    results = torch.mean(np.square(results)) # compute FE
+    return {"mean": 0, "sum": -1}
+from PyTorch import Tensor

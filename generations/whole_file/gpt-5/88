@@ -1,0 +1,76 @@
+import requests #для запроса к API
+import xml.etree.ElementTree #для обработки xml-ответа API
+import matplotlib.pyplot as plt #для построения графиков
+import pandas as pd #для создания датафрейма и разденеия всех свечей на два типа: close и open
+import datetime #для дат по оси иксов
+import pickle #для хранения переменных в файле
+import json
+
+#класс валюта
+class valute():
+    """Валюта и всё с ней связанное, через ЦБ РФ
+    Требуются библеотеки:
+    requests
+    xml.etree.ElementTree
+    matplotlib.pyplot as plt
+    pandas as pd
+    datetime
+    pickle
+    json
+    Примечание: методы класса являются асинхронными и используют asyncio.
+    """
+    def __init__(self, name):
+        self.name = name
+    async def correct_name(self):
+        """Проверка имени валюты на наличие в множестве валют. Множество обновляется не чаще раза в день"""
+        import asyncio
+
+        info_path = r"D:\MoexAPI_bot_aiogram3\data_files\Info.json"
+        set_path = r"D:\MoexAPI_bot_aiogram3\data_files\set_valutes.bin"
+
+        def _load_info(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        def _save_info(path, data):
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=3, ensure_ascii=False)
+
+        def _dump_set(path, data):
+            with open(path, "wb") as f:
+                pickle.dump(data, f)
+
+        def _load_set(path):
+            with open(path, "rb") as f:
+                return pickle.load(f)
+
+        info = await asyncio.to_thread(_load_info, info_path)
+
+        if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["valute"], "%Y-%m-%d %H:%M:%S.%f"):
+            set_valutes = set()
+            s = "http://www.cbr.ru/scripts/XML_daily.asp"
+            r = await asyncio.to_thread(requests.get, s)
+            root = xml.etree.ElementTree.fromstring(r.content)
+            for Valute in root.findall("Valute"):
+                CharCode = Valute.find("CharCode")
+                set_valutes.add(CharCode.text)
+            await asyncio.to_thread(_dump_set, set_path, set_valutes)
+            info["last_day_check"]["valute"] = str(datetime.datetime.now())
+            await asyncio.to_thread(_save_info, info_path, info)
+
+        set_valutes = await asyncio.to_thread(_load_set, set_path)
+        if self.name in set_valutes:
+            return True
+        else:
+            return False
+    async def CurrentExchangeRate(self):
+        '''Текущий курс обмена валюты на рубль'''
+        import asyncio
+
+        url = "http://www.cbr.ru/scripts/XML_daily.asp"
+        r = await asyncio.to_thread(requests.get, url)
+        root = xml.etree.ElementTree.fromstring(r.content)
+        for Valute in root.findall("Valute"):
+            for CharCode in Valute.findall("CharCode"):
+                if CharCode.text == self.name:
+                    return (Valute.find("VunitRate").text)

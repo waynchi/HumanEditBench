@@ -1,0 +1,60 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Solve the linear system A x = b using the Conjugate Gradient method.
+
+    Parameters
+    ----------
+    A : (n, n) array_like or linear operator
+        Symmetric positive definite matrix.
+    b : (n,) array_like
+        Right-hand side vector.
+    x0 : (n,) array_like, optional
+        Initial guess for the solution. If None, zeros vector is used.
+    tol : float, optional
+        Tolerance for the residual norm. The algorithm stops when
+        the Euclidean norm of the residual is below this value.
+    max_iter : int, optional
+        Maximum number of iterations. If None, defaults to n.
+
+    Returns
+    -------
+    x : ndarray
+        Approximate solution vector.
+    info : dict
+        Dictionary containing additional info such as number of iterations,
+        final residual norm, and convergence flag.
+    """
+    b = np.asarray(b, dtype=float)
+    n = b.size
+
+    if x0 is None:
+        x = np.zeros(n, dtype=float)
+    else:
+        x = np.asarray(x0, dtype=float)
+
+    if max_iter is None:
+        max_iter = n
+
+    # Compute initial residual
+    r = b - np.dot(A, x)
+    p = r.copy()
+    rsold = np.dot(r, r)
+
+    for k in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rsnew = np.dot(r, r)
+
+        # Check convergence
+        if np.sqrt(rsnew) < tol:
+            return x, {"iterations": k + 1, "final_residual_norm": np.sqrt(rsnew), "converged": True}
+
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+
+    # If we exit the loop, we did not converge within max_iter
+    return x, {"iterations": max_iter, "final_residual_norm": np.sqrt(rsold), "converged": False}

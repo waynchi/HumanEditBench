@@ -1,0 +1,36 @@
+from main13 import knn, mlp
+import pandas as pd
+
+# Создаём результирующий DataFrame один раз (вне циклов)
+np_df = pd.DataFrame(index=range(10, 200, 10), columns=[1, 2, 3])
+
+for pclass in [1, 2, 3]:
+    for fare in range(10, 200, 10):
+            my_df = pd.DataFrame({
+                "Pclass": [pclass]*3,
+                "Name": [24]*3,
+                "Sex": [0]*3, 
+                "Age": [19]*3,
+                "SibSp": [0]*3,
+                "Parch": [0]*3,
+                "Fare": [fare]*3,
+                "Embarked": ["S", "Q", "C"]
+            })
+            my_df = pd.get_dummies(my_df, columns=["Embarked"], prefix="Embarked") #делаем one-hot
+
+            # Убедимся, что колонки присутствуют и имеют числовой тип
+            for col in ["Embarked_S", "Embarked_C", "Embarked_Q"]:
+                if col in my_df.columns:
+                    my_df[col] = my_df[col].astype(int)
+                else:
+                    my_df[col] = 0
+
+            # Получаем предсказания
+            knn_pred = knn.predict(my_df)
+            mlp_pred = mlp.predict(my_df)
+
+            # Записываем результат в ячейку как словарь. Используем .at для одиночной ячейки,
+            # и приводим предсказания к спискам (чтобы не было проблем с массивами numpy)
+            np_df.at[fare, pclass] = {"knn": knn_pred.tolist(), "mlp": mlp_pred.tolist()}
+
+print(np_df)

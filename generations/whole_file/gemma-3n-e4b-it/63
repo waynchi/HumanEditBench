@@ -1,0 +1,83 @@
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+def cluster_data(features_transformed, cluster_assignments, n_clusters=2, clustering_method='kmeans'):
+    """
+    Выполняет кластеризацию данных для указанных наборов столбцов.
+
+    Args:
+        features_transformed (pandas.DataFrame): Преобразованный DataFrame с параметрами.
+        cluster_assignments (dict): Словарь, где ключ - имя кластера, а значение - список столбцов для кластеризации.
+        n_clusters (int): Количество кластеров.
+        clustering_method (str): Метод кластеризации ('kmeans').
+
+    Returns:
+        pandas.DataFrame: DataFrame с добавленным столбцом меток кластеров.
+    """
+    if features_transformed is None:
+        print("Сначала выполните преобразование данных (этап 5).")
+        return None
+
+    for cluster, columns in cluster_assignments.items():
+        if not all(col in features_transformed.columns for col in columns):
+            print(f"Предупреждение: Один или несколько указанных столбцов для кластера '{cluster}' отсутствуют в DataFrame.")
+            continue
+        
+        features_for_clustering = features_transformed[columns].copy()
+
+        if features_for_clustering.empty:
+            print(f"Предупреждение: Набор столбцов для кластера '{cluster}' пуст.")
+            continue
+        
+        if clustering_method == 'kmeans':
+            try:
+                model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+                cluster_labels = model.fit_predict(features_for_clustering)
+
+                # Оценка качества кластеризации (например, с помощью коэффициента силуэта)
+                if len(np.unique(cluster_labels)) > 1: # Проверка на случай, когда все точки отнесены к одному кластеру
+                    silhouette_avg = silhouette_score(features_for_clustering, cluster_labels)
+                    print(f"Коэффициент силуэта для {n_clusters} кластеров (кластер {cluster}): {silhouette_avg:.4f}")
+                else:
+                    print(f"Невозможно рассчитать коэффициент силуэта для {n_clusters} кластеров (все точки в одном кластере) для кластера {cluster}.")
+            except ValueError as e:
+                print(f"Ошибка при кластеризации для кластера {cluster}: {e}")
+                continue # Skip to the next cluster
+        else:
+            print("Неподдерживаемый метод кластеризации.")
+            continue
+
+        for col in columns:
+            features_transformed[f'{cluster}_cluster'] = cluster_labels
+            print(f"Кластеризация кластера '{cluster}' выполнена. Метки кластеров добавлены в столбец '{f'{cluster}_cluster}''.")
+
+    print("Кластеризация выполнена для всех указанных кластеров.")
+    return features_transformed
+
+# Выполнение кластеризации (после этапа 5 и до этапа 6)
+if 'features_transformed' in locals() and features_transformed is not None:
+    cluster_feature_name = 'cluster'  # Имя столбца для меток кластеров
+    n_clusters = 3  # Количество кластеров (подберите оптимальное значение)
+    cluster_assignments = {
+        'Cluster1': ('feature1', 'feature2'),
+        'Cluster2': ('feature1', 'feature3')
+    }
+    features_transformed = cluster_data(features_transformed, cluster_assignments, n_clusters)
+    
+    # Визуализация кластеров (пример для случая, когда есть 2 числовых признака)
+    numerical_features = features_transformed.select_dtypes(include=np.number)
+    if numerical_features.shape[1] >= 2:
+        plt.figure(figsize=(8, 6))
+        plt.scatter(numerical_features.iloc[:, 0], numerical_features.iloc[:, 1], c=features_transformed[cluster_feature_name], cmap='viridis')
+        plt.xlabel(numerical_features.columns[0])
+        plt.ylabel(numerical_features.columns[1])
+        plt.title('Результаты кластеризации')
+        plt.colorbar(label='Номер кластера')
+        plt.show()
+    else:
+        print("Недостаточно числовых признаков для визуализации кластеров на плоскости.")
+else:
+    print("Сначала выполните этап 5 (Преобразование данных).")

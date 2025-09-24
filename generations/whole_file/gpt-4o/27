@@ -1,0 +1,22 @@
+from langchain.chat_models import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+
+import json
+
+from langchain.llms import OpenAI
+
+# Assuming you've set up your OpenAI environment variables
+client = ChatOpenAI()
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt_template = ChatPromptTemplate(
+    role_prompts={"system": sys_prompt, "user": f"{shap_values_json}"}
+)
+prompt_messages = prompt_template.construct_prompt()
+
+response = client(prompt_messages)
+print(response)

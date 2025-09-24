@@ -1,0 +1,4 @@
+    steps_per_epoch = total_train_examples // batch_size
+    eval_steps = max(1, steps_per_epoch // 10)
+    save_steps = steps_per_epoch
+    logging_steps = max(1, steps_per_epoch // 20)

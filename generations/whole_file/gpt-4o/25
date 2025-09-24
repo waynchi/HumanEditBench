@@ -1,0 +1,37 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+# Initialize the ChatOllama model
+chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+
+# Load SHAP values from JSON file
+try:
+    with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+        data = json.load(file)
+        shap_values_json = data.get("shap_values")
+        if shap_values_json is None:
+            raise ValueError("SHAP values not found in the JSON file.")
+except (FileNotFoundError, json.JSONDecodeError) as e:
+    raise RuntimeError("Error loading SHAP values JSON file.") from e
+
+# Load system prompt from file
+try:
+    with open("system.prompt", "r") as file:
+        sys_prompt = file.read().strip()
+except FileNotFoundError as e:
+    raise RuntimeError("System prompt file not found.") from e
+
+# Prepare the messages
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+# Generate the response
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+chain = prompt_value | chat_model
+
+# Print the response
+chain.invoke()

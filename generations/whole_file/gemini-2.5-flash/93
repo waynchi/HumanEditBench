@@ -1,0 +1,81 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def generate_chat_response(
+    model_name: str,
+    base_url: str,
+    shap_values_filepath: str,
+    system_prompt_filepath: str,
+    client_kwargs: dict = None
+) -> str:
+    """
+    Generates a response from a chat model using SHAP values and a system prompt.
+
+    Args:
+        model_name (str): The name of the ChatOllama model to use (e.g., "llama3.2").
+        base_url (str): The base URL for the Ollama server.
+        shap_values_filepath (str): The path to the JSON file containing SHAP values.
+        system_prompt_filepath (str): The path to the file containing the system prompt.
+        client_kwargs (dict, optional): Additional keyword arguments for the Ollama client. Defaults to None.
+
+    Returns:
+        str: The content of the generated response from the chat model.
+    """
+    # Initialize the ChatOllama model
+    if client_kwargs:
+        chat_model = ChatOllama(model=model_name, base_url=base_url, client_kwargs=client_kwargs)
+    else:
+        chat_model = ChatOllama(model=model_name, base_url=base_url)
+
+    # Load SHAP values from JSON file
+    with open(shap_values_filepath, "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+
+    # Load system prompt from file
+    with open(system_prompt_filepath, "r") as file:
+        sys_prompt = file.read().strip()
+
+    # Prepare the messages
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+
+    # Generate the response
+    user_input = json.dumps(shap_values_json)  # Prepare user input
+
+    chain = prompt | chat_model
+
+    response = chain.invoke({"user_input": user_input})
+    return response.content
+
+# Original code execution flow, now calling the refactored function
+# Initialize the ChatOllama model - this part is now handled within the function call
+# chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+# chat_model = ChatOllama(
+#     model="llama3.1:70b",
+#     base_url="http://ada-open-webui.serveo.net/ollama",
+#     client_kwargs={
+#         "headers": {"authorization": "Bearer <MASKED>"}
+#     },
+# )
+
+# The original code's static file paths and model configuration
+model_config = {
+    "model_name": "llama3.2",
+    "base_url": "http://localhost:11434",
+    "shap_values_filepath": "Vuori_Final_Approval_2024_09_24.json",
+    "system_prompt_filepath": "system.prompt",
+    # Example for an alternative configuration, commented out for compliance with original behavior
+    # "client_kwargs": {
+    #     "headers": {"authorization": "Bearer sk-6bd5a066223a49aea878d1970aff4485"}
+    # }
+}
+
+
+# Print the response
+response_content = generate_chat_response(**model_config)
+print(response_content)

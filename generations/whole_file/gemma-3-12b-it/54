@@ -1,0 +1,17 @@
+import os
+from pymilvus import connections, utility
+
+# 记录当前路径为cwd
+# 创建向量数据库路径
+cwd = os.getcwd()
+# db_path = cwd + '/milvus_db.db'  # Not used in pymilvus
+# TABLE_NAME = 'test_table'  # Name of the collection
+# DIM_VALUE = 128 # Dimensionality of the vectors
+
+try:
+    connections.connect(auto_connect=False)  # Connect to Milvus standalone or cluster
+    client = connections.get_default_client()
+    print("Connected to Milvus successfully!")
+except Exception as e:
+    print(f"Failed to connect to Milvus: {e}")
+    client = None # Handle the case where connection fails.  Important to check!

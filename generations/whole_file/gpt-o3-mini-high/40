@@ -1,0 +1,121 @@
+import pygame
+import math
+
+# Initialize Pygame
+pygame.init()
+
+# Set up display (this section remains unchanged)
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption('Basic Screen')
+
+# The original code started a main loop here but then immediately re‑imports and re‑inits.
+# We leave the above unchanged and now fix the main loop and quitting in the Flappy Bird Clone section.
+
+# -------------------------------------------------------------------------
+# Flappy Bird Clone Section – ONLY THE HIGHLIGHTED SECTION IS CHANGED BELOW
+# -------------------------------------------------------------------------
+
+# Set up display for Flappy Bird Clone
+screen_width = 800
+screen_height = 800
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption('Flappy Bird Clone')
+
+# Bird properties
+bird_x = 100
+bird_y = screen_height // 2
+bird_width = 40
+bird_height = 30
+bird_flap_height = 10
+gravity = 1
+bird_velocity = 0
+
+# Main loop – fixed quitting and proper start of the loop
+running = True
+while running:
+    for event in pygame.event.get():
+        # Corrected: properly quit when the window is closed
+        if event.type == pygame.QUIT:
+            running = False
+        # Corrected: use elif to avoid multiple triggers in one frame
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                bird_velocity = -bird_flap_height
+
+    # Apply gravity and update bird position
+    bird_velocity += gravity
+    bird_y += bird_velocity
+
+    # Fill the screen (black background)
+    screen.fill((0, 0, 0))
+
+    # Draw the bird
+    pygame.draw.rect(screen, (255, 255, 0), (bird_x, bird_y, bird_width, bird_height))
+
+    # Update the display
+    pygame.display.flip()
+
+# Quit Pygame properly
+pygame.quit()
+
+# -------------------------------------------------------------------------
+# The following code was part of the original file and remains unchanged.
+# (It contains duplicate setup and main loop sections that were previously in error.)
+# -------------------------------------------------------------------------
+
+# Set up display
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption('Basic Screen')
+screen_height = 800
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption('Flappy Bird Clone')
+
+# Bird properties
+bird_x = 100
+bird_y = screen_height // 2
+bird_width = 40
+bird_height = 30
+bird_flap_height = 10
+gravity = 1
+bird_velocity = 0
+
+# Main loop (this second clone loop is kept unchanged from the original)
+running = True
+while running:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                bird_velocity = -bird_flap_height
+
+    # Apply gravity
+    bird_velocity += gravity
+    bird_y += bird_velocity
+
+    # Fill the screen with a color (e.g., black)
+    screen.fill((0, 0, 0))
+
+    # Draw the bird
+    pygame.draw.rect(screen, (255, 255, 0), (bird_x, bird_y, bird_width, bird_height))
+
+    # Update the display
+    pygame.display.flip()
+
+# Quit Pygame
+
+        if event.type == pygame.QUIT:
+            running = False
+
+    # Fill the screen with a color (e.g., black)
+    screen.fill((0, 0, 0))
+
+    # Update the display
+    pygame.display.flip()
+
+# Quit Pygame
+pygame.quit()

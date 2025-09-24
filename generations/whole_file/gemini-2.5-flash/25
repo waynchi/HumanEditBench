@@ -1,0 +1,36 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+# Initialize the ChatOllama model
+chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+
+# Load SHAP values from JSON file
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+
+# Load system prompt from file
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+# Prepare the messages
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+# Generate the response
+# The original code was invoking the template directly with a string, 
+# but ChatPromptTemplate.invoke expects a dictionary with keys corresponding to the placeholders.
+# In this case, 'user_input' is the placeholder.
+prompt_value = template.invoke({"user_input": json.dumps(shap_values_json)})
+
+# The original code was trying to chain a PromptValue (prompt_value) with a chat_model directly.
+# Langchain's LCEL (LangChain Expression Language) expects a runnable to initiate the chain.
+# To integrate the prompt and the model, we use the `template` itself as the starting point.
+chain = template | chat_model
+
+# To invoke the chain, we need to pass the input for the 'user_input' placeholder.
+# The result of `chain.invoke()` will be a message object; to print the content, we access `content`.
+response = chain.invoke({"user_input": json.dumps(shap_values_json)})
+print(response.content)

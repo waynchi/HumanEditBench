@@ -1,0 +1,22 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    cols = [l.split() for l in lines if l.strip()]  # Handle extra whitespace and empty lines
+    cols = np.array(cols, dtype=int).T  # Simplified conversion to int array
+    list_1 = np.sort(cols[0])
+    list_2 = np.sort(cols[1])
+
+    all_dists = np.abs(list_1 - list_2)  # Vectorized operation for calculating distances
+    print(sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().splitlines()  # Using splitlines() to handle different newline characters
+    return lines
+
+if __name__ == "__main__":
+    main()

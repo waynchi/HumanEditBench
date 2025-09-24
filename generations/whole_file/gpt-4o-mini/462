@@ -1,0 +1,25 @@
+import random
+
+# Original dictionary of words in English
+dictionary = [
+    "apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew",
+    "kiwi", "lemon", "mango", "nectarine", "orange", "papaya", "quince", "raspberry",
+    "strawberry", "tangerine", "ugli", "vanilla", "watermelon", "xigua", "yuzu", "zucchini"
+]
+
+# Function to get words of N characters
+def get_words_of_length(n):
+    return [word for word in dictionary if len(word) == n]
+
+# User input for number of characters
+user_input = int(input("Enter the number of characters: "))
+words = get_words_of_length(user_input)
+
+# Print up to 10 random words of the specified length
+if words:
+    selected_words = random.sample(words, min(10, len(words)))
+    print("Here are 10 words with", user_input, "characters:")
+    for word in selected_words:
+        print(word)
+else:
+    print("No words found with", user_input, "characters.")

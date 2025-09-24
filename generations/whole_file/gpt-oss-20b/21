@@ -1,0 +1,36 @@
+from pathlib import Path
+
+target_folder = 'F:/Maverick/desktop/Windows/temp/'
+
+def get_content_delivery_path():
+    """
+    Get the path of Windows Content Delivery
+    """
+    path = Path('C:/Users/admin/AppData/Local/Packages/')
+    matched = path.glob('*Microsoft.Windows.ContentDeliveryManager*')
+    if result := next(matched):
+        suffix = 'LocalState/Assets/'
+        return result / suffix
+    else:
+        raise Exception('ContentDeliveryManager Not Found')
+    
+
+def jpeg(source_folder, target_folder):
+    """
+    Copy files from source folder to target folder and add .jpeg suffix
+    """
+    import shutil
+    source = Path(source_folder)
+    target = Path(target_folder)
+    for file_path in source.rglob('*'):
+        if file_path.is_file():
+            relative_path = file_path.relative_to(source)
+            destination_dir = target / relative_path.parent
+            destination_dir.mkdir(parents=True, exist_ok=True)
+            destination_file = target / relative_path.with_suffix('.jpeg')
+            shutil.copy2(file_path, destination_file)
+
+
+if __name__ == '__main__':
+    source_folder = get_content_delivery_path()
+    print(f"Windows Content Delivery path: {source_folder}")

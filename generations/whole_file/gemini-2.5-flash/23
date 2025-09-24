@@ -1,0 +1,66 @@
+import enchant
+
+def find_words_with_n_characters(n):
+    """
+    Looks up the English dictionary and returns 10 words with N characters.
+    """
+    d = enchant.Dict("en_US")
+    matching_words = []
+
+    # A simple way to iterate through dictionary words (this might be slow for a very large dictionary)
+    # For a real-world application, you might use a pre-processed word list or a more efficient dictionary API.
+    # enchant doesn't provide a direct way to iterate all words, so we'll simulate it or use common word lists.
+
+    # Let's use a common word list file as enchant's direct word iteration is not straightforward for all words.
+    # This assumes you have a 'words.txt' file (e.g., from /usr/share/dict/words on Linux, or downloaded).
+    try:
+        with open("/usr/share/dict/words", "r") as f:
+            for line in f:
+                word = line.strip().lower()
+                if len(word) == n and d.check(word):
+                    matching_words.append(word)
+                    if len(matching_words) >= 10:
+                        return matching_words
+    except FileNotFoundError:
+        print("Warning: /usr/share/dict/words not found. Using a more limited internal check for demonstration.")
+        # Fallback if a system dictionary file is not found
+        # This part is highly inefficient and only for demonstration if external dict not available.
+        # It's better to tell the user to install a word list or use another method.
+        # We can't actually 'iterate' all words with enchant.Dict directly.
+        # For a practical solution without a word list file, you'd need to generate words,
+        # which is not the intent of "looking up the dictionary" here.
+
+        # Let's just create some dummy words for illustration if no file.
+        # This doesn't actually 'look up' in the dictionary for new words, but checks validity.
+        # A true dictionary lookup needs a source of words.
+        print("Please consider installing a word list (e.g., in /usr/share/dict/words) for better results.")
+        # For a robust solution, you would typically pre-load a large word list.
+        # Since we can't iterate ALL words in enchant, we'll return an empty list or less words.
+        return []
+
+    return matching_words
+
+if __name__ == "__main__":
+    while True:
+        try:
+            num_chars = int(input("Enter the number of characters (N) you want for the words (0 to exit): "))
+            if num_chars == 0:
+                print("Exiting program.")
+                break
+            if num_chars < 1:
+                print("Please enter a positive number of characters.")
+                continue
+
+            print(f"\nLooking for 10 words with {num_chars} characters...")
+            words = find_words_with_n_characters(num_chars)
+
+            if words:
+                print(f"Found {len(words)} words:")
+                for i, word in enumerate(words):
+                    print(f"{i+1}. {word}")
+            else:
+                print(f"No words found with {num_chars} characters (or fewer than 10).")
+
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+        print("-" * 30)

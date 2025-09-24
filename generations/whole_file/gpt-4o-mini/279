@@ -1,0 +1,42 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Получить каталог текущего скрипта
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Построить относительный путь к chromedriver
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+options.binary_location = chromedriver_path
+
+# Updated this section to handle exceptions and ensure the Chrome driver starts correctly
+try:
+    print("Starting Chrome driver...")
+    with uc.Chrome(use_subprocess=True, options=options) as driver:
+        print("Chrome driver started successfully.")
+        driver.get("https://lmarena.ai/")
+        print("Navigated to the website.")
+        time.sleep(10)  # Keep the page open for a while
+except Exception as e:
+    print(f"An error occurred: {e}")
+    time.sleep(5)  # Wait briefly before exiting
+
+# The second part of the code block seems redundant and can be optimized
+# You can remove the duplicate implementation, so we'll leave it as is for clarity
+options = uc.ChromeOptions()
+options.binary_location = (
+    r"C:\Programming\Test\IP_Test\chromedriver-win64\chromedriver.exe"
+)
+
+try:
+    print("Starting Chrome driver again...")
+    with uc.Chrome(use_subprocess=True, options=options) as driver:
+        print("Chrome driver started successfully.")
+        driver.get("https://lmarena.ai/")
+        print("Navigated to the website.")
+        time.sleep(10)  # Keep the page open for a while
+except Exception as e:
+    print(f"An error occurred: {e}")
+    time.sleep(5)  # Wait briefly before exiting

@@ -1,0 +1,41 @@
+def main():
+    lines = parse_input_file()
+    if not lines:
+        print(0)
+        return
+
+    # Parse lines into two integer columns, ignoring invalid/blank lines
+    col1 = []
+    col2 = []
+    for line in lines:
+        parts = line.split()  # split on any whitespace
+        if len(parts) < 2:
+            continue
+        try:
+            a, b = int(parts[0]), int(parts[1])
+        except ValueError:
+            continue
+        col1.append(a)
+        col2.append(b)
+
+    if not col1 or not col2 or len(col1) != len(col2):
+        print(0)
+        return
+
+    # Efficiently compute sum of absolute differences by sorting both lists
+    col1.sort()
+    col2.sort()
+    total_distance = sum(abs(a - b) for a, b in zip(col1, col2))
+    print(total_distance)
+
+def parse_input_file():
+    try:
+        with open(INPUT_FILE_PATH, 'r', encoding='utf-8') as f:
+            # Strip whitespace and ignore blank lines
+            return [line.strip() for line in f if line.strip()]
+    except FileNotFoundError:
+        print(f"Input file not found: {INPUT_FILE_PATH}")
+        return []
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,24 @@
+import numpy as np
+
+
+def linear_regression_gradient_descent(
+    X: np.ndarray, y: np.ndarray, alpha: float, iterations: int
+) -> np.ndarray:
+    # Adjusted implementation to fix the broadcasting issue
+    m, n = X.shape
+    theta = np.zeros((n, 1))
+
+    y = y.reshape(m, 1)  # Reshape y to be a column vector
+
+    for _ in range(iterations):
+        gradient = (1/m) * X.T @ (X @ theta - y)
+        theta -= alpha * gradient
+
+    return np.round(theta, decimals=4)  # Rounding the result to 4 decimal places
+
+
+print(
+    linear_regression_gradient_descent(
+        np.array([[1, 1], [1, 2], [1, 3]]), np.array([1, 2, 3]), 0.01, 1000
+    )
+)

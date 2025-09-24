@@ -1,0 +1,32 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0, max_iter=100, tolerance=1e-6):
+    """
+    Solves a system of linear equations Ax = b using the conjugate gradient method.
+
+    Args:
+        A (numpy.ndarray): The coefficient matrix (must be symmetric and positive definite).
+        b (numpy.ndarray): The right-hand side vector.
+        x0 (numpy.ndarray): The initial guess for the solution.
+        max_iter (int, optional): The maximum number of iterations. Defaults to 100.
+        tolerance (float, optional): The convergence tolerance. Defaults to 1e-6.
+
+    Returns:
+        numpy.ndarray: The approximate solution to the system of equations.
+    """
+    x = x0.copy()
+    r = b - A @ x
+    p = r.copy()
+    
+    for i in range(max_iter):
+        alpha = (r.T @ r) / (p.T @ A @ p)
+        x = x + alpha * p
+        r_new = b - A @ x
+        beta = (r_new.T @ r_new) / (r.T @ r)
+        p = r_new + beta * p
+        r = r_new
+        
+        if np.linalg.norm(r) < tolerance:
+            break
+            
+    return x

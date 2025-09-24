@@ -1,0 +1,25 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Determine the Chrome executable path on Windows
+chrome_exe = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+if not os.path.exists(chrome_exe):
+    # If the default location does not exist, try an alternative path
+    alternative_path = r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+    if os.path.exists(alternative_path):
+        chrome_exe = alternative_path
+
+options = uc.ChromeOptions()
+if chrome_exe:
+    options.binary_location = chrome_exe
+
+# Uncomment the line below to run Chrome in headless mode
+# options.add_argument("--headless")
+
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)

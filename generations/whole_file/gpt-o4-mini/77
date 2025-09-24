@@ -1,0 +1,171 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
+function useDashboardData(user) {
+  // Initial date range: from one year ago to today
+  const initialStartDate = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 1);
+    return d;
+  }, []);
+  const initialEndDate = useMemo(() => new Date(), []);
+
+  // Separate state slices for clarity and performance
+  const [stripeApiKey, setStripeApiKey] = useState("");
+  const [customerSummary, setCustomerSummary] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState(null);
+  const [dateRange, setDateRange] = useState({
+    startDate: initialStartDate,
+    endDate: initialEndDate
+  });
+
+  // Compute health data on-the-fly instead of storing it
+  const healthData = useMemo(() => {
+    if (!customerSummary?.customers?.length) {
+      return [];
+    }
+    const { startDate, endDate } = dateRange;
+    const months = [];
+    const cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      months.push({ 
+        month: cursor.toLocaleString("default", { month: "short" }),
+        year: cursor.getFullYear()
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return months.map(({ month, year }) => {
+      const monthLabel = `${month} ${year}`;
+      const group = customerSummary.customers.filter(c => {
+        const d = new Date(c.created);
+        return d.getFullYear() === year
+          && d.toLocaleString("default", { month: "short" }) === month;
+      });
+      return {
+        monthYear: monthLabel,
+        healthy: group.filter(c => c.status === "active").length,
+        warning: group.filter(c => c.status === "churned").length,
+        critical: group.filter(c => c.status === "delinquent").length
+      };
+    });
+  }, [customerSummary, dateRange]);
+
+  // Load the user's Stripe API key once
+  useEffect(() => {
+    if (!user?.id || stripeApiKey) return;
+    (async () => {
+      try {
+        const resp = await fetch("/api/db/churnary_user_settings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: "SELECT stripe_api_key FROM `user_settings` WHERE `user_id` = ? LIMIT 1",
+            values: [user.id]
+          })
+        });
+        if (!resp.ok) throw new Error(`Status ${resp.status}`);
+        const settings = await resp.json();
+        setStripeApiKey(settings[0]?.stripe_api_key || "");
+      } catch {
+        setError("Failed to load user settings");
+      }
+    })();
+  }, [user?.id, stripeApiKey]);
+
+  // Load customer summary when we have both user ID and API key
+  useEffect(() => {
+    if (!user?.id || !stripeApiKey) return;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const resp = await fetch("/api/stripe-customer-summary", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user.id })
+        });
+        if (!resp.ok) throw new Error("Failed to fetch customer summary");
+        const summary = await resp.json();
+        if (summary.error) throw new Error(summary.error);
+        setCustomerSummary(summary);
+        setCustomers(summary.customers || []);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [user?.id, stripeApiKey]);
+
+  // Actions exposed to the consumer
+  const actions = useMemo(() => ({
+    checkWebsites: async () => {
+      if (!customers.length) return;
+      setChecking(true);
+      setError(null);
+      try {
+        const updated = await Promise.all(
+          customers.map(async c => {
+            const resp = await fetch("/api/website-churn-detector", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ websiteUrl: c.website })
+            });
+            const health = await resp.json();
+            return {
+              ...c,
+              health,
+              status: health.status === "active" ? "active" : "churned"
+            };
+          })
+        );
+        const newSummary = {
+          ...customerSummary,
+          customers: updated,
+          active: updated.filter(c => c.status === "active").length,
+          churned: updated.filter(c => c.status === "churned").length
+        };
+        setCustomerSummary(newSummary);
+        setCustomers(updated);
+      } catch {
+        setError("Failed to check websites. Please try again.");
+      } finally {
+        setChecking(false);
+      }
+    },
+
+    setDateRange: range => {
+      if (range.startDate > range.endDate) {
+        setError("Start date cannot be after end date");
+        return;
+      }
+      setError(null);
+      setDateRange(range);
+    },
+
+    clearError: () => setError(null)
+  }), [customers, customerSummary, dateRange]);
+
+  const data = {
+    customerData: {
+      summary: customerSummary,
+      loading,
+      customers
+    },
+    healthData,
+    websiteStatus: { checking },
+    stripeApiKey,
+    dateRange,
+    error
+  };
+
+  return {
+    data,
+    actions,
+    isLoading: loading || checking
+  };
+}
+
+export default useDashboardData;

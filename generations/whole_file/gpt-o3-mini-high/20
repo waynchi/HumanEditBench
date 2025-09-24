@@ -1,0 +1,42 @@
+import numpy as np
+
+# Use only one INPUT_FILE_PATH assignment.
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print("Raw input lines:", lines)
+    
+    # Filter out empty lines to avoid processing issues.
+    non_empty_lines = [line for line in lines if line.strip()]
+    
+    # Split each non-empty line using three spaces as the delimiter.
+    # It is assumed that each line contains exactly two integers.
+    cols = [line.split("   ") for line in non_empty_lines]
+    
+    # Convert the list of split lines to a numpy array of integers and transpose so that
+    # the first row contains the first column of numbers and the second row contains the second column.
+    try:
+        cols = np.array(cols).astype(int).T
+    except ValueError as e:
+        print("Error: Unable to convert input to integers. Please verify the file format.")
+        raise e
+
+    list_1 = list(cols[0])
+    list_2 = list(cols[1])
+    
+    # Instead of repeatedly searching for and removing the minimum element,
+    # sort both lists and compute the absolute differences pairwise.
+    list_1_sorted = sorted(list_1)
+    list_2_sorted = sorted(list_2)
+    all_dists = [abs(a - b) for a, b in zip(list_1_sorted, list_2_sorted)]
+    
+    print("Total Distance:", sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

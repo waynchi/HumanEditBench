@@ -1,0 +1,122 @@
+import requests #для запроса к API
+import xml.etree.ElementTree #для обработки xml-ответа API
+import matplotlib.pyplot as plt #для построения графиков
+import pandas as pd #для создания датафрейма и разденеия всех свечей на два типа: close и open
+import datetime #для дат по оси иксов
+import pickle #для хранения переменных в файле
+import json
+
+#фак ю нигер
+#допиши чтобы set_valutes заполнялось!!! оно факинг нигер и не заполняется
+
+
+#класс валюта
+class valute():
+    """Валюта и всё с ней связанное, через ЦБ РФ \n
+    Требуются библеотеки: \n
+    requests \n
+    xml.etree.ElementTree \n
+    matplotlib.pyplot as plt \n
+    pandas as pd \n
+    datetime \n
+    pickle \n
+    json \n
+    """
+    def __init__(self, name):
+        self.name = name
+    async def correct_name(self):
+        """Проверка имени валюты на наличие в множестве валют. Множество обновляется не чаще раза в день"""
+        import asyncio
+        # read Info.json asynchronously via thread to avoid blocking event loop
+        info_path = r"D:\MoexAPI_bot_aiogram3\data_files\Info.json"
+        set_valutes_path = r"D:\MoexAPI_bot_aiogram3\data_files\set_valutes.bin"
+
+        def read_info():
+            with open(info_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+        try:
+            info = await asyncio.to_thread(read_info)
+        except FileNotFoundError:
+            # if Info.json doesn't exist, initialize minimal structure
+            info = {"last_day_check": {"valute": "1970-01-01 00:00:00.000000"}}
+
+        # parse stored datetime, if possible
+        try:
+            last_check = datetime.datetime.strptime(info["last_day_check"]["valute"], "%Y-%m-%d %H:%M:%S.%f")
+        except Exception:
+            last_check = datetime.datetime.fromtimestamp(0)
+
+        # если отличается более чем на 1 день, то переписываем список (множество) валют:
+        if datetime.datetime.now() - datetime.timedelta(days=1) > last_check:
+            def fetch_and_update():
+                s = "http://www.cbr.ru/scripts/XML_daily.asp"
+                r = requests.get(s)
+                root = xml.etree.ElementTree.fromstring(r.content)
+                set_valutes = set()
+                for Valute in root.findall("Valute"):
+                    CharCode = Valute.find("CharCode")
+                    if CharCode is not None and CharCode.text:
+                        set_valutes.add(CharCode.text)
+                # записываем в файл множества
+                with open(set_valutes_path, "wb") as f:
+                    pickle.dump(set_valutes, f)
+                # обновляем время последнего обновления
+                info["last_day_check"]["valute"] = str(datetime.datetime.now())
+                with open(info_path, "w", encoding="utf-8") as f:
+                    json.dump(info, f, indent=3, ensure_ascii=False)
+                return set_valutes
+
+            # выполнить блокирующие операции в отдельном потоке
+            await asyncio.to_thread(fetch_and_update)
+
+        #теперь просто проверим есть ли валюта в списке валют
+        def read_set():
+            with open(set_valutes_path, "rb") as f:
+                return pickle.load(f)
+
+        try:
+            set_valutes = await asyncio.to_thread(read_set)
+        except FileNotFoundError:
+            # если файл отсутствует, попробуем заново получить список
+            def fetch_once():
+                s = "http://www.cbr.ru/scripts/XML_daily.asp"
+                r = requests.get(s)
+                root = xml.etree.ElementTree.fromstring(r.content)
+                set_valutes = set()
+                for Valute in root.findall("Valute"):
+                    CharCode = Valute.find("CharCode")
+                    if CharCode is not None and CharCode.text:
+                        set_valutes.add(CharCode.text)
+                with open(set_valutes_path, "wb") as f:
+                    pickle.dump(set_valutes, f)
+                # обновляем Info.json тоже
+                info_local = {"last_day_check": {"valute": str(datetime.datetime.now())}}
+                with open(info_path, "w", encoding="utf-8") as f:
+                    json.dump(info_local, f, indent=3, ensure_ascii=False)
+                return set_valutes
+
+            set_valutes = await asyncio.to_thread(fetch_once)
+
+        return self.name in set_valutes
+    async def CurrentExchangeRate(self):
+        '''Текущий курс обмена валюты на рубль'''
+        import asyncio
+
+        def fetch_rate():
+            r = requests.get("http://www.cbr.ru/scripts/XML_daily.asp") #Api ЦБ РФ
+            root = xml.etree.ElementTree.fromstring(r.content)
+            for Valute in root.findall("Valute"): #ищем контейнеры валюты
+                CharCode = Valute.find("CharCode")
+                if CharCode is not None and CharCode.text == self.name: #находим контейнер с нужной валютой
+                    rate_elem = Valute.find("VunitRate")
+                    if rate_elem is not None and rate_elem.text:
+                        return rate_elem.text
+                    # fallback на более распространённый тег "Value"
+                    value_elem = Valute.find("Value")
+                    if value_elem is not None and value_elem.text:
+                        return value_elem.text
+                    return None
+            return None
+
+        return await asyncio.to_thread(fetch_rate)

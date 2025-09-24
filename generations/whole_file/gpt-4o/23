@@ -1,0 +1,31 @@
+import random
+
+# A mock-up function of a dictionary lookup (in reality, you would use an API like Wordnik or a library like PyDictionary)
+def fetch_words_with_n_characters(n):
+    # Dummy word list for demonstration purposes
+    mock_dictionary = ["example", "testing", "words", "python", "program", "dictionary", "function", "variable", "iteration", "development"]
+    filtered_words = [word for word in mock_dictionary if len(word) == n]
+    return filtered_words
+
+def get_random_words_with_n_characters(number_of_characters):
+    words = fetch_words_with_n_characters(number_of_characters)
+    if len(words) >= 10:
+        # Select 10 random words if there are enough words available
+        return random.sample(words, 10)
+    else:
+        # Return however many words are available if less than 10
+        return words
+
+def main():
+    try:
+        n = int(input("Enter the number of characters: "))
+        words = get_random_words_with_n_characters(n)
+        if words:
+            print(f"Words with {n} characters: {', '.join(words)}")
+        else:
+            print(f"No words found with {n} characters.")
+    except ValueError:
+        print("Please enter a valid number.")
+
+if __name__ == "__main__":
+    main()

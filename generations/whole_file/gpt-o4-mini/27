@@ -1,0 +1,29 @@
+from langchain_ollama.chat_models import ChatOllama
+import json
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+# initialize a LangChain Ollama chat model instead of using the raw Ollama client
+chat = ChatOllama(
+    model_name="llama3.2",
+    base_url="http://localhost:11434"
+)
+
+messages = [
+    {"role": "system", "content": sys_prompt},
+    {"role": "user", "content": prompt},
+]
+
+# invoke the model via LangChain
+response = chat(messages)
+
+# depending on LangChain's return object, you may need to adjust how you access the content
+# for the ChatOllama integration, `response` is typically a BaseMessage with `.content`
+print(response.content)

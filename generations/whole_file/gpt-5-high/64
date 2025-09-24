@@ -1,0 +1,84 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class Card():
+    celular: str
+    operadora: str
+    valor: str
+    email: str
+    nome: str
+    cpf: str
+    card: str
+    mes: str
+    ano: str
+    cvv: str
+    token: str
+    bin: str
+    dadosbin: str
+    senha: str
+
+    def __init__(
+        self,
+        celular: str,
+        operadora: str,
+        valor: str,
+        email: str,
+        nome: str,
+        cpf: str,
+        card: str,
+        mes: str,
+        ano: str,
+        cvv: str,
+        token: str,
+        bin: str,
+        dadosbin: str,
+        senha: str
+    ):
+        # Normalize and initialize all attributes
+        self.celular = '' if celular is None else str(celular).strip()
+        self.operadora = '' if operadora is None else str(operadora).strip()
+        self.valor = '' if valor is None else str(valor).strip()
+        self.email = '' if email is None else str(email).strip()
+        self.nome = '' if nome is None else str(nome).strip()
+        self.cpf = '' if cpf is None else str(cpf).strip()
+
+        # Card number
+        self.card = '' if card is None else str(card).strip()
+
+        # Month formatting (zero-pad if numeric and single digit)
+        m = '' if mes is None else str(mes).strip()
+        self.mes = m.zfill(2) if m.isdigit() and len(m) < 2 else m
+
+        self.ano = '' if ano is None else str(ano).strip()
+        self.cvv = '' if cvv is None else str(cvv).strip()
+        self.token = '' if token is None else str(token).strip()
+
+        # BIN: if not provided, try to derive from the card number (first 6 digits)
+        b = '' if bin is None else str(bin).strip()
+        if not b and self.card:
+            digits = ''.join(ch for ch in self.card if ch.isdigit())
+            b = digits[:6]
+        self.bin = b
+
+        self.dadosbin = '' if dadosbin is None else str(dadosbin).strip()
+        self.senha = '' if senha is None else str(senha).strip()
+
+    def __repr__(self):
+        values = [
+            self.celular,
+            self.operadora,
+            self.valor,
+            self.email,
+            self.nome,
+            self.cpf,
+            self.card,
+            self.mes,
+            self.ano,
+            self.cvv,
+            self.token,
+            self.bin,
+            self.dadosbin,
+            self.senha,
+        ]
+        return "Card(" + ", ".join(repr(v) for v in values) + ")"

@@ -1,0 +1,58 @@
+Since there was no original code provided, I'll create a new implementation that meets the requirements:
+python
+import requests
+
+def get_words_with_length(length):
+    # Using a free dictionary API
+    url = "https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+    
+    try:
+        # Get the word list
+        response = requests.get(url)
+        words = response.text.split()
+        
+        # Filter words by length
+        matching_words = [word for word in words if len(word) == length]
+        
+        # Return first 10 words (or all if less than 10)
+        return matching_words[:10]
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+
+def main():
+    while True:
+        try:
+            # Get user input
+            length = input("\nEnter the number of characters (or 'q' to quit): ")
+            
+            # Check if user wants to quit
+            if length.lower() == 'q':
+                print("Goodbye!")
+                break
+            
+            # Convert input to integer
+            length = int(length)
+            
+            if length <= 0:
+                print("Please enter a positive number.")
+                continue
+            
+            # Get and display words
+            words = get_words_with_length(length)
+            
+            if words:
+                print(f"\nHere are 10 words with {length} characters:")
+                for i, word in enumerate(words, 1):
+                    print(f"{i}. {word}")
+            else:
+                print(f"No words found with {length} characters.")
+                
+        except ValueError:
+            print("Please enter a valid number.")
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()

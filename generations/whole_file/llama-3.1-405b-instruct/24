@@ -1,0 +1,60 @@
+Вот измененная асинхронная версия выделенного фрагмента кода:
+python
+import aiofiles
+
+#...
+
+async def correct_name(self):
+    #...
+    async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+        info = json.loads(await info_opened_file.read())
+    #...
+
+Вот полный код с измененным фрагментом:
+python
+import requests #для запроса к API
+import xml.etree.ElementTree #для обработки xml-ответа API
+import matplotlib.pyplot as plt #для построения графиков
+import pandas as pd #для создания датафрейма и разденеия всех свечей на два типа: close и open
+import datetime #для дат по оси иксов
+import pickle #для хранения переменных в файле
+import json #для работы с датабазой
+import aiofiles
+
+#нет проблем с инструментами теханализа и пустыми днями (без торгов), тк дни без торгов в датафрейме не нули, а просто не существуют. Поэтому они не портят значения индикаторов
+#класс тикер, методы график и тек. цена
+class ticker():
+    """Тикер акции и всё с ним связанное, через MoexApi \n
+    Требуются библеотеки: \n
+    requests \n
+    xml.etree.ElementTree \n
+    matplotlib.pyplot as plt \n
+    pandas as pd \n
+    datetime \n
+    pickle \n
+    json \n
+    """
+    def __init__(self, name: str):
+        """self.name - имя тикера
+        self.tech_dict - словарь теханализа"""
+        self.name = name 
+        """Имя тикера, то есть сам по себе тикер"""
+        #в принципе тут можно менять общие для всех юзеров настройки по умолчанию. Потенциально надо через это реализовать кастомные инструменты теханализа
+        self.tech_dict = {"value" : {"use" : False, "has_periods" : False, "need_graph_space" : True}, 
+                          "sma" : {"use" : False, "has_periods" : True, "periods" : [], "need_graph_space" : False},
+                          "ema" : {"use" : False, "has_periods" : True, "periods" : [],"need_graph_space" : False}
+                          }
+        """Словарь реализованных опций теханализа. Имеет вид \n
+        {"sma": {"use": True, "periods": [20, 50], "need_graph_space": False}, "rsi": {"use": True, "periods": [10], "need_graph_space": True}} \n
+        Где use отвечает за использование, period - список периодов, по которым будут считаться значения, need_graph_space за то, требует ли осциллятор доп места на графике \n
+        Изначально все use имеют значение False, а списки периодов пусты \n \n
+        При реализации нового инструмента теханализа достаточно дописать его в self.tech_dict \n
+        При этом функцию, соответствующую этому инструменту важно назвать также, как и сам инструмент в словаре. А её аргументы - self и ax (редактируемый/заполняемый график) \n
+        Доп графики инструментов теханализа, которые их требуют, будут отображаться в таком же порядке, в котором инструменты располагаются в словаре. Также в этом порядке будут высвечиваться кнопки в боте и уже выбранные инструменты теханализа"""
+    async def correct_name(self):
+        """Проверка имени тикера на наличие в множестве тикеров. Множество обновляется не чаще раза в день"""
+        async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+            info = json.loads(await info_opened_file.read())
+        #...
+
+Остальной код остается без изменений.

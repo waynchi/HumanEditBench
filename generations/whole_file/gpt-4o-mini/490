@@ -1,0 +1,20 @@
+# Registrar la ruta actual como cwd
+# Crear enlace de base de datos utilizando pymilvus
+from pymilvus import connections, FieldSchema, CollectionSchema, Collection
+
+cwd = os.getcwd()
+db_path = cwd + '/milvus_db.db'
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+
+# Conectar a la base de datos utilizando pymilvus
+connections.connect(alias="default", host="localhost", port="19530")
+
+# Definir el esquema de la colección
+fields = [
+    FieldSchema(name="embedding", dtype="FLOAT_VECTOR", dim=DIM_VALUE),
+]
+schema = CollectionSchema(fields=fields, description="Test collection")
+
+# Crear la colección
+collection = Collection(name=TABLE_NAME, schema=schema)

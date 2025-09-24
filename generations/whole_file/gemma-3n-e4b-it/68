@@ -1,0 +1,20 @@
+def get_interp(fig, axes, title,
+           # positions for x and y coordinates
+           x_pos: float, y_pos: float,
+           x_val: float) -> np.ndarray:
+    """
+    Override the default label of the position
+
+    Args:
+        fig: The figure associated with the label
+        axes: The axes within the figure
+        title: Title of the label
+        x_pos: position for x
+        y_pos: position for y
+        x_val: associated number
+
+    Returns:
+        An override for the position
+    """
+    df = axes.get_dataframe()
+    return np.asarray(dfs[title])

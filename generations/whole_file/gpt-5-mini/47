@@ -1,0 +1,287 @@
+import pandas as pd
+
+class Stock:
+	def __init__(self, filename, name):
+		self.filename = filename
+		try:
+			self.data = pd.read_csv(self.filename,index_col=0,parse_dates=True)
+		except Exception as e:
+			print(f"Unable to read file {self.filename}")
+			raise e
+		self.data.index.name = 'time'
+		self.name = name
+		self.attrs = {}
+
+	def get_attr(self, key):
+		try:
+			return self.attrs[key]
+		except KeyError:
+			return None
+
+	def set_attr(self, key, value):
+		self.attrs[key] = value
+
+	def get(self, i):
+		return self.data.iloc[i]
+
+	def get_range(self, s, t):
+		return self.data.iloc[s:t+1]
+
+	def __len__(self):
+		return len(self.data)
+
+class Transaction:
+	def __init__(self, num, price):
+		self.num = num
+		self.price = price
+		self.date = None
+
+	def set_date(self, date):
+		self.date = date
+
+class Trade:
+	def __init__(self, stock, long=True, num=0, price=0.0):
+		self.stock = stock
+		self.num = 0
+		self.profit = 0
+		self.closed = False
+		self.long = long
+
+		self.opens = []
+		self.closes = []
+
+		if num != 0:
+			self.open(num, price)
+
+	def close(self, num, price):
+		if num > self.num:
+			raise ValueError(f"ERR: Trying to close {num} of {self.stock.name} but only {self.num} available")
+		self.num -= num
+		self.closes.append(Transaction(num, price))
+
+		if self.long:
+			self.profit = self.get_num_closed() * (self.get_avg_close_price() - self.get_avg_open_price())
+		else:
+			self.profit = self.get_num_closed() * (self.get_avg_open_price() - self.get_avg_close_price())
+
+		if self.num == 0:
+			self.closed = True
+
+	def open(self, num, price):
+		self.num += num
+
+		self.opens.append(Transaction(num, price))
+
+	def get_equity(self, i):
+		current_price = self.stock.get(i)["close"]
+		if self.long:
+			return self.num * current_price
+		else:
+			# For short trades, equity could reflect the potential cost to close the position
+			return self.num * (self.get_avg_open_price() - current_price)
+
+	def set_date(self, date):
+		[transaction.set_date(date) for transaction in self.opens if transaction.date is None]
+		[transaction.set_date(date) for transaction in self.closes if transaction.date is None]
+
+	def get_avg_open_price(self):
+		total_price = sum(transaction.price * transaction.num for transaction in self.opens)
+		total_num = sum(transaction.num for transaction in self.opens)
+		return total_price / total_num if total_num else 0
+	
+	def get_avg_close_price(self):
+		total_price = sum(transaction.price * transaction.num for transaction in self.closes)
+		total_num = sum(transaction.num for transaction in self.closes)
+		return total_price / total_num if total_num else 0
+
+	def get_num_opened(self):
+		return sum(transaction.num for transaction in self.opens)
+
+	def get_num_closed(self):
+		return sum(transaction.num for transaction in self.closes)
+
+class Strategy:
+	def __init__(self):
+		self.stocks = []
+		self.starting_money = 100000.0
+		self.money = self.starting_money
+		self.closed_trades = []
+		self.open_trades = []
+		self.attrs = {}
+		self.analyzers = []
+
+	def get_attr(self, key):
+		return self.attrs[key]
+
+	def set_attr(self, key, value):
+		self.attrs[key] = value
+
+	def add_analyzer(self, analyzer):
+		analyzer.strategy = self
+		self.analyzers.append(analyzer)
+
+	def has_open_trade(self, stock):
+		for trade in self.open_trades:
+			if stock is trade.stock:
+				return True
+		return False
+
+	def get_open_trade(self, stock):
+		for trade in self.open_trades:
+			if trade.stock is stock:
+				return trade
+		raise ValueError("No open trade on stock "+str(stock.name))
+
+	def open_trade(self, stock, num, price):
+		if self.money < num*price:
+			raise ValueError("Insufficient funds: have $"+str(self.money)+" available and trying to open "+str(num)+" of "+str(stock.name)+" at $"+str(price)+" on "+str(stock.get(self.get_attr("i")).name))
+
+		if self.has_open_trade(stock):
+			trade = self.get_open_trade(stock)
+			trade.open(num, price)
+			trade.set_date(stock.get(self.get_attr("i")).name)
+		else:
+			self.open_trades.append(Trade(stock, True, num, price))
+			self.open_trades[-1].set_date(stock.get(self.get_attr("i")).name)
+
+		self.money -= num*price
+
+	def sell(self, stock, num, price):
+		if self.has_open_trade(stock):
+			trade = self.get_open_trade(stock)
+			trade.close(num, price)
+			if trade.closed:
+				self.open_trades.remove(trade)
+				self.closed_trades.append(trade)
+			trade.set_date(stock.get(self.get_attr("i")).name)
+		else:
+			raise ValueError("No position to close in "+str(stock.name))
+
+		self.money += num*price
+
+	def get_equity(self, i):
+		res = self.money
+		for trade in self.open_trades:
+			res += trade.get_equity(i)
+		return res
+
+	def next(self, i):
+		pass
+
+class Computer:
+	def __init__(self, samples_per_candle=1):
+		self.stocks = []
+		self.strategies = []
+		# number of intra-candle samples to simulate per candle (1 means no intra-candle sampling)
+		self.samples_per_candle = max(1, int(samples_per_candle))
+
+	def add_stock(self, stock):
+		if type(stock) is not Stock:
+			exit("ERR: called 'add_stock' on type: "+str(type(stock)))
+		self.stocks.append(stock)
+	
+	def add_strategy(self, strategy):
+		if not isinstance(strategy, Strategy):
+			exit("ERR: called 'add_strategy' on type: "+str(type(strategy)))
+		self.strategies.append(strategy)
+
+	def run(self):
+		# put stocks in strategies
+		for strategy in self.strategies:
+			j = 1
+			for stock in self.stocks:
+				strategy.stocks = [stock]
+				print(f"stock #{j}/{len(self.stocks)}")
+				j += 1
+
+				# identify a reasonable volume column name if present
+				vol_col = None
+				for candidate in ("volume", "Volume", "vol"):
+					if candidate in stock.data.columns:
+						vol_col = candidate
+						break
+
+				# run every day on the strategies
+				for i in range(len(stock)):
+					# original (completed) row for restoration
+					idx = stock.data.index[i]
+					orig_row = stock.data.loc[idx].copy()
+
+					# previous close to help simulate intra-candle movement
+					if i > 0:
+						prev_close = float(stock.data.iloc[i-1]["close"])
+					else:
+						# if no previous, use today's open as baseline
+						prev_close = float(orig_row.get("open", orig_row.get("close", 0.0)))
+
+					# perform samples on the (in-progress) candle
+					for s in range(self.samples_per_candle):
+						# fraction of completion for this sample (0 < f <= 1)
+						f = float(s + 1) / float(self.samples_per_candle)
+
+						# derive sample close as interpolation from previous close -> final close
+						final_close = float(orig_row.get("close", prev_close))
+						open_price = float(orig_row.get("open", final_close))
+						# progress towards final_close from prev_close, but anchored by open as well
+						# this produces a monotonic progression to final_close
+						sample_close = prev_close + f * (final_close - prev_close)
+
+						# ensure sample_close doesn't stray far from open bounds (simple clamp)
+						# no randomness to keep reproducible
+						# calculate sample high and low as movement between open and sample_close, capped by final high/low
+						final_high = float(orig_row.get("high", max(open_price, final_close)))
+						final_low = float(orig_row.get("low", min(open_price, final_close)))
+
+						# sample high is the max seen so far between open, prev_close and sample_close, but not exceeding final_high
+						sample_high = max(open_price, prev_close, sample_close)
+						if sample_high > final_high:
+							sample_high = final_high
+
+						# sample low similarly
+						sample_low = min(open_price, prev_close, sample_close)
+						if sample_low < final_low:
+							sample_low = final_low
+
+						# sample volume as fraction of final volume (integer)
+						if vol_col is not None:
+							final_vol = float(orig_row.get(vol_col, 0.0))
+							sample_vol = int(final_vol * f)
+						else:
+							sample_vol = None
+
+						# build sampled row based on original but with modified high/low/close/volume
+						sampled_row = orig_row.copy()
+						# assign numeric floats back
+						if "high" in sampled_row.index:
+							sampled_row["high"] = sample_high
+						if "low" in sampled_row.index:
+							sampled_row["low"] = sample_low
+						if "close" in sampled_row.index:
+							sampled_row["close"] = sample_close
+						if vol_col is not None:
+							sampled_row[vol_col] = sample_vol
+
+						# write sampled row into the dataframe (simulate in-progress candle)
+						stock.data.loc[idx] = sampled_row
+
+						# set index i in strategy and call next for this sample
+						strategy.set_attr("i", i)
+						strategy.next(i)
+
+						# call analyzers for this sample
+						for analyzer in strategy.analyzers:
+							analyzer.next(i)
+
+					# after all samples for this candle, restore the original (completed) candle row
+					stock.data.loc[idx] = orig_row
+
+					# close any open trades on the end of the last day (use the original completed close)
+					if i == len(stock)-1:
+						for strat in self.strategies:
+							while len(strat.open_trades) > 0:
+								trade = strat.open_trades[0]
+								strat.sell(trade.stock, trade.num, trade.stock.get(i)["close"])
+
+		# get rid of strategies
+		for strategy in self.strategies:
+			strategy.stocks = []

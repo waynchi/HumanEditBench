@@ -1,0 +1,151 @@
+import sys
+import os
+import random
+import re
+
+# The highlighted section to be changed begins here
+
+def _possible_dictionary_paths():
+    return [
+        "/usr/share/dict/words",
+        "/usr/share/dict/web2",
+        "/usr/share/dict/american-english",
+        "/usr/share/dict/british-english",
+        "/usr/share/dict/american-english-large",
+        "/usr/share/dict/british-english-large",
+        "/usr/share/dictionaries-common/words",
+        "/usr/share/dictionaries-common/words.gz",  # some systems compress; we won't read gz directly
+        "/System/Library/AssetsV2/com_apple_MobileAsset_DictionaryServices_dictionaryOSX",  # macOS (not a plain text word list)
+    ]
+
+
+def _read_words_from_file(path):
+    words = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for line in f:
+                w = line.strip()
+                if not w:
+                    continue
+                # Keep words that are purely alphabetic (allow both cases). Exclude hyphens/apostrophes for simplicity.
+                if re.fullmatch(r"[A-Za-z]+", w):
+                    words.append(w.lower())
+    except Exception:
+        return []
+    return words
+
+
+def _load_system_dictionary():
+    # Try known dictionary files first
+    words = []
+    for p in _possible_dictionary_paths():
+        if os.path.isfile(p):
+            words.extend(_read_words_from_file(p))
+    # Deduplicate
+    return list(sorted(set(words)))
+
+
+def _load_wordfreq():
+    try:
+        from wordfreq import top_n_list
+        # Get a reasonably large list; 50k common words
+        words = top_n_list("en", n_top=50000)
+        # Filter to alphabetic
+        words = [w.lower() for w in words if re.fullmatch(r"[a-zA-Z]+", w)]
+        return list(sorted(set(words)))
+    except Exception:
+        return []
+
+
+def _fallback_words():
+    # Minimal built-in fallback word list to keep the program functional without system dictionaries.
+    # This list is intentionally small; for richer results, install a system dictionary or the wordfreq package.
+    return list(sorted(set(map(str.lower, [
+        "the", "be", "to", "of", "and", "a", "in", "that", "have", "I",
+        "it", "for", "not", "on", "with", "he", "as", "you", "do", "at",
+        "this", "but", "his", "by", "from", "they", "we", "say", "her", "she",
+        "or", "an", "will", "my", "one", "all", "would", "there", "their",
+        "what", "so", "up", "out", "if", "about", "who", "get", "which", "go",
+        "me", "when", "make", "can", "like", "time", "no", "just", "him",
+        "know", "take", "people", "into", "year", "your", "good", "some",
+        "could", "them", "see", "other", "than", "then", "now", "look",
+        "only", "come", "its", "over", "think", "also", "back", "after",
+        "use", "two", "how", "our", "work", "first", "well", "way", "even",
+        "new", "want", "because", "any", "these", "give", "day", "most", "us",
+        "apple", "bridge", "castle", "doctor", "eager", "forest", "garden",
+        "honest", "island", "jungle", "kitten", "legend", "market", "nature",
+        "object", "paper", "quiet", "rocket", "silver", "tribe", "united",
+        "valley", "winner", "xenial", "yellow", "zephyr", "animal", "beauty",
+        "candle", "dream", "energy", "future", "gentle", "harbor", "infant",
+        "jovial", "kingdom", "lively", "moment", "native", "ocean", "planet",
+        "quartz", "reason", "spirit", "talent", "unique", "velvet", "wander",
+        "yonder", "zenith", "ability", "balance", "capture", "deliver",
+        "element", "freedom", "gather", "harvest", "imagine", "journey",
+        "kindred", "library", "mystery", "notable", "opinion", "passion",
+        "quantum", "resolve", "serene", "towards", "unlikely", "venture",
+        "weather", "yawning", "zeroing", "aerial", "binary", "crypto",
+        "delta", "encode", "factor", "glyph", "hybrid", "integer", "jigsaw",
+        "kernel", "lambda", "module", "number", "object", "parser", "queue",
+        "rotate", "socket", "thread", "update", "vector", "widget"
+    ]))))
+
+
+def load_dictionary_words():
+    words = _load_system_dictionary()
+    if not words:
+        words = _load_wordfreq()
+    if not words:
+        words = _fallback_words()
+    return words
+
+
+def pick_words_of_length(words, n, k=10):
+    candidates = [w for w in words if len(w) == n]
+    if not candidates:
+        return []
+    if len(candidates) <= k:
+        return sorted(candidates)[:k]
+    # Choose a random sample for variety, then sort for neat output
+    sample = random.sample(candidates, k)
+    return sorted(sample)
+
+
+def parse_length_arg(args):
+    if len(args) >= 2:
+        try:
+            n = int(args[1])
+            if n <= 0:
+                raise ValueError
+            return n
+        except ValueError:
+            print("Invalid length provided on command line. It must be a positive integer.", file=sys.stderr)
+            sys.exit(1)
+    # Interactive prompt
+    while True:
+        try:
+            s = input("Enter desired word length (positive integer): ").strip()
+            n = int(s)
+            if n <= 0:
+                print("Please enter a positive integer.")
+                continue
+            return n
+        except ValueError:
+            print("Please enter a valid integer.")
+
+
+def main():
+    n = parse_length_arg(sys.argv)
+    words = load_dictionary_words()
+    selection = pick_words_of_length(words, n, k=10)
+    if not selection:
+        print(f"No words of length {n} were found in the available dictionary.")
+        return
+    print(f"Words with {n} characters (up to 10):")
+    for w in selection:
+        print(w)
+
+
+if __name__ == "__main__":
+    main()
+
+# The highlighted section to be changed ends here

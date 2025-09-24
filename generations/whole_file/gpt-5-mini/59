@@ -1,0 +1,40 @@
+import torch
+import torch.nn as nn
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, num_classes: int = 3):
+        """
+        Простая сверточная сеть без Dropout и BatchNorm.
+        Теперь не требует передачи flattened_size: используется
+        AdaptiveAvgPool2d для приведения пространственного размера к 1x1.
+        """
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        # Приводим пространственные размеры к 1x1, чтобы не требовать flattened_size
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Sequential(
+            nn.Linear(64, 512),  # 64 каналов после conv2 и глобального пула
+            nn.ReLU(),
+            nn.Linear(512, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.global_pool(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

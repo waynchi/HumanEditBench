@@ -1,0 +1,52 @@
+import torch
+import torch.nn as nn
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_shape=(3, 32, 32), num_classes=3):
+        super().__init__()
+
+        # Первый сверточный блок
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(input_shape[0], 32, kernel_size=3),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2)
+        )
+
+        # Второй сверточный блок
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2)
+        )
+
+        # Плоское представление перед полносвязными слоями
+        self.flatten = nn.Flatten()
+
+        # Автоматически вычисляем размер входа в первый полносвязный слой
+        with torch.no_grad():
+            dummy = torch.zeros(1, *input_shape)
+            out = self.conv1(dummy)
+            out = self.conv2(out)
+            flattened_size = out.numel()  # количество элементов без учёта batch dimension
+
+        # Полносвязный блок
+        self.fc1 = nn.Sequential(
+            nn.Linear(flattened_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, num_classes)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x
+
+
+if __name__ == "__main__":
+    # Пример запуска
+    model = SimpleConvNet1(input_shape=(3, 32, 32), num_classes=3)
+    sample_input = torch.randn(5, 3, 32, 32)  # batch_size=5, 3×32×32
+    output = model(sample_input)
+    print("Output shape:", output.shape)  # ожидается torch.Size([5, 3])

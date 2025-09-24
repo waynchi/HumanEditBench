@@ -1,0 +1,36 @@
+    def print_probability_matrix(self, temp=1.0, title=""):
+        """Print the probability matrix in a formatted table."""
+        with open("routing_probabilities.txt", "a") as f:
+            f.write(title + "\n")
+            probs = self._softmax_function(theta=self.theta, temp=temp)
+            prob_matrix = np.zeros((self.n_models, self.n_models))
+
+            # Fill the matrix
+            for idx in range(self.n_pairs):
+                i, j = self._index_to_pair(idx)
+                prob = probs[idx]
+                prob_matrix[i, j] = prob
+                prob_matrix[j, i] = prob
+
+            # Print header
+            f.write("\nProbability Matrix:\n")
+            f.write("-" * 120 + "\n")
+            f.write(f"{'Model':30}")
+            for model in self.models:
+                f.write(f"{model:>10}")
+            f.write("\n")
+            f.write("-" * 120 + "\n")
+
+            # Print rows
+            for i, model1 in enumerate(self.models):
+                f.write(f"{model1:30}")
+                for j, model2 in enumerate(self.models):
+                    if i == j:
+                        f.write(f"{'---':>10}")
+                    else:
+                        f.write(f"{prob_matrix[i,j]:10.3f}")
+                f.write("\n")
+
+            f.write("-" * 120 + "\n")
+
+        return prob_matrix

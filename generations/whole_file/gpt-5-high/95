@@ -1,0 +1,171 @@
+import random
+import logging
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+class SearchModule:
+    def __init__(self, driver, config):
+        self.driver = driver
+        self.config = config
+
+        # Defaults
+        self.search_engine = 'google'
+        self.queries = []
+        self.random_query = False
+        self.wait_timeout = 10
+
+        # Read config safely
+        try:
+            self.search_engine = config.get('Search', 'search_engine')
+        except Exception as e:
+            logging.warning(f"Config missing 'search_engine'; defaulting to 'google'. Error: {e}")
+
+        try:
+            queries_raw = config.get('Search', 'queries')
+            if queries_raw:
+                self.queries = [q.strip() for q in queries_raw.split(',') if q.strip()]
+        except Exception as e:
+            logging.warning(f"Config missing 'queries' or invalid; using empty list. Error: {e}")
+
+        try:
+            self.random_query = config.getboolean('Search', 'random_query')
+        except Exception as e:
+            logging.warning(f"Config missing 'random_query'; defaulting to False. Error: {e}")
+
+        # Optional timeout from config
+        try:
+            if hasattr(config, 'getint'):
+                self.wait_timeout = config.getint('Search', 'timeout', fallback=self.wait_timeout)
+            else:
+                # Fallback if config object doesn't implement getint
+                self.wait_timeout = int(config.get('Search', 'timeout'))
+        except Exception:
+            # Keep default if anything goes wrong
+            pass
+
+    def perform_search(self):
+        try:
+            if not self.queries:
+                logging.warning("No queries configured. Aborting search.")
+                return
+
+            query = random.choice(self.queries) if self.random_query else self.queries[0]
+            logging.info(f"Performing search with query: {query}")
+
+            engine = (self.search_engine or '').lower()
+            if engine == 'google':
+                url = "https://www.google.com"
+                locators = [(By.NAME, "q")]
+            elif engine == 'yandex':
+                url = "https://ya.ru"
+                # Try multiple locators to be more resilient
+                locators = [
+                    (By.CSS_SELECTOR, 'input[placeholder="Найдётся всё"]'),
+                    (By.CSS_SELECTOR, 'input[name="text"]'),
+                ]
+            elif engine == 'bing':
+                url = "https://www.bing.com"
+                locators = [(By.NAME, "q")]
+            else:
+                logging.error("Unsupported search engine.")
+                return
+
+            try:
+                self.driver.get(url)
+            except WebDriverException as e:
+                logging.exception(f"Failed to open search engine {url}: {e}")
+                return
+
+            search_box = None
+            for locator in locators:
+                try:
+                    search_box = WebDriverWait(self.driver, self.wait_timeout).until(
+                        EC.presence_of_element_located(locator)
+                    )
+                    if search_box:
+                        break
+                except TimeoutException:
+                    continue
+                except WebDriverException:
+                    continue
+
+            if not search_box:
+                logging.error(f"Search input not found on {url}")
+                return
+
+            try:
+                try:
+                    search_box.clear()
+                except Exception:
+                    # Not all inputs support clear, ignore
+                    pass
+                search_box.send_keys(query + Keys.RETURN)
+            except WebDriverException as e:
+                logging.exception(f"Failed to type query and submit: {e}")
+                return
+
+            time.sleep(random.uniform(2, 4))  # Ожидание загрузки результатов
+        except Exception as e:
+            logging.exception(f"Unexpected error in perform_search: {e}")
+
+    def navigate_random_link(self):
+        logging.info("Navigating to a random search result link.")
+        try:
+            engine = (self.search_engine or '').lower()
+            if engine == 'google':
+                selectors = ['div.yuRUbf > a']
+            elif engine == 'yandex':
+                selectors = ['a.link']
+            elif engine == 'bing':
+                selectors = ['li.b_algo h2 a']
+            else:
+                logging.error("Unsupported search engine.")
+                return
+
+            links = []
+            for selector in selectors:
+                try:
+                    links = WebDriverWait(self.driver, self.wait_timeout).until(
+                        EC.presence_of_all_elements_located((By.CSS_SELECTOR, selector))
+                    )
+                    if links:
+                        break
+                except TimeoutException:
+                    continue
+                except WebDriverException:
+                    continue
+
+            if not links:
+                logging.warning("No links found on the search results page.")
+                return
+
+            # Filter only links with valid href
+            valid_hrefs = []
+            for link in links:
+                try:
+                    href = link.get_attribute('href')
+                    if href:
+                        valid_hrefs.append(href)
+                except Exception:
+                    continue
+
+            if not valid_hrefs:
+                logging.warning("No valid hrefs found among the search result links.")
+                return
+
+            href = random.choice(valid_hrefs)
+            logging.info(f"Navigating to: {href}")
+
+            try:
+                self.driver.get(href)
+            except WebDriverException as e:
+                logging.exception(f"Failed to navigate to {href}: {e}")
+                return
+
+            time.sleep(random.uniform(3, 6))  # Ожидание загрузки страницы
+        except Exception as e:
+            logging.exception(f"Unexpected error in navigate_random_link: {e}")

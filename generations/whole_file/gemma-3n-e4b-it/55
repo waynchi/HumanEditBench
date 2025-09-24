@@ -1,0 +1,46 @@
+import os
+import shutil
+import logging
+
+def clear_directory(directory, delete_directory=False):
+    """
+    Clears all files and subdirectories within a given directory.  Optionally deletes the directory itself.
+    Creates the directory if it doesn't exist and delete_directory is False.
+
+    Args:
+        directory (str): The path to the directory to clear.
+        delete_directory (bool): If True, delete the directory after clearing its contents. Defaults to False.
+    """
+    if not os.path.exists(directory):
+        if not delete_directory:
+            os.makedirs(directory)
+            print(f"Directory '{directory}' created.")
+        else:
+            raise ValueError("Directory does not exist and delete_directory is True. Cannot proceed.")
+        return
+
+    try:
+        for item in os.listdir(directory):
+            item_path = os.path.join(directory, item)
+            try:
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                    print(f"Removed directory: {item_path}")
+                else:
+                    os.remove(item_path)
+                    print(f"Removed file: {item_path}")
+            except OSError as e:
+                print(f"Failed to delete '{item_path}'. Reason: {e}")
+                raise  # Re-raise the exception to halt execution if a deletion fails
+
+        if delete_directory:
+            try:
+                os.rmdir(directory)
+                print(f"Removed directory: {directory}")
+            except OSError as e:
+                print(f"Failed to delete '{directory}'. Reason: {e}")
+                raise  # Re-raise the exception to halt execution if directory removal fails
+
+    except Exception as e:
+        print(f"An unexpected error occurred while clearing directory '{directory}': {e}")
+        raise

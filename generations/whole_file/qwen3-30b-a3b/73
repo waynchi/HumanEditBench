@@ -1,0 +1,34 @@
+    def generate_possible_actions(self, action_history, actor):
+        if isinstance(actor, D_Personnel):
+            system_prompt = """You are a helpful assistant that generates possible actions for D-class personnel. 
+            Answer in json format in format: {actions: ["action1", "action2", ... ]}. 
+            Generate 3-5 possible actions based on the instruction and action history."""
+            
+            user_prompt = f"""Generate possible actions for D-class personnel based on this history:
+            Initial instruction: {action_history[0]}
+            Action history: {action_history[1:]}
+            Current state: {actor.state}
+            Current knowledge about SCP: {actor.memory}"""
+            response = self.llm_request(system_prompt, user_prompt)
+            if "actions" in response:
+                return response["actions"]
+            else:
+                return []
+        elif isinstance(actor, SCP_Object):
+            system_prompt = """You are a helpful assistant that generates possible actions for SCP objects. 
+            Answer in json format in format: {actions: ["action1", "action2", ... ]}. 
+            Generate 3-5 possible actions based on the instruction, action history, and current states."""
+            
+            user_prompt = f"""Generate possible actions for SCP object based on this history:
+            Initial instruction: {action_history[0]}
+            Action history: {action_history[1:]}
+            Current state: {actor.state}
+            SCP description: {actor.description}
+            SCP triggers: {actor.triggers}
+            Room state: {self.room.state}
+            D-personnel state: {self.d_personnel.state}"""
+            response = self.llm_request(system_prompt, user_prompt)
+            if "actions" in response:
+                return response["actions"]
+            else:
+                return []

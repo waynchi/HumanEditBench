@@ -1,0 +1,40 @@
+def evaluate_map_quality(similarity_map, patch_mask):
+    """
+    Evaluate the quality of a similarity map with respect to a binary patch mask.
+
+    Args:
+        similarity_map (np.ndarray): The similarity map (height, width).
+        patch_mask (np.ndarray): The binary mask for the patch (1 for black patch, 0 elsewhere).
+
+    Returns:
+        dict: Metrics including correlation, peak accuracy, and overlap score.
+    """
+    # Flatten the map and mask for easier computation
+    sim_map_flat = similarity_map.flatten()
+    patch_mask_flat = patch_mask.flatten()
+    
+    # Convert to numpy array if it's a Tensor
+    if isinstance(sim_map_flat, torch.Tensor):
+        sim_map_flat = sim_map_flat.numpy()
+    if isinstance(patch_mask_flat, torch.Tensor):
+        patch_mask_flat = patch_mask_flat.numpy()
+    
+    # (A) Correlation
+    correlation = np.corrcoef(sim_map_flat.astype(np.float32), patch_mask_flat)[0, 1]
+    
+    # (B) Peak Signal Location
+    max_location = np.unravel_index(np.argmax(similarity_map), similarity_map.shape)
+    expected_location = np.unravel_index(np.argmax(patch_mask), patch_mask.shape)
+    peak_accuracy = 1 if max_location == expected_location else 0
+
+    # (C) Normalized Map Overlap
+    black_patch_score = similarity_map[patch_mask == 1].mean()
+    background_score = similarity_map[patch_mask == 0].mean()
+    overlap_score = black_patch_score / (background_score + 1e-8)  # Avoid division by zero
+
+    # Return all metrics
+    return {
+        "correlation": correlation,
+        "peak_accuracy": peak_accuracy,
+        "overlap_score": overlap_score,
+    }

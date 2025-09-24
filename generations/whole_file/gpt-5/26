@@ -1,0 +1,199 @@
+from typing import Callable, Optional, Tuple, Union, Dict, Any
+import numpy as np
+
+LinearOp = Union[np.ndarray, Callable[[np.ndarray], np.ndarray]]
+
+def _matvec(A: LinearOp, x: np.ndarray) -> np.ndarray:
+    """
+    Вычисляет y = A @ x для:
+    - A как np.ndarray (плотная/разреженная матрица с методом dot)
+    - A как вызываемый объект (функция), возвращающий A @ x
+    """
+    if callable(A):
+        y = A(x)
+    else:
+        # Предпочитаем dot для совместимости с разреженными матрицами SciPy,
+        # но избегаем зависимости от SciPy, просто используем доступный интерфейс.
+        try:
+            y = A @ x
+        except Exception:
+            y = A.dot(x)
+    return y
+
+
+def _apply_preconditioner(M: Optional[LinearOp], r: np.ndarray) -> np.ndarray:
+    """
+    Применяет предобуславливатель M^{-1} к вектору r.
+    Допустимые варианты M:
+    - None: тождественный предобуславливатель, возвращает r
+    - вызываемый объект: возвращает M(r), где M ~ M^{-1}
+    - np.ndarray (квадратная): решает M z = r, z = solve(M, r)
+    """
+    if M is None:
+        return r.copy()
+    if callable(M):
+        z = M(r)
+        return z
+    # Матрица: считаем, что дана M ≈ A (или её приближение), применяем z = M^{-1} r
+    return np.linalg.solve(M, r)
+
+
+def conjugate_gradient(
+    A: LinearOp,
+    b: np.ndarray,
+    x0: Optional[np.ndarray] = None,
+    tol: float = 1e-8,
+    maxiter: Optional[int] = None,
+    M: Optional[LinearOp] = None,
+    callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+    atol: float = 0.0,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Метод сопряжённых градиентов (CG) для решения симметричной положительно определённой (SPD) системы A x = b.
+
+    Поддерживает:
+    - A как плотную матрицу (np.ndarray), объект с методом dot/@, либо вызываемый оператор: y = A(x)
+    - Предобуславливатель M, задающий действие M^{-1}:
+        * None — без предобуславливания
+        * вызываемая функция: z = M(r)
+        * матрица (np.ndarray): z = solve(M, r)
+
+    Критерий остановки:
+        ||r_k|| <= max(atol, tol * ||b||),
+    где r_k = b - A x_k.
+
+    Аргументы:
+    - A: линейный оператор или матрица размера (n, n)
+    - b: правая часть (вектор длины n)
+    - x0: начальное приближение (вектор длины n). По умолчанию нулевой вектор.
+    - tol: относительная точность по норме ||b||
+    - maxiter: максимальное число итераций. По умолчанию n.
+    - M: предобуславливатель (оператор применения M^{-1})
+    - callback: функция, вызываемая на каждой итерации с диагностикой:
+        dict(iter, x, r, z, p, Ap, alpha, beta, res_norm)
+    - atol: абсолютная часть допуска (по умолчанию 0.0)
+
+    Возвращает:
+    - x: приближённое решение
+    - info: словарь с полями:
+        * converged (bool)
+        * iterations (int)
+        * residual_norm (float)
+        * tol (float) — фактический порог остановки
+        * reason (str) — причина остановки
+    """
+    b = np.asarray(b)
+    n = b.shape[0]
+    if x0 is None:
+        x = np.zeros_like(b, dtype=float)
+    else:
+        x = np.asarray(x0, dtype=float).copy()
+
+    if maxiter is None:
+        maxiter = n
+
+    # Начальный остаток и нормы
+    r = b - _matvec(A, x)
+    b_norm = np.linalg.norm(b)
+    # Целевой порог по норме
+    tol_threshold = max(atol, tol * (b_norm if b_norm > 0 else 1.0))
+
+    res_norm = np.linalg.norm(r)
+    if res_norm <= tol_threshold:
+        return x, {
+            "converged": True,
+            "iterations": 0,
+            "residual_norm": float(res_norm),
+            "tol": float(tol_threshold),
+            "reason": "Initial residual within tolerance",
+        }
+
+    # Предобуславливание
+    z = _apply_preconditioner(M, r)
+    p = z.copy()
+
+    rz_old = float(np.dot(r, z))
+
+    if not np.isfinite(rz_old):
+        return x, {
+            "converged": False,
+            "iterations": 0,
+            "residual_norm": float(res_norm),
+            "tol": float(tol_threshold),
+            "reason": "Non-finite initial r^T M^{-1} r",
+        }
+
+    converged = False
+    reason = "Reached max iterations"
+    k_done = 0
+
+    for k in range(1, maxiter + 1):
+        Ap = _matvec(A, p)
+        pAp = float(np.dot(p, Ap))
+
+        if pAp <= 0 or not np.isfinite(pAp):
+            reason = "Non-positive or non-finite p^T A p (A may not be SPD)"
+            k_done = k - 1
+            break
+
+        alpha = rz_old / pAp
+
+        # Обновление решения и остатка
+        x = x + alpha * p
+        r = r - alpha * Ap
+
+        res_norm = np.linalg.norm(r)
+        if callback is not None:
+            callback({
+                "iter": k,
+                "x": x,
+                "r": r,
+                "z": None,  # заполнится ниже
+                "p": p,
+                "Ap": Ap,
+                "alpha": alpha,
+                "beta": None,  # заполнится ниже
+                "res_norm": res_norm,
+            })
+
+        if res_norm <= tol_threshold:
+            converged = True
+            reason = "Converged"
+            k_done = k
+            break
+
+        z = _apply_preconditioner(M, r)
+        rz_new = float(np.dot(r, z))
+
+        if rz_old == 0 or not np.isfinite(rz_new):
+            reason = "Breakdown or non-finite r^T M^{-1} r"
+            k_done = k
+            break
+
+        beta = rz_new / rz_old
+        p = z + beta * p
+        rz_old = rz_new
+        k_done = k
+
+        if callback is not None:
+            # Обновляем значения z и beta для коллбэка текущей итерации
+            callback({
+                "iter": k,
+                "x": x,
+                "r": r,
+                "z": z,
+                "p": p,
+                "Ap": Ap,
+                "alpha": alpha,
+                "beta": beta,
+                "res_norm": res_norm,
+            })
+
+    info = {
+        "converged": bool(converged),
+        "iterations": int(k_done),
+        "residual_norm": float(res_norm),
+        "tol": float(tol_threshold),
+        "reason": str(reason),
+    }
+    return x, info

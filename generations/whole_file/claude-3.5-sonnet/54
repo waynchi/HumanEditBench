@@ -1,0 +1,15 @@
+# 记录当前路径为cwd
+# 创建向量数据库链接
+cwd = os.getcwd()
+
+from pymilvus import connections, Collection
+# 连接到Milvus服务器
+connections.connect(
+    alias="default", 
+    host="localhost",
+    port="19530"
+)
+
+# 设置collection相关参数 
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128

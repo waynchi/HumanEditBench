@@ -1,0 +1,84 @@
+def set_tickers_file_opened(self):
+    info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") #открываем файл инфы, encoding чтобы не было
+    info = json.load(info_opened_file)
+    info_opened_file.close()
+    if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["ticker"], "%Y-%m-%d %H:%M:%S.%f"): #проверяем условие что дата перезаписи списка тикеров это хотя бы 1 день назад
+        set_tickers_file_opened = open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "wb") #открываем файл для бинарной записи множества тикеров в него
+        set_tickers = set()
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off"
+        r = requests.get(s)
+        root = xml.etree.ElementTree.fromstring(r.content)
+        for data in root.findall("data"):
+            if data.get("id") == "securities":
+                rows = data.find("rows")
+                for row in rows.findall("row"):
+                    set_tickers.add(row.get("SECID"))
+        pickle.dump(set_tickers, set_tickers_file_opened)
+        set_tickers_file_opened.close()
+        info["last_day_check"]["ticker"] = str(datetime.datetime.now())
+        info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "w", encoding="utf-8")
+        json.dump(info, info_opened_file, indent = 3, ensure_ascii = False)
+
+def set_tickers_file_opened(self):
+    info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") #открываем файл инфы, encoding чтобы не было
+    info = json.load(info_opened_file)
+    info_opened_file.close()
+    if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["ticker"], "%Y-%m-%d %H:%M:%S.%f"): #проверяем условие что дата перезаписи списка тикеров это хотя бы 1 день назад
+        set_tickers_file_opened = open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "wb") #открываем файл для бинарной записи множества тикеров в него
+        set_tickers = set()
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off"
+        r = requests.get(s)
+        root = xml.etree.ElementTree.fromstring(r.content)
+        for data in root.findall("data"):
+            if data.get("id") == "securities":
+                rows = data.find("rows")
+                for row in rows.findall("row"):
+                    set_tickers.add(row.get("SECID"))
+        pickle.dump(set_tickers, set_tickers_file_opened)
+        set_tickers_file_opened.close()
+        info["last_day_check"]["ticker"] = str(datetime.datetime.now())
+        info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "w", encoding="utf-8")
+        json.dump(info, info_opened_file, indent = 3, ensure_ascii = False)
+
+
+def set_tickers_file_opened(self):
+    info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") #открываем файл инфы, encoding чтобы не было
+    info = json.load(info_opened_file)
+    info_opened_file.close()
+    if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["ticker"], "%Y-%m-%d %H:%M:%S.%f"): #проверяем условие что дата перезаписи списка тикеров это хотя бы 1 день назад
+        set_tickers_file_opened = open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "wb") #открываем файл для бинарной записи множества тикеров в него
+        set_tickers = set()
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off"
+        r = requests.get(s)
+        root = xml.etree.ElementTree.fromstring(r.content)
+        for data in root.findall("data"):
+            if data.get("id") == "securities":
+                rows = data.find("rows")
+                for row in rows.findall("row"):
+                    set_tickers.add(row.get("SECID"))
+        pickle.dump(set_tickers, set_tickers_file_opened)
+        set_tickers_file_opened.close()
+        info["last_day_check"]["ticker"] = str(datetime.datetime.now())
+        info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "w", encoding="utf-8")
+        json.dump(info, info_opened_file, indent = 3, ensure_ascii = False)
+
+def set_tickers_file_opened(self):
+    info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") #открываем файл инфы, encoding чтобы не было
+    info = json.load(info_opened_file)
+    info_opened_file.close()
+    if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["ticker"], "%Y-%m-%d %H:%M:%S.%f"): #проверяем условие что дата перезаписи списка тикеров это хотя бы 1 день назад
+        set_tickers_file_opened = open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "wb") #открываем файл для бинарной записи множества тикеров в него
+        set_tickers = set()
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off"
+        r = requests.get(s)
+        root = xml.etree.ElementTree.fromstring(r.content)
+        for data in root.findall("data"):
+            if data.get("id") == "securities":
+                rows = data.find("rows")
+                for row in rows.findall("row"):
+                    set_tickers.add(row.get("SECID"))
+        pickle.dump(set_tickers, set_tickers_file_opened)
+        set_tickers_file_opened.close()
+        info["last_day_check"]["ticker"] = str(datetime.datetime.now())
+        info_opened_file = open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "w", encoding="utf-8")
+        json.dump(info, info_opened_file, indent = 3, ensure_ascii = False)

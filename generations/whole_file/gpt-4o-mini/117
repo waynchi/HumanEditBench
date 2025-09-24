@@ -1,0 +1,29 @@
+def can_be_expressed_as_sum_of_four_squares(n):
+    """
+    Determine if a number can be expressed as the sum of four non-zero squares.
+    """
+    # Importing necessary library
+    import math
+
+    # Check for positive integers only
+    if n <= 0:
+        return False
+
+    # Iterate through possible values a, b, c, d
+    for a in range(1, int(math.sqrt(n)) + 1):
+        for b in range(1, int(math.sqrt(n - a*a)) + 1):
+            for c in range(1, int(math.sqrt(n - a*a - b*b)) + 1):
+                d_squared = n - a*a - b*b - c*c
+                if d_squared > 0:
+                    d = int(math.sqrt(d_squared))
+                    if d*d == d_squared and d > 0:
+                        return True
+    return False
+
+# Example usage
+if __name__ == "__main__":
+    number = 30  # Example number to test
+    if can_be_expressed_as_sum_of_four_squares(number):
+        print(f"{number} can be expressed as the sum of four non-zero squares.")
+    else:
+        print(f"{number} cannot be expressed as the sum of four non-zero squares.")

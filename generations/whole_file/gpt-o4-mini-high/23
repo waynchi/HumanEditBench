@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+"""
+Program: English Dictionary Lookup by Word Length
+Description: Allows the user to specify a word length N. Prints up to 10 English words with exactly N characters.
+"""
+
+import sys
+import os
+import random
+
+def load_dictionary(file_path='words.txt'):
+    """
+    Loads a dictionary file containing one word per line.
+    Returns a list of lowercase alphabetic words.
+    """
+    if not os.path.isfile(file_path):
+        print(f"Error: Dictionary file '{file_path}' not found.")
+        sys.exit(1)
+    words = []
+    with open(file_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            w = line.strip().lower()
+            if w.isalpha():
+                words.append(w)
+    return words
+
+def find_words_by_length(words, length):
+    """
+    Filters the list of words, returning those whose length == length.
+    """
+    return [w for w in words if len(w) == length]
+
+def main():
+    # Load the dictionary from a file named 'words.txt' in the current directory.
+    words = load_dictionary('words.txt')
+
+    # Prompt the user for the desired word length.
+    try:
+        n = int(input("Enter desired word length: ").strip())
+        if n <= 0:
+            raise ValueError
+    except ValueError:
+        print("Please enter a positive integer for word length.")
+        sys.exit(1)
+
+    # Find all words of the specified length.
+    matching = find_words_by_length(words, n)
+
+    if not matching:
+        print(f"No words found with length {n}.")
+        return
+
+    # If there are more than 10 matches, pick 10 at random; otherwise show all.
+    if len(matching) > 10:
+        selected = random.sample(matching, 10)
+    else:
+        selected = matching
+
+    print(f"\nFound {len(matching)} words of length {n}. Showing {len(selected)}:")
+    for w in selected:
+        print(w)
+
+if __name__ == '__main__':
+    main()

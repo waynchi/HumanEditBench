@@ -1,0 +1,39 @@
+import nltk
+from nltk.corpus import words
+
+nltk.download('words')
+
+def find_words_with_n_characters(n):
+    """
+    Finds 10 words from the English dictionary with a specific number of characters.
+
+    Args:
+        n (int): The desired number of characters in the words.
+
+    Returns:
+        list: A list of 10 words with the specified number of characters,
+              or an empty list if no such words are found.
+    """
+    english_words = words.words()
+    result = [word for word in english_words if len(word) == n]
+    return result[:10]
+
+if __name__ == "__main__":
+    while True:
+        try:
+            n = int(input("Enter the number of characters: "))
+            if n <= 0:
+                print("Please enter a positive integer.")
+                continue
+            break
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+
+    words_found = find_words_with_n_characters(n)
+
+    if words_found:
+        print(f"\nHere are 10 words with {n} characters:")
+        for word in words_found:
+            print(word)
+    else:
+        print(f"No words found with {n} characters in the dictionary.")

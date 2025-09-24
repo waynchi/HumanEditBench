@@ -1,0 +1,200 @@
+import random
+import torch
+from torchvision import transforms
+from datasets import load_dataset
+from PIL import Image
+import numpy as np
+import requests
+from io import BytesIO
+
+class AlignmentDatasetCreator:
+    def __init__(self, sample_size=1000):
+        self.sample_size = sample_size
+        self.transform = transforms.Compose([
+            transforms.Resize((224, 224)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
+                              std=[0.229, 0.224, 0.225])
+        ])
+    def create_unrelated_pairs(self, image_text_pairs):
+        """Creates unrelated image-text pairs by shuffling the text descriptions"""
+        images, texts = zip(*image_text_pairs)
+        shuffled_texts = list(texts)
+        random.shuffle(shuffled_texts)
+        return list(zip(images, shuffled_texts))
+
+    def create_textual_pairs(self, dataset_name='quora'):
+        """Creates semantically similar text pairs using paraphrase datasets"""
+        dataset = load_dataset(dataset_name, split=f'train[:{self.sample_size}]')
+        textual_pairs = []
+        for item in dataset:
+            if item['is_duplicate'] == 1:
+                pair = (item['question1'], item['question2'])
+                textual_pairs.append(pair)
+        return textual_pairs[:self.sample_size]
+    def create_visual_pairs(self, image_text_pairs):
+        """Creates augmented image pairs while maintaining semantic meaning"""
+        augmentation_transforms = transforms.Compose([
+            transforms.RandomHorizontalFlip(p=1.0),
+            transforms.ColorJitter(brightness=0.2, contrast=0.2),
+            transforms.RandomRotation(15)
+        ])
+        
+        visual_pairs = []
+        for image, _ in image_text_pairs:
+            if isinstance(image, Image.Image):
+                augmented = augmentation_transforms(image)
+                visual_pairs.append((image, augmented))
+        return visual_pairs
+
+    def _download_image_from_url(self, url):
+        try:
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            return Image.open(BytesIO(resp.content)).convert("RGB")
+        except Exception:
+            return None
+
+    def _resolve_image_field(self, image_field):
+        """
+        Robustly handle different forms of the 'image' field that may come from
+        different dataset processors. Returns a PIL.Image.Image or None.
+        """
+        # Already a PIL Image
+        if isinstance(image_field, Image.Image):
+            try:
+                return image_field.convert("RGB")
+            except Exception:
+                return None
+
+        # If it's a dict, try common keys
+        if isinstance(image_field, dict):
+            # Common URLs in COCO metadata
+            for k in ("coco_url", "flickr_url", "url", "file_url"):
+                if k in image_field and isinstance(image_field[k], str):
+                    img = self._download_image_from_url(image_field[k])
+                    if img is not None:
+                        return img
+            # If dict has a 'file_name' but no base path, try to see if there's a URL somewhere
+            if "file_name" in image_field:
+                # Sometimes a dataset provides both file_name and a base URL in other fields - not guaranteed.
+                # We can't reliably open local files in environments where COCO archives aren't present.
+                pass
+
+        # If it's a string, it might be a direct path or a special "zip://...::http://..." string
+        if isinstance(image_field, str):
+            # If it contains a remote URL after '::', use that
+            if "::" in image_field:
+                parts = image_field.split("::")
+                # last part often contains the actual http(s) url
+                candidate = parts[-1]
+                if candidate.startswith("http"):
+                    img = self._download_image_from_url(candidate)
+                    if img is not None:
+                        return img
+                # Otherwise fallthrough to try the whole string as URL
+            # If it looks like a URL, try to download
+            if image_field.startswith("http"):
+                img = self._download_image_from_url(image_field)
+                if img is not None:
+                    return img
+            # If it's a local path, try to open it (may fail in environments without dataset files)
+            try:
+                return Image.open(image_field).convert("RGB")
+            except Exception:
+                return None
+
+        # Unknown type or failed resolution
+        return None
+
+    def load_mscoco_dataset(self):
+        """Loads and preprocesses MSCOCO dataset with improved filtering and robust image handling"""
+        dataset = load_dataset(
+            "shunk031/MSCOCO",
+            year=2014,
+            coco_task="captions",
+            split='train',
+            streaming=True
+        )
+        # Take extra items to account for potential filtering
+        dataset = dataset.take(self.sample_size * 2)
+
+        image_text_pairs = []
+        for item in dataset:
+            # Extract captions robustly (could be list of strings, list of dicts, or a single string)
+            captions_obj = item.get("captions") if isinstance(item, dict) else None
+            captions_list = []
+
+            if isinstance(captions_obj, list):
+                for c in captions_obj:
+                    if isinstance(c, str):
+                        captions_list.append(c)
+                    elif isinstance(c, dict):
+                        # common key name for dict captions
+                        if "caption" in c and isinstance(c["caption"], str):
+                            captions_list.append(c["caption"])
+                        # sometimes the dict is already a string-like mapping
+                # remove empty or None entries
+                captions_list = [c for c in captions_list if c and isinstance(c, str)]
+            elif isinstance(captions_obj, str):
+                captions_list = [captions_obj]
+
+            if not captions_list:
+                # try other possible keys such as 'caption' or 'text'
+                if isinstance(item, dict):
+                    for k in ("caption", "text"):
+                        val = item.get(k)
+                        if isinstance(val, str):
+                            captions_list = [val]
+                            break
+
+            if not captions_list:
+                continue
+
+            # Choose the most descriptive caption
+            best_caption = max(captions_list, key=lambda s: len(s.split()))
+            if len(best_caption.split()) < 5:
+                continue  # skip too short captions
+
+            # Resolve image into a PIL Image if possible
+            image_field = item.get("image") if isinstance(item, dict) else None
+            pil_image = self._resolve_image_field(image_field)
+
+            if pil_image is None:
+                # If we couldn't fetch the real image, create a neutral placeholder so downstream code
+                # that expects PIL.Image can still function. Use a gray image.
+                pil_image = Image.new("RGB", (224, 224), (128, 128, 128))
+
+            image_text_pairs.append((pil_image, best_caption))
+
+            if len(image_text_pairs) >= self.sample_size:
+                break
+
+        return image_text_pairs
+
+def main():
+    # Initialize dataset creator
+    creator = AlignmentDatasetCreator(sample_size=100)
+    
+    # Load and create datasets
+    print("Loading MSCOCO dataset...")
+    image_text_pairs = creator.load_mscoco_dataset()
+    
+    print("Creating unrelated pairs...")
+    unrelated_pairs = creator.create_unrelated_pairs(image_text_pairs)
+    
+    print("Creating textual pairs...")
+    textual_pairs = creator.create_textual_pairs()
+    
+    print("Creating visual pairs...")
+    visual_pairs = creator.create_visual_pairs(image_text_pairs)
+    
+    # Print sample from each dataset
+    print("Dataset Samples:")
+    print(f"Image-Text Pair: {image_text_pairs[0]}")
+    print(f"Unrelated Pair: {unrelated_pairs[0]}")
+    print(f"Textual Pair: {textual_pairs[0]}")
+    print(f"Visual Pair: {visual_pairs[0]}")
+
+if __name__ == "__main__":
+    main()

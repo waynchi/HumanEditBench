@@ -1,0 +1,23 @@
+
+import random
+from collections import defaultdict
+
+# Sample dictionary of words
+dictionary = ["apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew", "kiwi", "lemon", "mango", "nectarine", "orange", "papaya", "quince", "raspberry", "strawberry", "tangerine", "ugli", "vanilla", "watermelon", "xigua", "yellow", "zucchini"]
+
+# Build a dictionary of words by length
+words_by_length = defaultdict(list)
+for word in dictionary:
+    words_by_length[len(word)].append(word)
+
+def get_words_with_n_characters(n):
+    if n in words_by_length:
+        # Randomly select 10 words of length n
+        return random.sample(words_by_length[n], min(10, len(words_by_length[n])))
+    else:
+        return []
+
+# Example usage
+N = int(input("Enter the number of characters: "))
+words = get_words_with_n_characters(N)
+print(f"Words with {N} characters: {words}")

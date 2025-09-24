@@ -1,0 +1,31 @@
+from langchain_community.chat_models import ChatOllama
+from langchain.schema import SystemMessage, HumanMessage
+
+import json
+
+# Use LangChain to connect to the Ollama instance
+chat = ChatOllama(
+    model="llama3.2",
+    base_url="http://localhost:11434"
+)
+
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+# Create the messages expected by LangChain (System + Human)
+messages = [
+    SystemMessage(content=sys_prompt),
+    HumanMessage(content=prompt),
+]
+
+# Invoke the model and get the AIMessage result
+response = chat.invoke(messages)
+
+# Print the assistant's response
+print(response.content)

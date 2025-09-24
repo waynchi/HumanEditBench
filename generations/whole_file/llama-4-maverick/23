@@ -1,0 +1,20 @@
+Since the original code is empty, I will create a new implementation based on the user's instruction. The task is to create a program that looks up the English dictionary and returns 10 words with a specified number of characters.
+python
+import requests
+
+def get_words_with_n_characters(n):
+    response = requests.get(f"https://random-word-api.herokuapp.com/word?length={n}&number=10")
+    return response.json()
+
+def main():
+    n = int(input("Enter the number of characters: "))
+    try:
+        words = get_words_with_n_characters(n)
+        print(f"10 words with {n} characters:")
+        for word in words:
+            print(word)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()

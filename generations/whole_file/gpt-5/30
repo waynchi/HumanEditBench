@@ -1,0 +1,110 @@
+import sys
+from math import isqrt
+from typing import Dict, List, Optional, Tuple
+
+def representacao_quatro_quadrados_nao_nulos(n: int) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Retorna uma representação de n como soma de quatro quadrados não nulos:
+        n = a^2 + b^2 + c^2 + d^2
+    com a, b, c, d >= 1 (inteiros).
+    Se não existir tal representação, retorna None.
+    """
+    if n < 4:
+        return None  # mínimo é 1^2 + 1^2 + 1^2 + 1^2 = 4
+
+    limite = isqrt(n)
+    # Pré-computa todas as somas de dois quadrados com termos >= 1
+    # Armazenamos apenas uma dupla por soma (qualquer uma serve).
+    soma2: Dict[int, Tuple[int, int]] = {}
+    for a in range(1, limite + 1):
+        a2 = a * a
+        # Pequena poda: se 2*a^2 já excede n, ainda pode existir (a,b) com b pequeno tal que a2+b2 <= n
+        # Não aplicamos poda aqui para simplificar, pois limite já é pequeno (até sqrt(n)).
+        for b in range(1, limite + 1):
+            s = a2 + b * b
+            if s > n - 2:  # tem que sobrar pelo menos 1^2 + 1^2 = 2 para os outros dois termos
+                continue
+            # Armazena apenas a primeira ocorrência para reduzir memória
+            if s not in soma2:
+                soma2[s] = (a, b)
+
+    # Procura decomposição como soma de duas somas de dois quadrados
+    for s, (a, b) in soma2.items():
+        t = n - s
+        if t in soma2:
+            c, d = soma2[t]
+            # Garante não-nulos (já garantido) e retorna ordenado apenas por estética
+            return tuple(sorted((a, b, c, d)))
+
+    return None
+
+def lista_numeros_quatro_quadrados_nao_nulos(inicio: int, fim: int) -> List[Tuple[int, Tuple[int, int, int, int]]]:
+    """
+    Lista números no intervalo [inicio, fim] que podem ser expressos como
+    soma de quatro quadrados não nulos, junto com uma representação.
+    """
+    resultado: List[Tuple[int, Tuple[int, int, int, int]]] = []
+    for n in range(inicio, fim + 1):
+        rep = representacao_quatro_quadrados_nao_nulos(n)
+        if rep is not None:
+            resultado.append((n, rep))
+    return resultado
+
+def _print_uso():
+    print("Uso:")
+    print("  python script.py N                 -> Verifica se N é soma de quatro quadrados não nulos e mostra uma representação.")
+    print("  python script.py --ate N           -> Lista todos os números em [1, N] com uma representação.")
+    print("  python script.py --intervalo A B   -> Lista todos os números em [A, B] com uma representação.")
+    print("  python script.py --contar N        -> Conta quantos números em [1, N] têm representação.")
+
+def main(argv: List[str]) -> None:
+    if len(argv) == 2 and argv[1].isdigit():
+        n = int(argv[1])
+        rep = representacao_quatro_quadrados_nao_nulos(n)
+        print(f"Números que podem ser expressos como a soma de quatro quadrados não nulos:")
+        if rep is None:
+            print(f"{n}: não possui representação com quatro quadrados não nulos.")
+        else:
+            a, b, c, d = rep
+            print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2")
+        return
+
+    if len(argv) == 3 and argv[1] == "--ate" and argv[2].isdigit():
+        fim = int(argv[2])
+        numeros = lista_numeros_quatro_quadrados_nao_nulos(1, fim)
+        print(f"Números que podem ser expressos como a soma de quatro quadrados não nulos em [1, {fim}]:")
+        for n, (a, b, c, d) in numeros:
+            print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2")
+        print(f"Total: {len(numeros)}")
+        return
+
+    if len(argv) == 4 and argv[1] == "--intervalo" and argv[2].isdigit() and argv[3].isdigit():
+        inicio = int(argv[2])
+        fim = int(argv[3])
+        if inicio > fim:
+            inicio, fim = fim, inicio
+        numeros = lista_numeros_quatro_quadrados_nao_nulos(inicio, fim)
+        print(f"Números que podem ser expressos como a soma de quatro quadrados não nulos em [{inicio}, {fim}]:")
+        for n, (a, b, c, d) in numeros:
+            print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2")
+        print(f"Total: {len(numeros)}")
+        return
+
+    if len(argv) == 3 and argv[1] == "--contar" and argv[2].isdigit():
+        fim = int(argv[2])
+        numeros = lista_numeros_quatro_quadrados_nao_nulos(1, fim)
+        print(f"Quantidade de números em [1, {fim}] que podem ser expressos como a soma de quatro quadrados não nulos: {len(numeros)}")
+        return
+
+    # Sem argumentos válidos: mostra uso e um exemplo curto
+    _print_uso()
+    exemplo_fim = 100
+    numeros = lista_numeros_quatro_quadrados_nao_nulos(1, exemplo_fim)
+    print()
+    print(f"Exemplo (1 a {exemplo_fim}):")
+    for n, (a, b, c, d) in numeros:
+        print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2")
+    print(f"Total: {len(numeros)}")
+
+if __name__ == "__main__":
+    main(sys.argv)

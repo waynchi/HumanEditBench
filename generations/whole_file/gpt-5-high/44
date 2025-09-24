@@ -1,0 +1,376 @@
+import pandas as pd
+
+class Stock:
+	def __init__(self, filename, name):
+		self.filename = filename
+		try:
+			self.data = pd.read_csv(self.filename,index_col=0,parse_dates=True)
+		except Exception as e:
+			print(f"Unable to read file {self.filename}")
+			raise e
+		self.data.index.name = 'time'
+		self.name = name
+		self.attrs = {}
+
+	def get_attr(self, key):
+		try:
+			return self.attrs[key]
+		except KeyError:
+			return None
+
+	def set_attr(self, key, value):
+		self.attrs[key] = value
+
+	def get(self, i):
+		return self.data.iloc[i]
+
+	def get_range(self, s, t):
+		return self.data.iloc[s:t+1]
+
+	def __len__(self):
+		return len(self.data)
+
+class Transaction:
+	def __init__(self, num, price):
+		self.num = num
+		self.price = price
+		self.date = None
+
+	def set_date(self, date):
+		self.date = date
+
+class Trade:
+	def __init__(self, stock, long=True, num=0, price=0.0):
+		self.stock = stock
+		self.num = 0
+		self.profit = 0
+		self.closed = False
+		self.long = long
+
+		self.opens = []
+		self.closes = []
+
+		if num != 0:
+			self.open(num, price)
+
+	def close(self, num, price):
+		if num > self.num:
+			raise ValueError(f"ERR: Trying to close {num} of {self.stock.name} but only {self.num} available")
+		self.num -= num
+		self.closes.append(Transaction(num, price))
+
+		if self.long:
+			self.profit = self.get_num_closed() * (self.get_avg_close_price() - self.get_avg_open_price())
+		else:
+			self.profit = self.get_num_closed() * (self.get_avg_open_price() - self.get_avg_close_price())
+
+		if self.num == 0:
+			self.closed = True
+
+	def open(self, num, price):
+		self.num += num
+
+		self.opens.append(Transaction(num, price))
+
+	def get_equity(self, i):
+		current_price = self.stock.get(i)["close"]
+		if self.long:
+			return self.num * current_price
+		else:
+			# For short trades, equity could reflect the potential cost to close the position
+			return self.num * (self.get_avg_open_price() - current_price)
+
+	def set_date(self, date):
+		[transaction.set_date(date) for transaction in self.opens if transaction.date is None]
+		[transaction.set_date(date) for transaction in self.closes if transaction.date is None]
+
+	def get_avg_open_price(self):
+		total_price = sum(transaction.price * transaction.num for transaction in self.opens)
+		total_num = sum(transaction.num for transaction in self.opens)
+		return total_price / total_num if total_num else 0
+	
+	def get_avg_close_price(self):
+		total_price = sum(transaction.price * transaction.num for transaction in self.closes)
+		total_num = sum(transaction.num for transaction in self.closes)
+		return total_price / total_num if total_num else 0
+
+	def get_num_opened(self):
+		return sum(transaction.num for transaction in self.opens)
+
+	def get_num_closed(self):
+		return sum(transaction.num for transaction in self.closes)
+
+class Strategy:
+	def __init__(self):
+		self.stocks = []
+		self.starting_money = 100000.0
+		self.money = self.starting_money
+		self.closed_trades = []
+		self.open_trades = []
+		self.attrs = {}
+		self.analyzers = []
+
+	def get_attr(self, key):
+		return self.attrs[key]
+
+	def set_attr(self, key, value):
+		self.attrs[key] = value
+
+	def add_analyzer(self, analyzer):
+		analyzer.strategy = self
+		self.analyzers.append(analyzer)
+
+	def has_open_trade(self, stock):
+		for trade in self.open_trades:
+			if stock is trade.stock:
+				return True
+		return False
+
+	def get_open_trade(self, stock):
+		for trade in self.open_trades:
+			if trade.stock is stock:
+				return trade
+		raise ValueError("No open trade on stock "+str(stock.name))
+
+	def open_trade(self, stock, num, price):
+		if self.money < num*price:
+			raise ValueError("Insufficient funds: have $"+str(self.money)+" available and trying to open "+str(num)+" of "+str(stock.name)+" at $"+str(price)+" on "+str(stock.get(self.get_attr("i")).name))
+
+		if self.has_open_trade(stock):
+			trade = self.get_open_trade(stock)
+			trade.open(num, price)
+			trade.set_date(stock.get(self.get_attr("i")).name)
+		else:
+			self.open_trades.append(Trade(stock, True, num, price))
+			self.open_trades[-1].set_date(stock.get(self.get_attr("i")).name)
+
+		self.money -= num*price
+
+	def sell(self, stock, num, price):
+		if self.has_open_trade(stock):
+			trade = self.get_open_trade(stock)
+			trade.close(num, price)
+			if trade.closed:
+				self.open_trades.remove(trade)
+				self.closed_trades.append(trade)
+			trade.set_date(stock.get(self.get_attr("i")).name)
+		else:
+			raise ValueError("No position to close in "+str(stock.name))
+
+		self.money += num*price
+
+	def get_equity(self, i):
+		res = self.money
+		for trade in self.open_trades:
+			res += trade.get_equity(i)
+		return res
+
+	def next(self, i):
+		pass
+
+class Computer:
+	def __init__(self, simulations_per_candle=1, variation_config=None, random_seed=None):
+		self.stocks = []
+		self.strategies = []
+		# Number of simulated intra-candle variations to run per bar (default 1 = original behavior)
+		self.simulations_per_candle = max(1, int(simulations_per_candle))
+		# Configuration dict for variation magnitudes and behavior
+		# close/high/low pct are used as relative jitters. volume_pct is a relative multiplier range.
+		# respect_final_extrema=True ensures simulated values stay within [final_low, final_high]
+		self.variation_config = variation_config if variation_config is not None else {
+			"close_pct": 0.003,
+			"high_pct": 0.003,
+			"low_pct": 0.003,
+			"volume_pct": 0.10,
+			"respect_final_extrema": True
+		}
+		self.random_seed = random_seed
+
+	def add_stock(self, stock):
+		if not isinstance(stock, Stock):
+			exit("ERR: called 'add_stock' on type: "+str(type(stock)))
+		self.stocks.append(stock)
+	
+	def add_strategy(self, strategy):
+		if not isinstance(strategy, Strategy):
+			exit("ERR: called 'add_strategy' on type: "+str(type(strategy)))
+		self.strategies.append(strategy)
+
+	def run(self):
+		import random
+		rng = random.Random(self.random_seed)
+
+		# put stocks in strategies
+		for strategy in self.strategies:
+			j = 1
+			for stock in self.stocks:
+				strategy.stocks = [stock]
+				print(f"stock #{j}/{len(self.stocks)}")
+				j += 1
+
+				# run every day on the strategies
+				for i in range(len(stock)):
+					# Obtain base ("final") values that will be restored after simulations
+					base_row = stock.get(i).copy()
+					idx_label = base_row.name
+					cols = stock.data.columns
+
+					# Determine number of simulations per candle (strategy override -> computer default)
+					try:
+						n_sims = int(strategy.get_attr("simulations_per_candle"))
+						if n_sims < 1:
+							n_sims = 1
+					except Exception:
+						n_sims = self.simulations_per_candle
+
+					# Determine variation config (strategy override -> computer default)
+					try:
+						cfg = strategy.get_attr("variation_config")
+						if not isinstance(cfg, dict):
+							cfg = self.variation_config
+					except Exception:
+						cfg = self.variation_config
+
+					close_pct = float(cfg.get("close_pct", 0.003))
+					high_pct = float(cfg.get("high_pct", 0.003))
+					low_pct  = float(cfg.get("low_pct", 0.003))
+					vol_pct  = float(cfg.get("volume_pct", 0.10))
+					respect_final = bool(cfg.get("respect_final_extrema", True))
+
+					# Extract available base values
+					base_close = float(base_row["close"]) if "close" in cols else None
+					base_high  = float(base_row["high"])  if "high" in cols else base_close
+					base_low   = float(base_row["low"])   if "low"  in cols else base_close
+					base_open  = float(base_row["open"])  if "open" in cols else base_close
+					base_vol   = float(base_row["volume"]) if "volume" in cols else None
+
+					# Helper to safely assign values back to the DataFrame for this candle
+					def assign_simulated_values(h=None, l=None, c=None, v=None):
+						if c is not None and "close" in cols:
+							stock.data.at[idx_label, "close"] = float(c)
+						if h is not None and "high" in cols:
+							stock.data.at[idx_label, "high"] = float(h)
+						if l is not None and "low" in cols:
+							stock.data.at[idx_label, "low"] = float(l)
+						if v is not None and "volume" in cols:
+							# keep volume non-negative and typically integer-like
+							stock.data.at[idx_label, "volume"] = max(0, int(round(v)))
+
+					# Simulate intra-candle variations and call strategy/analyzers once per simulation
+					for _ in range(n_sims):
+						# Start with base values
+						sim_close = base_close
+						sim_high = base_high
+						sim_low = base_low
+						sim_vol = base_vol
+
+						# Close variation
+						if sim_close is not None:
+							jitter_close = sim_close * rng.uniform(-close_pct, close_pct)
+							sim_close = sim_close + jitter_close
+							# Ensure positivity
+							if sim_close < 0:
+								sim_close = 0.0
+
+							if respect_final and base_low is not None and base_high is not None:
+								# Keep simulated close within final candle extrema
+								sim_close = max(min(sim_close, base_high), base_low)
+
+						# High variation
+						if sim_high is not None:
+							if respect_final and base_high is not None and base_low is not None:
+								# Simulated high should be between max(open, sim_close) and final high
+								ref_up = max(base_open if base_open is not None else sim_close, sim_close if sim_close is not None else base_close)
+								upper = base_high
+								if upper is None:
+									upper = ref_up
+								if upper < ref_up:
+                                    # shouldn't happen if data is consistent, but guard anyway
+									ref_up, upper = upper, ref_up
+								if abs(upper - ref_up) < 1e-12:
+									sim_high = ref_up
+								else:
+									sim_high = rng.uniform(ref_up, upper)
+							else:
+								# Free jitter not bounded by final extrema
+								jitter_high = sim_high * rng.uniform(-high_pct, high_pct)
+								sim_high = sim_high + jitter_high
+								# Ensure high >= max(open, close)
+								ref_up = max(base_open if base_open is not None else sim_close, sim_close if sim_close is not None else sim_high)
+								if sim_high < ref_up:
+									sim_high = ref_up
+
+						# Low variation
+						if sim_low is not None:
+							if respect_final and base_high is not None and base_low is not None:
+								# Simulated low should be between final low and min(open, sim_close)
+								ref_down = min(base_open if base_open is not None else sim_close, sim_close if sim_close is not None else base_close)
+								lower = base_low
+								if lower is None:
+									lower = ref_down
+								if lower > ref_down:
+                                    # shouldn't happen if data is consistent, but guard anyway
+									lower, ref_down = ref_down, lower
+								if abs(ref_down - lower) < 1e-12:
+									sim_low = lower
+								else:
+									sim_low = rng.uniform(lower, ref_down)
+							else:
+								# Free jitter not bounded by final extrema
+								jitter_low = sim_low * rng.uniform(-low_pct, low_pct)
+								sim_low = sim_low + jitter_low
+								# Ensure low <= min(open, close)
+								ref_down = min(base_open if base_open is not None else sim_close, sim_close if sim_close is not None else sim_low)
+								if sim_low > ref_down:
+									sim_low = ref_down
+								if sim_low < 0:
+									sim_low = 0.0
+
+						# Ensure ordering low <= min(open, close) and high >= max(open, close)
+						if sim_high is not None and sim_low is not None:
+							ref_up = max(base_open if base_open is not None else sim_close, sim_close if sim_close is not None else base_close)
+							ref_down = min(base_open if base_open is not None else sim_close, sim_close if sim_close is not None else base_close)
+							if sim_high < ref_up:
+								sim_high = ref_up
+							if sim_low > ref_down:
+								sim_low = ref_down
+							if sim_low > sim_high:
+								# Fallback to a narrow candle at the ref points
+								mid = (ref_up + ref_down) / 2.0
+								sim_low = min(ref_down, mid)
+								sim_high = max(ref_up, mid)
+
+						# Volume variation
+						if sim_vol is not None:
+							sim_vol = sim_vol * (1.0 + rng.uniform(-vol_pct, vol_pct))
+							if sim_vol < 0:
+								sim_vol = 0.0
+
+						# Assign simulated values to the actual DataFrame for this candle
+						assign_simulated_values(h=sim_high, l=sim_low, c=sim_close, v=sim_vol)
+
+						# Run strategy and analyzers once per simulated state
+						strategy.set_attr("i", i)
+						strategy.next(i)
+
+						for analyzer in strategy.analyzers:
+							analyzer.next(i)
+
+					# After all simulations, restore the "final" values (original values before simulations)
+					# This mutates the actual DataFrame on the stock to the final, original values.
+					final_h = float(base_row["high"]) if "high" in cols else None
+					final_l = float(base_row["low"]) if "low" in cols else None
+					final_c = float(base_row["close"]) if "close" in cols else None
+					final_v = float(base_row["volume"]) if "volume" in cols else None
+					assign_simulated_values(h=final_h, l=final_l, c=final_c, v=final_v)
+
+					# close any open trades on the end of the last day
+					if i == len(stock)-1:
+						for strat in self.strategies:
+							while len(strat.open_trades) > 0:
+								trade = strat.open_trades[0]
+								strat.sell(trade.stock, trade.num, trade.stock.get(i)["close"])
+
+		# get rid of strategies
+		for strategy in self.strategies:
+			strategy.stocks = []

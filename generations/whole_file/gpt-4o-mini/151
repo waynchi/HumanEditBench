@@ -1,0 +1,26 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    # Improved parsing of the input data to handle varying whitespace and ensure valid integers
+    cols = [list(map(int, l.split())) for l in lines if l.strip()]  # Create a list of lists of integers
+    cols = np.array(cols).T  # Transpose the array to separate columns
+    list_1 = list(cols[0])
+    list_2 = list(cols[1])
+
+    # Optimized distance calculation using zip and a list comprehension
+    all_dists = [abs(i - j) for i, j in zip(sorted(list_1), sorted(list_2))]
+    
+    print(sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().strip().split("\n")  # Strip whitespace from the beginning and end
+    return lines
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,52 @@
+import random
+
+# Load English dictionary words from a file (one word per line).
+def load_dictionary(filepath='words.txt'):
+    try:
+        with open(filepath, 'r') as f:
+            # Keep only alphabetic words, strip whitespace, and lowercase them
+            words = [line.strip() for line in f if line.strip().isalpha()]
+        return words
+    except FileNotFoundError:
+        print(f"Dictionary file '{filepath}' not found.")
+        return []
+
+# Get up to `count` words of the specified `length` from the dictionary.
+def get_words_of_length(words, length, count=10):
+    matches = [w for w in words if len(w) == length]
+    if not matches:
+        return []
+    # If there are more than `count` matches, pick a random sample
+    return random.sample(matches, min(count, len(matches)))
+
+def main():
+    words = load_dictionary('words.txt')
+    if not words:
+        return
+
+    print("Welcome to the Dictionary Lookup!")
+    print("Enter a number N to get up to 10 English words of length N.")
+    print("Type 'q' or 'quit' to exit.\n")
+
+    while True:
+        user_input = input("Enter word length (N): ").strip().lower()
+        if user_input in ('q', 'quit'):
+            print("Goodbye!")
+            break
+
+        if not user_input.isdigit():
+            print("Please enter a valid integer for the word length, or 'q' to quit.")
+            continue
+
+        length = int(user_input)
+        results = get_words_of_length(words, length, count=10)
+
+        if results:
+            print(f"\nHere are {len(results)} word(s) of length {length}:")
+            for w in results:
+                print(f"  {w}")
+        else:
+            print(f"\nNo words found of length {length}.\n")
+
+if __name__ == '__main__':
+    main()

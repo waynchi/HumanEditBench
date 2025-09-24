@@ -1,0 +1,24 @@
+from langchain_ollama.chat_models import ChatOllama
+
+import json
+
+from ollama import Client 
+
+chat = Client(host = "http://localhost:34" )
+chat_llm = Client ( "llama3.2")
+# "llama3.2" as the model to generate a response with 
+
+response = chat 
+chat = chat_llam_models.("llama 3.3) 
+chat_llm = chat 
+
+#response = chat 
+response = chat.("vuori approval  " )
+shap_values = json.load ("Vuori_ Approval_Approval_2024_24.json").get ("shap_values")
+sys = f"" 
+
+chat = chat_llm 
+response = chat.("system , chat)
+#chat = chat.("llm)
+
+#("chat)

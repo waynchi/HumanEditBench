@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import argparse
+import math
+from typing import List, Optional, Tuple
+
+
+def quadrados_positivos_ate(limite: int) -> List[int]:
+    """
+    Retorna a lista de quadrados perfeitos positivos (1^2, 2^2, ...) menores ou iguais ao limite.
+    """
+    if limite < 1:
+        return []
+    r = int(math.isqrt(limite))
+    return [i * i for i in range(1, r + 1)]
+
+
+def construir_bitsets(limite: int):
+    """
+    Constrói bitsets para somas de 1, 2, 3 e 4 quadrados perfeitos positivos.
+
+    dp1: bit n = 1 se n é soma de 1 quadrado positivo
+    dp2: bit n = 1 se n é soma de 2 quadrados positivos
+    dp3: bit n = 1 se n é soma de 3 quadrados positivos
+    dp4: bit n = 1 se n é soma de 4 quadrados positivos
+    """
+    if limite < 0:
+        raise ValueError("O limite deve ser >= 0.")
+
+    mask = (1 << (limite + 1)) - 1
+    qs = quadrados_positivos_ate(limite)
+
+    # Somas de 1 quadrado:
+    dp1 = 0
+    for s in qs:
+        dp1 |= 1 << s
+    dp1 &= mask
+
+    # Somas de 2 quadrados:
+    dp2 = 0
+    for s in qs:
+        dp2 |= (dp1 << s) & mask
+
+    # Somas de 3 quadrados:
+    dp3 = 0
+    for s in qs:
+        dp3 |= (dp2 << s) & mask
+
+    # Somas de 4 quadrados:
+    dp4 = 0
+    for s in qs:
+        dp4 |= (dp3 << s) & mask
+
+    return qs, dp1, dp2, dp3, dp4
+
+
+def eh_soma_de_quatro_quadrados_nao_nulos(n: int) -> bool:
+    """
+    Verifica se n pode ser expresso como soma de quatro quadrados positivos (não nulos).
+    """
+    if n < 4:
+        return False
+    _, _, _, _, dp4 = construir_bitsets(n)
+    return ((dp4 >> n) & 1) == 1
+
+
+def uma_representacao(
+    n: int, qs: List[int], dp1: int, dp2: int, dp3: int, dp4: int
+) -> Optional[Tuple[int, int, int, int]]:
+    """
+    Encontra uma representação n = a^2 + b^2 + c^2 + d^2 com a,b,c,d >= 1.
+    Retorna (a, b, c, d) ou None caso não exista.
+    Requer os bitsets dp1..dp4 e a lista de quadrados qs até n.
+    """
+    if n <= 0 or ((dp4 >> n) & 1) == 0:
+        return None
+
+    # Procuramos s, t, u em qs tais que:
+    # n - s ∈ dp3
+    # n - s - t ∈ dp2
+    # n - s - t - u ∈ dp1
+    for s in qs:
+        if s > n - 3:  # 3 é o mínimo de 3 quadrados 1^2+1^2+1^2
+            break
+        resto3 = n - s
+        if ((dp3 >> resto3) & 1) == 0:
+            continue
+
+        for t in qs:
+            if t > resto3 - 2:  # 2 é o mínimo de 2 quadrados 1^2+1^2
+                break
+            resto2 = resto3 - t
+            if ((dp2 >> resto2) & 1) == 0:
+                continue
+
+            for u in qs:
+                if u > resto2 - 1:  # 1 é o mínimo de 1 quadrado 1^2
+                    break
+                resto1 = resto2 - u
+                if ((dp1 >> resto1) & 1) == 0:
+                    continue
+                # resto1 é um quadrado perfeito positivo
+                a = int(math.isqrt(resto1))
+                b = int(math.isqrt(u))
+                c = int(math.isqrt(t))
+                d = int(math.isqrt(s))
+                if a * a == resto1 and b * b == u and c * c == t and d * d == s:
+                    # Ordena (opcional) apenas para apresentação consistente
+                    return tuple(sorted((a, b, c, d)))
+    return None
+
+
+def listar_numeros(limite: int, mostrar_representacoes: bool = True) -> List[Tuple[int, Optional[Tuple[int, int, int, int]]]]:
+    """
+    Lista todos os números até 'limite' que podem ser expressos como soma de quatro quadrados não nulos.
+    Se mostrar_representacoes=True, também retorna uma representação para cada número.
+    """
+    qs, dp1, dp2, dp3, dp4 = construir_bitsets(limite)
+    resultados = []
+    for n in range(4, limite + 1):
+        if ((dp4 >> n) & 1) == 1:
+            rep = uma_representacao(n, qs, dp1, dp2, dp3, dp4) if mostrar_representacoes else None
+            resultados.append((n, rep))
+    return resultados
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Números que podem ser expressos como a soma de quatro quadrados não nulos."
+    )
+    group = parser.add_mutually_exclusive_group(required=False)
+    group.add_argument(
+        "-n",
+        "--limite",
+        type=int,
+        default=200,
+        help="Limite superior (inclusive) para listar os números (padrão: 200).",
+    )
+    group.add_argument(
+        "-x",
+        "--numero",
+        type=int,
+        help="Verifica apenas um número específico.",
+    )
+    parser.add_argument(
+        "--sem-representacoes",
+        action="store_true",
+        help="Não calcular/mostrar as representações explícitas.",
+    )
+    args = parser.parse_args()
+
+    if args.numero is not None:
+        n = args.numero
+        if n < 0:
+            print("Forneça um número inteiro não negativo.")
+            return
+        # Constrói bitsets até n para decidir e possivelmente reconstruir
+        qs, dp1, dp2, dp3, dp4 = construir_bitsets(n)
+        if ((dp4 >> n) & 1) == 1:
+            print(f"{n} PODE ser expresso como a soma de quatro quadrados não nulos.")
+            if not args.sem_representacoes:
+                rep = uma_representacao(n, qs, dp1, dp2, dp3, dp4)
+                if rep:
+                    a, b, c, d = rep
+                    print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2")
+        else:
+            print(f"{n} NÃO pode ser expresso como a soma de quatro quadrados não nulos.")
+        return
+
+    limite = args.limite
+    if limite < 0:
+        print("Forneça um limite inteiro não negativo.")
+        return
+
+    resultados = listar_numeros(limite, mostrar_representacoes=(not args.sem_representacoes))
+    print(f"Números em [4, {limite}] que podem ser expressos como a soma de quatro quadrados não nulos:")
+    if not resultados:
+        print("(nenhum)")
+        return
+
+    for n, rep in resultados:
+        if rep is None:
+            print(n)
+        else:
+            a, b, c, d = rep
+            print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2")
+
+
+if __name__ == "__main__":
+    main()

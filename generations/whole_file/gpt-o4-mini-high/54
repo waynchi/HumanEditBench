@@ -1,0 +1,15 @@
+import os
+from pymilvus import connections
+
+# 记录当前路径为cwd
+# 创建向量数据库路径
+cwd = os.getcwd()
+db_path = os.path.join(cwd, 'milvus_db.db')
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+# 使用 pymilvus 创建数据库连接
+connections.connect(alias="default", host="localhost", port="19530")
+client = connections.get_connection(alias="default")
+
+# 以下是原来的其余代码，保持不变
+# ...

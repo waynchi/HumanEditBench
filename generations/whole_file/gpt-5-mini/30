@@ -1,0 +1,98 @@
+#!/usr/bin/env python3
+"""
+Números que podem ser expressos como a soma de quatro quadrados não nulos.
+
+Este script procura, para cada n em 1..MAX_N (padrão 200), se existe uma
+representação
+
+    n = a^2 + b^2 + c^2 + d^2
+
+com a, b, c, d >= 1 (isto é, quadrados estritamente não nulos).
+Se existir, exibe um exemplo de representação encontrado.
+
+Uso:
+    python3 quatro_quadrados_nao_nulos.py [MAX_N]
+
+Se MAX_N não for fornecido, usa 200.
+"""
+
+import sys
+from math import isqrt
+
+def find_four_nonzero_squares(n):
+    """
+    Procura e retorna uma tupla (a, b, c, d) com a <= b <= c <= d e todos >= 1
+    tais que a^2 + b^2 + c^2 + d^2 == n.
+    Retorna None se não houver representação com quadrados não nulos.
+    """
+    if n < 4:
+        return None  # mínimo com todos >=1 é 1+1+1+1 = 4
+
+    # a, b, c, d >= 1
+    # vamos forçar ordem não decrescente a <= b <= c <= d para evitar permutações repetidas
+    max_a = isqrt(n - 3)  # deixa espaço para pelo menos 1^2 + 1^2 + 1^2
+    for a in range(1, max_a + 1):
+        rem1 = n - a * a
+        # agora b^2 + c^2 + d^2 = rem1, com b >= a
+        max_b = isqrt(rem1 - 2)  # deixar espaço para 1^2 + 1^2
+        # garantir que max_b >= a
+        if max_b < a:
+            continue
+        for b in range(a, max_b + 1):
+            rem2 = rem1 - b * b
+            # c^2 + d^2 = rem2, com c >= b
+            max_c = isqrt(rem2 - 1)  # deixar espaço para 1^2
+            if max_c < b:
+                continue
+            for c in range(b, max_c + 1):
+                rem3 = rem2 - c * c
+                if rem3 <= 0:
+                    continue
+                d = isqrt(rem3)
+                if d >= c and d * d == rem3:
+                    return (a, b, c, d)
+    return None
+
+
+def list_numbers_with_representations(max_n=200):
+    """
+    Retorna uma lista de tuplas (n, (a,b,c,d)) para todos n in [1..max_n]
+    que possuem representação como soma de quatro quadrados não nulos.
+    """
+    results = []
+    for n in range(1, max_n + 1):
+        rep = find_four_nonzero_squares(n)
+        if rep is not None:
+            results.append((n, rep))
+    return results
+
+
+def main():
+    # argumento opcional: máximo n
+    max_n = 200
+    if len(sys.argv) >= 2:
+        try:
+            max_n = int(sys.argv[1])
+            if max_n < 1:
+                raise ValueError()
+        except ValueError:
+            print("Argumento inválido. Uso: python3 script.py [MAX_N]  (MAX_N inteiro >= 1)")
+            sys.exit(1)
+
+    results = list_numbers_with_representations(max_n)
+    if not results:
+        print(f"Nenhum número em 1..{max_n} pode ser expresso como soma de quatro quadrados não nulos.")
+        return
+
+    print(f"Números em 1..{max_n} que podem ser expressos como soma de quatro quadrados não nulos:")
+    for n, (a, b, c, d) in results:
+        print(f"{n} = {a}^2 + {b}^2 + {c}^2 + {d}^2  ->  {a*a} + {b*b} + {c*c} + {d*d}")
+
+    # Estatísticas simples
+    print()
+    print(f"Total: {len(results)} números (de {max_n}) com representação não nula de quatro quadrados.")
+    print(f"Proporção: {len(results)}/{max_n} = {len(results)/max_n:.4f}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,80 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return author == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+
+q = Query()
+d = Discussions()
+
+# Nueva implementación: función para crear un diccionario jerárquico de posts y sus replies
+def crear_diccionario_hierarquico(posts_generator):
+    dicc_hierarquico = {}
+    iterador = 0
+    for post in posts_generator:
+        iterador += 1
+        post_author = post['author']
+        post_permlink = post['permlink']
+        num_replies = post['children']
+        cnt = 0
+        valid_replies = []
+        # Solo procesamos el post si tiene más respuestas que el mínimo establecido
+        if num_replies > n_respuestas_minimas:
+            comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+            replies_list = comment.get_replies()
+            for reply in replies_list:
+                author = reply['author']
+                text = reply['body']
+                if is_own_author(author):
+                    # Si el autor es el propio, salimos del ciclo de replies
+                    break
+                if is_banned(author):
+                    break
+                if procesar(text):
+                    cnt += 1
+                    valid_replies.append({
+                        "author": author,
+                        "permlink": reply['permlink'],
+                        "body": text
+                    })
+        if cnt > 3:
+            key = f"{post_author}/{post_permlink}"
+            dicc_hierarquico[key] = {
+                "post": {
+                    "author": post_author,
+                    "permlink": post_permlink,
+                    "children": num_replies
+                },
+                "replies": valid_replies
+            }
+            print("Iterador:", iterador)
+            if valid_replies:
+                last_reply = valid_replies[-1]
+                print(last_reply['author'], '/', last_reply['permlink'])
+    return dicc_hierarquico
+
+# Utilizamos la función creada para generar el diccionario jerárquico a partir de posts_generator
+posts_generator = d.get_discussions("created", q, limit=6000)
+diccionario = crear_diccionario_hierarquico(posts_generator)

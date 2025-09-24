@@ -1,0 +1,149 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Crear una sesión Spark
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# Ejemplo de datos (reemplazar con tus datos reales)
+data = [
+    {"id": 1, "nombre": "Juan", "edad": 30},
+    {"id": 2, "nombre": "Ana", "edad": 25},
+    {"id": 3, "nombre": "Pedro", "edad": 40}
+]
+
+# Crear un DataFrame a partir de los datos
+# En este bloque consumimos una API de forma defensiva (desconocemos su estructura),
+# analizamos la respuesta (tipo de contenido, tamaño, llaves), inferimos registros
+# y construimos un DataFrame. Si la llamada falla o no podemos inferir registros,
+# caemos a los datos de ejemplo definidos arriba.
+import os
+import json
+
+df = None  # Será el DataFrame resultante
+
+def _is_list_of_dicts(x):
+    return isinstance(x, list) and len(x) > 0 and all(isinstance(e, dict) for e in x)
+
+def _find_first_list_of_dicts(obj, depth=0, max_depth=6):
+    # Busca recursivamente la primera lista de diccionarios en un JSON arbitrario
+    if depth > max_depth:
+        return []
+    if _is_list_of_dicts(obj):
+        return obj
+    if isinstance(obj, dict):
+        for _, v in obj.items():
+            found = _find_first_list_of_dicts(v, depth + 1, max_depth)
+            if found:
+                return found
+    if isinstance(obj, list):
+        for e in obj:
+            found = _find_first_list_of_dicts(e, depth + 1, max_depth)
+            if found:
+                return found
+    return []
+
+def _to_df_from_jsonlike(payload):
+    # Intenta derivar una lista de registros (dicts) a partir del payload
+    records = _find_first_list_of_dicts(payload)
+    if not records:
+        if isinstance(payload, dict):
+            records = [payload]
+        elif isinstance(payload, list):
+            if len(payload) == 0:
+                records = []
+            elif isinstance(payload[0], dict):
+                records = payload
+            else:
+                # Lista de escalares u otros tipos: convertimos a dicts simples
+                records = [{"value": el} for el in payload]
+        else:
+            records = []
+    # Construimos el DataFrame a partir de JSON para inferir bien el esquema
+    if records:
+        json_rdd = spark.sparkContext.parallelize([json.dumps(r) for r in records])
+        return spark.read.json(json_rdd)
+    return None
+
+try:
+    try:
+        import requests  # Se usa para consultar la API
+    except ImportError:
+        requests = None
+
+    api_url = os.getenv("API_URL", "<URL_DE_TU_API>")  # Reemplazar o usar variable de entorno
+    # Puedes pasar parámetros como JSON en variable de entorno API_QUERY_PARAMS='{"page":1}'
+    try:
+        default_params_str = os.getenv("API_QUERY_PARAMS", "{}")
+        api_params = json.loads(default_params_str) if default_params_str else {}
+    except Exception:
+        api_params = {}
+    token = os.getenv("API_BEARER_TOKEN")  # Si tu API usa Bearer token
+    headers = {"Accept": "application/json"}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    if requests is not None and api_url and not api_url.startswith("<"):
+        resp = requests.get(api_url, headers=headers, params=api_params, timeout=(10, 60))
+        content_type = (resp.headers.get("Content-Type") or "").lower()
+        print(f"API status={resp.status_code} content_type={content_type} bytes={len(resp.content)} url={resp.url}")
+
+        if resp.status_code >= 200 and resp.status_code < 300:
+            text_preview = resp.text[:500].replace("\n", " ")
+            print(f"Vista previa (500 chars): {text_preview}")
+
+            if "json" in content_type or (resp.text.strip().startswith("{") or resp.text.strip().startswith("[")):
+                try:
+                    payload = resp.json()
+                except Exception:
+                    payload = json.loads(resp.text)
+                df = _to_df_from_jsonlike(payload)
+            elif "csv" in content_type:
+                # Parseo simple de CSV en memoria
+                lines = resp.text.splitlines()
+                rdd = spark.sparkContext.parallelize(lines)
+                df = spark.read.option("header", "true").option("inferSchema", "true").csv(rdd)
+            else:
+                # Heurística: ¿parece JSON?
+                stripped = resp.text.strip()
+                if stripped.startswith("{") or stripped.startswith("["):
+                    try:
+                        payload = json.loads(resp.text)
+                        df = _to_df_from_jsonlike(payload)
+                    except Exception:
+                        pass  # caemos a fallback
+        else:
+            print("La API respondió con un código no exitoso. Se usarán datos de ejemplo.")
+    else:
+        print("Biblioteca 'requests' no disponible o API_URL no configurada. Se usarán datos de ejemplo.")
+
+except Exception as e:
+    print(f"Error al consultar o procesar la API: {e}. Se usarán datos de ejemplo.")
+
+# Fallback: si no logramos construir df desde la API, usamos los datos de ejemplo.
+if df is None:
+    df = spark.createDataFrame(data)
+
+# Análisis básico del DataFrame (esquema y muestra) para entender la estructura real.
+print("Esquema detectado:")
+df.printSchema()
+print("Muestra de 20 filas:")
+df.show(20, truncate=False)
+
+# Configurar la conexión a ADL2 usando la identidad de Microsoft ID
+# No es necesario proporcionar credenciales explícitamente en un notebook de Synapse
+# Spark utilizará la identidad administrada del notebook para autenticarse.
+
+# Especificar la ruta al contenedor y la carpeta en ADL2
+container_name = "<your_container_name>"  # Reemplazar con el nombre de tu contenedor
+folder_path = "<your_folder_path>"  # Reemplazar con la ruta a la carpeta dentro del contenedor
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Escribir el DataFrame en formato parquet en ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# Opcional: leer el archivo parquet para verificar
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# Detener la sesión Spark
+spark.stop()

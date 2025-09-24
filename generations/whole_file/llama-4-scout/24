@@ -1,0 +1,73 @@
+import aiofiles
+import asyncio
+
+# ...
+
+async def correct_name(self):
+    async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+        info = await json.load(info_opened_file)
+    # ...
+
+However, the above approach still won't work because `json.load()` is not an asynchronous function. The correct way to read a JSON file asynchronously is to read the file as text and then parse the JSON:
+python
+import aiofiles
+import asyncio
+import json
+
+# ...
+
+async def correct_name(self):
+    async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+        info = json.loads(await info_opened_file.read())
+    # ...
+
+But it seems like you want to change only the specified section. In that case, you can use the following approach with `aiofiles` and `json`:
+python
+import aiofiles
+import json
+
+# ...
+
+async def correct_name(self):
+    try:
+        async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+            info = json.loads(await info_opened_file.read())
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    # ...
+
+However, to make your entire code work asynchronously, consider rewriting it using asynchronous functions and `aiohttp` for making HTTP requests:
+python
+import aiohttp
+import aiofiles
+import asyncio
+import json
+
+class ticker:
+    # ...
+
+    async def correct_name(self):
+        try:
+            async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+                info = json.loads(await info_opened_file.read())
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    async def CurrentPrice(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{self.name}.xml?iss.meta=off") as response:
+                r = await response.text()
+                # ...
+
+    async def candles(self, candles_name: str, timeframe: str, start: str, end: str):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/{self.name}/candles.xml?iss.meta=off&interval={timeframe}&till={end}&from={start}") as response:
+                r = await response.text()
+                # ...
+
+# Usage
+async def main():
+    beb = ticker("SBER")
+    await beb.correct_name()
+
+asyncio.run(main())

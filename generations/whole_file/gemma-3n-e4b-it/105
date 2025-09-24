@@ -1,0 +1,234 @@
+from typing import Literal
+import os
+import datetime
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from utils import *
+import sqlite3
+from tradecalendar import TradeCalendar
+
+
+class Datafeed:
+    def __init__(self, mode: Literal["backtest", "live"] = "backtest"):
+        self.config = read_config_file("config/config.json")
+        self.tickers = self.get_tickers_list()
+        self.db_path = self.config.get("db_path", "stocks_data.db")
+        self.mode = mode
+
+        # Inizializza il TradeCalendar e date
+        self.trade_calendar = TradeCalendar(mode=self.mode, config=self.config)
+
+        # Converti le date di configurazione in pd.Timestamp
+        start_date_key = "download_start_date_live" if mode == "live" else "download_start_date"
+        end_date_key = "download_end_date_live" if mode == "live" else "download_end_date"
+
+        self.config_start = pd.to_datetime(self.config.get(start_date_key))
+        self.config_end = pd.to_datetime(self.config.get(end_date_key))
+
+        # Initialize italy_holidays
+        self.italy_holidays = self.trade_calendar.get_italian_holidays_with_custom_dates(
+            self.config_start, self.config_end
+        )
+
+    def init_database(self):
+        """Inizializza il database SQLite."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS daily_data (
+                    date DATE,
+                    ticker TEXT,
+                    open REAL,
+                    high REAL,
+                    low REAL,
+                    close REAL,
+                    adj_close REAL,
+                    volume INTEGER,
+                    source TEXT,
+                    manipulated TEXT,
+                    insert_date DATE,
+                    PRIMARY KEY (date, ticker)
+                )
+            """
+            )
+
+    def get_tickers_list(self) -> list:
+        """Legge la lista dei ticker dal file di configurazione."""
+        with open(self.config.get("tickers_list"), "r") as file:
+            return [line.strip() for line in file if not line.startswith("#")]
+
+    def identify_gaps(self, df: pd.DataFrame, ticker: str, business_days: pd.DatetimeIndex) -> pd.DataFrame:
+        """
+        Identifica i gap nella serie temporale considerando solo i giorni
+        tra il primo e l'ultimo dato disponibile per il ticker.
+        """
+        # Assicurati che l'indice del DataFrame sia un DatetimeIndex
+        if isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index)
+
+        # Ottieni il primo e l'ultimo dato effettivamente disponibile per il ticker
+        ticker_first_date = df.index.min()
+        ticker_last_date = df.index.max()
+
+        # Filtra i business_days per considerare solo quelli nell'intervallo dei dati disponibili
+        relevant_business_days = business_days[
+            (business_days >= ticker_first_date) & (business_days <= ticker_last_date)
+        ]
+
+        # Identifica i giorni mancanti all'interno dell'intervallo
+        missing_days = set(relevant_business_days) - set(df.index)
+
+        if missing_days:
+            write_log(
+                f"datafeed.py - {ticker}: Identificati {len(missing_days)} gap tra "
+                f"{ticker_first_date.strftime('%Y-%m-%d')} e {ticker_last_date.strftime('%Y-%m-%d')}"
+            )
+            for day in sorted(missing_days):
+                write_log(f"datafeed.py - {ticker}: Gap identificato in data {day.strftime('%Y-%m-%d')}")
+
+            # Crea DataFrame per i giorni mancanti
+            gap_df = pd.DataFrame(
+                index=sorted(missing_days), columns=df.columns, dtype=df.dtypes.to_dict()
+            )
+            df = pd.concat([df, gap_df]).sort_index()
+        else:
+            write_log(
+                f"datafeed.py - {ticker}: Nessun gap identificato tra "
+                f"{ticker_first_date.strftime('%Y-%m-%d')} e {ticker_last_date.strftime('%Y-%m-%d')}"
+            )
+
+        return df.reset_index()
+
+    def download_stocks_data(self, force_overwrite: bool = False) -> None:
+        """Scarica i dati delle azioni."""
+        write_log(f"datafeed.py - Avvio download dati nel range: {self.config_start} - {self.config_end}")
+
+        with sqlite3.connect(self.db_path) as conn:
+            for ticker in self.tickers:
+                try:
+                    write_log(f"datafeed.py - Elaborazione {ticker}")
+
+                    if force_overwrite:
+                        self.download_yfinance(ticker, self.config_start, self.config_end, conn)
+                        continue
+
+                    # Modified query execution and result handling
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        SELECT MIN(date) as min_date, MAX(date) as max_date
+                        FROM daily_data
+                        WHERE ticker = ?
+                        """,
+                        (ticker,),
+                    )
+                    existing_range = cursor.fetchone()
+
+                    # Check if the ticker exists in the database
+                    if existing_range is None or existing_range[0] is None:
+                        write_log(f"datafeed.py - No data exists for {ticker}, starting download")
+                        self.download_yfinance(ticker, self.config_start, self.config_end, cursor)
+                    else:
+                        write_log(f"datafeed.py - Data exists for {ticker}, skipping download")
+
+                except Exception as e:
+                    write_log(f"datafeed.py - Errore durante il download per {ticker}: {str(e)}")
+
+    def download_yfinance(self, ticker: str, start_date: datetime.Timestamp, end_date: datetime.Timestamp, cursor: sqlite3.Cursor) -> None:
+        """Scaricare dati da yfinance e salvarli."""
+        try:
+            df = pd.DataFrame()
+            df = yf.download(ticker, start=start_date, end=end_date, progress=False)
+
+            if df.empty:
+                write_log(f"datafeed.py - Nessun dato scaricato per {ticker}")
+                return
+
+            df['date'] = pd.to_datetime(df.index)
+            for _, row in df.iterrows():
+                try:
+                    # Converti in formato stringa YYYY-MM-DD
+                    date_str = str(row['date']).replace('-', '')
+                    date_str = date_str[0:10]
+                except ValueError:
+                    write_log(f"datafeed.py - Errore formato data in yfinance: chiamo la funzione seguente")
+                    continue
+
+                ticker_value = str(row['ticker'])
+                row_result = (ticker_value, str(row['Open']), str(row['High']), str(row['Low']), str(row['Close']), str(row['Adj Close']), str(row['Volume']))
+                cursor.execute(
+                """
+                INSERT OR REPLACE INTO daily_data (
+                    date, ticker, open, high, low, close, adj_close, volume, source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                row_result,
+            )
+            write_log(f"datafeed.py Rolling la data")
+            """
+
+        except Exception as e:
+            write_log(f"datafeed.py Errore during yfinance download: {e}")
+"""
+    def _find_missing_days(self, date:datetime.Timestamp) -> list:
+        """
+        Trova i giorni mancanti all'interno dell'intervallo.
+        """
+        start = self.config_start
+        end = self.config_end
+        missing = []
+        for i in range(int(start.toordinal()), int(end.toordinal()) + 1):
+            date_ordi = datetime.date.fromordinal(i)
+            date=datetime.datetime.fromdate(date_ordi)
+
+            if date not in [pd.to_datetime(value) for value in self.db.query('SELECT date FROM daily_data')]:
+                write_log(f"datafeed.py - Trovato giorno mancante: {date}")
+                missing.append(date)
+
+        return missing
+
+    def fill_gaps(self, df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+        """
+        Riempie i gap nei dati usando una strategia più robusta.
+        """
+        df_filled = df.copy()
+        df_filled['date'] = pd.to_datetime(df_filled['date'])
+        df_filled = df_filled.set_index("date").resample('D').asfreq().reset_index()
+
+        price_cols = ["Open", "High", "Low", "Close", "Adj Close"]
+        volume_cols = ["Volume"]
+
+        fill_stats = {"ffill": 0, "bfill": 0, "interpolate": 0, "volume_fills": 0}
+
+        for col in price_cols:
+            missing_mask = df_filled[col].isna()
+            initial_missing = missing_mask.sum()
+
+            if initial_missing > 0:
+                df_filled[col] = df_filled[col].interpolate(method="linear", limit=2)
+                interpolated = initial_missing - missing_mask.sum()
+
+                df_filled[col] = df_filled[col].ffill()
+                after_ffill = missing_mask.sum()
+                df_filled[col] = df_filled[col].bfill()
+                if missing_mask.sum() > 0:
+                    #ici lo si aggiunge
+                    for value in df_filled[col][missing_mask].values
+                        df_filled.loc[missing_mask, col] = (value + df_filled[col].iloc[0]) / 2
+                # Setto i valori rimanenti
+
+        # per il volume
+        for col in volume_cols:
+            missing_mask = df_filled[col].isna()
+            initial_missing = missing_mask.sum()
+
+            if initial_missing > 0:
+                df_filled['volume'] = df_filled['volume'].fillna(df_filled['volume'].rolling(window=5, min_periods=1).mean())
+                df_filled[col] = df_filled[col].fillna(0)
+        data.loge
+
+        return df_filled
+
+    def verify_data(self) -> None:
+        """ Verifica l'integrità dei dati, selezionando i valori mancanti"""

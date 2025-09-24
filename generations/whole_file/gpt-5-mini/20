@@ -1,0 +1,68 @@
+import argparse
+from pathlib import Path
+from typing import List
+
+# Default input path (can be overridden with -i / --input)
+INPUT_FILE_PATH = Path('./example_in.txt')
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Compute the sum of absolute differences between paired integers from two columns."
+    )
+    parser.add_argument(
+        '-i', '--input',
+        type=Path,
+        default=INPUT_FILE_PATH,
+        help=f'Path to the input file (default: {INPUT_FILE_PATH})'
+    )
+    args = parser.parse_args()
+
+    lines = parse_input_file(args.input)
+    # preserve original behavior of printing the raw lines list
+    print(lines)
+
+    if not lines:
+        print("No data to process.")
+        return
+
+    # Split by any whitespace to be robust against variable spacing
+    try:
+        cols = [line.split() for line in lines]
+        # Validate that every line has at least two columns
+        if any(len(parts) < 2 for parts in cols):
+            raise ValueError("Each non-empty input line must contain at least two values.")
+        col1 = [int(parts[0]) for parts in cols]
+        col2 = [int(parts[1]) for parts in cols]
+    except ValueError as e:
+        print(f"Error parsing input: {e}")
+        return
+
+    if len(col1) != len(col2):
+        print("Error: the two columns have different lengths.")
+        return
+
+    # Pair the sorted values (equivalent to repeatedly matching the current minima)
+    col1_sorted = sorted(col1)
+    col2_sorted = sorted(col2)
+    total_dist = sum(abs(a - b) for a, b in zip(col1_sorted, col2_sorted))
+
+    print(total_dist)
+
+
+def parse_input_file(path: Path = INPUT_FILE_PATH) -> List[str]:
+    """
+    Read the file and return a list of non-empty, stripped lines.
+    Accepts a pathlib.Path or string path.
+    """
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"Input file not found: {path}")
+    text = path.read_text(encoding='utf-8')
+    # splitlines() avoids a trailing empty item when file ends with newline
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    return lines
+
+
+if __name__ == "__main__":
+    main()

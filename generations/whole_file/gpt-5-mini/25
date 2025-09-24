@@ -1,0 +1,45 @@
+import json
+import requests
+
+# Initialize Ollama server details
+MODEL_NAME = "llama3.2"
+BASE_URL = "http://localhost:11434"
+
+# Load SHAP values from JSON file
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    loaded_json = json.load(file)
+    # If the file stores a top-level "shap_values" key, use it; otherwise use the whole content
+    shap_values_json = loaded_json.get("shap_values", loaded_json)
+
+# Load system prompt from file
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+# Prepare the prompt by combining the system prompt and the SHAP values payload
+# We include a short instruction to the model so it knows how to use the SHAP values.
+prompt_parts = [
+    f"System instructions:\n{sys_prompt}",
+    "\nUser data (SHAP values):",
+    json.dumps(shap_values_json, indent=2),
+    "\nPlease analyze the SHAP values and provide a concise summary and any important observations."
+]
+prompt_text = "\n\n".join(prompt_parts)
+
+# Call the local Ollama HTTP API to generate a response
+# The Ollama Generate API accepts {"model": "<model>", "prompt": "<text>"}.
+generate_endpoint = f"{BASE_URL}/api/generate"
+payload = {
+    "model": MODEL_NAME,
+    "prompt": prompt_text,
+    # You can adjust generation parameters below if desired:
+    # "max_tokens": 512,
+    # "temperature": 0.2,
+}
+try:
+    response = requests.post(generate_endpoint, json=payload, timeout=120)
+    response.raise_for_status()
+except requests.RequestException as e:
+    raise SystemExit(f"Request to Ollama failed: {e}")
+
+# The response from Ollama is typically plain text (or streaming). Print the text body.
+print(response.text)

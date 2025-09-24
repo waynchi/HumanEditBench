@@ -1,0 +1,36 @@
+Based on the error message, the issue appears to be with the Chrome binary location and the way the driver is being initialized. Here's the modified code with the corrected section:
+python
+import os
+import time
+import undetected_chromedriver as uc
+
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the relative path to the chromedriver
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+options.binary_location = chromedriver_path
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)
+import time
+
+options = uc.ChromeOptions()
+options.binary_location = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)
+
+I've changed the binary location to point to the standard Chrome installation path on Windows. The error suggests that the driver couldn't connect to Chrome, which often happens when the binary location is incorrect or when Chrome isn't properly installed. This change should help resolve the connection issue.

@@ -1,0 +1,99 @@
+const cameraService = require('./camera.service');
+
+const createCamera = async (req, res) => {
+  try {
+    // create the camera first
+    const camera = await cameraService.createCamera(req.body);
+
+    // Attempt to get a Sequelize instance to run a raw query.
+    // Try several common locations: exported from cameraService, ../models, ../../models
+    let sequelize = null;
+    if (cameraService && cameraService.sequelize) {
+      sequelize = cameraService.sequelize;
+    } else {
+      try {
+        // common setups export sequelize from a models/index.js one level up
+        sequelize = require('../models').sequelize;
+      } catch (e1) {
+        try {
+          // or two levels up
+          sequelize = require('../../models').sequelize;
+        } catch (e2) {
+          sequelize = null;
+        }
+      }
+    }
+
+    // If we couldn't find a sequelize instance, fall back to the service method
+    if (!sequelize) {
+      const cameras = await cameraService.getAllCameras();
+      return res.status(201).json(cameras);
+    }
+
+    // Raw SQL join between cameras and areas to get all camera fields and area_name
+    const query = `
+      SELECT cameras.*, areas.area_name
+      FROM cameras
+      LEFT JOIN areas ON cameras.area_id = areas.id
+    `;
+
+    // Execute raw query. sequelize.query typically returns [results, metadata]
+    const [results] = await sequelize.query(query);
+    res.status(201).json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getAllCameras = async (req, res) => {
+  try {
+    const cameras = await cameraService.getAllCameras();
+    res.status(200).json(cameras);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getCameraById = async (req, res) => {
+  try {
+    const camera = await cameraService.getCameraById(req.params.id);
+    if (!camera) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(200).json(camera);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const updateCamera = async (req, res) => {
+  try {
+    const camera = await cameraService.updateCamera(req.params.id, req.body);
+    if (!camera) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(200).json(camera);
+  } catch (error) {
+     res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteCamera = async (req, res) => {
+  try {
+    const success = await cameraService.deleteCamera(req.params.id);
+    if (!success) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  createCamera,
+  getAllCameras,
+  getCameraById,
+  updateCamera,
+  deleteCamera,
+};

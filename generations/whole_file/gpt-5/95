@@ -1,0 +1,172 @@
+import random
+import logging
+import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    TimeoutException,
+    WebDriverException,
+    StaleElementReferenceException,
+)
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+class SearchModule:
+    def __init__(self, driver, config):
+        self.driver = driver
+        self.config = config
+        try:
+            self.search_engine = config.get('Search', 'search_engine')
+        except Exception as e:
+            logging.exception("Не удалось получить параметр 'search_engine' из конфигурации. Использую 'google' по умолчанию.")
+            self.search_engine = 'google'
+
+        try:
+            queries_raw = config.get('Search', 'queries')
+            self.queries = [q.strip() for q in queries_raw.split(',') if q.strip()]
+        except Exception as e:
+            logging.exception("Не удалось получить список запросов 'queries' из конфигурации. Использую ['news'] по умолчанию.")
+            self.queries = ['news']
+
+        try:
+            self.random_query = config.getboolean('Search', 'random_query')
+        except Exception:
+            logging.warning("Не удалось получить параметр 'random_query'. Использую False по умолчанию.")
+            self.random_query = False
+
+        if not self.queries:
+            logging.warning("Список запросов пуст. Добавляю запрос по умолчанию 'news'.")
+            self.queries = ['news']
+
+    def perform_search(self):
+        try:
+            query = random.choice(self.queries) if self.random_query else self.queries[0]
+        except Exception:
+            logging.exception("Ошибка при выборе поискового запроса.")
+            return
+
+        logging.info(f"Performing search with query: {query}")
+
+        engine = (self.search_engine or '').lower()
+
+        # Открываем страницу поиска
+        try:
+            if engine == 'google':
+                self.driver.get("https://www.google.com")
+            elif engine == 'yandex':
+                self.driver.get("https://ya.ru")
+            elif engine == 'bing':
+                self.driver.get("https://www.bing.com")
+            else:
+                logging.error("Unsupported search engine.")
+                return
+        except WebDriverException:
+            logging.exception("Ошибка при открытии страницы поисковой системы.")
+            return
+
+        # Ищем поле ввода
+        search_box = None
+        wait = WebDriverWait(self.driver, 10)
+        try:
+            if engine == 'google':
+                search_box = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+            elif engine == 'yandex':
+                # Сначала пробуем по placeholder, затем fallback по name="text"
+                try:
+                    search_box = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[placeholder="Найдётся всё"]')))
+                except TimeoutException:
+                    search_box = wait.until(EC.presence_of_element_located((By.NAME, "text")))
+            elif engine == 'bing':
+                search_box = wait.until(EC.presence_of_element_located((By.NAME, "q")))
+        except (TimeoutException, NoSuchElementException):
+            logging.exception("Поле поиска не найдено.")
+            return
+        except Exception:
+            logging.exception("Неожиданная ошибка при поиске поля ввода.")
+            return
+
+        # Вводим запрос и отправляем
+        try:
+            search_box.clear()
+        except Exception:
+            # Если clear() не сработал, продолжаем без очистки
+            logging.debug("Не удалось очистить поле поиска, продолжаю ввод запроса.")
+
+        try:
+            search_box.send_keys(query + Keys.RETURN)
+        except Exception:
+            logging.exception("Не удалось ввести запрос в поле поиска.")
+            return
+
+        # Ждем загрузку результатов (мягкое ожидание)
+        try:
+            time.sleep(random.uniform(2, 4))
+        except Exception:
+            pass
+
+    def navigate_random_link(self):
+        logging.info("Navigating to a random search result link.")
+        engine = (self.search_engine or '').lower()
+
+        # Собираем ссылки результатов
+        links = []
+        try:
+            if engine == 'google':
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'div.yuRUbf > a')
+            elif engine == 'yandex':
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'a.link')
+            elif engine == 'bing':
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'li.b_algo h2 a')
+            else:
+                logging.error("Unsupported search engine.")
+                return
+        except WebDriverException:
+            logging.exception("Ошибка при попытке получить список ссылок результатов поиска.")
+            return
+        except Exception:
+            logging.exception("Неожиданная ошибка при получении ссылок результатов поиска.")
+            return
+
+        if not links:
+            logging.warning("No links found on the search results page.")
+            return
+
+        # Фильтруем ссылки с валидным href
+        valid_links = []
+        for el in links:
+            try:
+                href = el.get_attribute('href')
+                if href and href.startswith(('http://', 'https://')):
+                    valid_links.append((el, href))
+            except StaleElementReferenceException:
+                continue
+            except Exception:
+                continue
+
+        if not valid_links:
+            logging.warning("Подходящие ссылки с корректным href не найдены.")
+            return
+
+        # Выбираем случайную ссылку и переходим
+        try:
+            random_el, href = random.choice(valid_links)
+            logging.info(f"Navigating to: {href}")
+        except Exception:
+            logging.exception("Не удалось выбрать случайную ссылку.")
+            return
+
+        try:
+            self.driver.get(href)
+        except WebDriverException:
+            logging.exception(f"Ошибка при переходе по ссылке: {href}")
+            return
+        except Exception:
+            logging.exception("Неожиданная ошибка при переходе по ссылке.")
+            return
+
+        # Ждем загрузку страницы (мягкое ожидание)
+        try:
+            time.sleep(random.uniform(3, 6))
+        except Exception:
+            pass

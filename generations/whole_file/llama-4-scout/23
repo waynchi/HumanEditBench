@@ -1,0 +1,15 @@
+import requests
+
+def get_words_with_n_characters(n):
+    response = requests.get(f"https://random-word-api.herokuapp.com/word?length={n}")
+    return response.json()
+
+def main():
+    n = int(input("Enter the number of characters: "))
+    words = get_words_with_n_characters(n)
+    print(f"Here are 10 words with {n} characters:")
+    for i in range(min(10, len(words))):
+        print(words[i])
+
+if __name__ == "__main__":
+    main()

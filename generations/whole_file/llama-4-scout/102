@@ -1,0 +1,51 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+#INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    #for l in lines:
+    #    print(l)
+    grid = np.array(lines, dtype=object)
+    print(grid)
+    str_to_match = "XMAS"
+    count = 0
+    # Check horizontally
+    for row in grid:
+        row_str = ''.join(row)
+        count += row_str.count(str_to_match)
+
+    # Check vertically 
+    if len(grid) > 0 and len(grid[0]) > 0:
+        for col in range(len(grid[0])):
+            col_str = ''.join([grid[row][col] for row in range(len(grid))])
+            count += col_str.count(str_to_match)
+
+    # Check diagonally (top-left to bottom-right)
+    for i in range(-(len(grid)-1), len(grid[0])):
+        diag = []
+        for row in range(len(grid)):
+            col = row + i
+            if 0 <= col < len(grid[0]):
+                diag.append(grid[row][col])
+        diag_str = ''.join(diag)
+        count += diag_str.count(str_to_match)
+
+    # Check diagonally (top-right to bottom-left)
+    for i in range(-(len(grid)-1), len(grid[0])):
+        diag = []
+        for row in range(len(grid)):
+            col = len(grid[0]) - 1 - row - i
+            if 0 <= col < len(grid[0]):
+                diag.append(grid[row][col])
+        diag_str = ''.join(diag)
+        count += diag_str.count(str_to_match)
+
+    print(f"Found {count} occurrences of {str_to_match}")
+
+def parse_input_file():
+    return INPUT_FILE_PATH.split()
+
+if __name__ == "__main__":
+    main()

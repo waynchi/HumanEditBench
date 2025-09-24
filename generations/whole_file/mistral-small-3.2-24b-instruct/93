@@ -1,0 +1,51 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def generate_response(shap_values_file="Vuori_Final_Approval_2024_09_24.json",
+                     system_prompt_file="system.prompt",
+                     model="llama3.2",
+                     base_url="http://localhost:11434"):
+    """
+    Generate a response using the ChatOllama model with given SHAP values and system prompt.
+
+    Args:
+        shap_values_file (str): Path to JSON file containing SHAP values
+        system_prompt_file (str): Path to file containing system prompt
+        model (str): Model name to use
+        base_url (str): Base URL for the Ollama service
+
+    Returns:
+        str: The generated response content
+    """
+    # Initialize the ChatOllama model
+    chat_model = ChatOllama(model=model, base_url=base_url)
+
+    # Load SHAP values from JSON file
+    with open(shap_values_file, "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+
+    # Load system prompt from file
+    with open(system_prompt_file, "r") as file:
+        sys_prompt = file.read().strip()
+
+    # Prepare the messages
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+
+    # Generate the response
+    user_input = json.dumps(shap_values_json)  # Prepare user input
+
+    chain = prompt | chat_model
+
+    # Print the response
+    response = chain.invoke(user_input)
+    return response.content
+
+# Example usage:
+# response = generate_response()
+# print(response)

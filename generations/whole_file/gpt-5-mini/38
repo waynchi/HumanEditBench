@@ -1,0 +1,52 @@
+# Папка со всеми фотографиями / папка с фотографиями для тренировки
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+# Считываем названия директорий, которые и являются видом затмения
+ECLIPSE_LIST = {i:name for i, name in enumerate(sorted([d for d in os.listdir(TRAIN_DIR) if os.path.isdir(os.path.join(TRAIN_DIR, d))]))}
+
+
+# Папка с фотографиями для валидации
+VAL_DIR = os.path.join(DATA_PATH, "val")
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Папка с фотографиями для теста
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+
+# Доля изображений в валидации
+VAL_FRAC = 0.3
+
+
+# Создаем директорию с валидационной выборкой для каждого вида затмения.
+rng = np.random.RandomState(42)  # детерминированный генератор случайных чисел
+for eclipse in ECLIPSE_LIST.values():
+    os.makedirs(os.path.join(VAL_DIR, eclipse), exist_ok=True)
+
+    # Считываем выборку изображений.
+    eclipse_path = os.path.join(TRAIN_DIR, eclipse)
+    
+    # Сортируем изображения для детерминированнсти
+    images_filename = sorted([f for f in os.listdir(eclipse_path) if os.path.isfile(os.path.join(eclipse_path, f))])
+    
+    # Выделяем часть изображений для валидации
+    num_images = len(images_filename)
+    num_val = int(num_images * VAL_FRAC)
+
+    # Если нет изображений для валидации — пропускаем
+    if num_val <= 0:
+        print(f'{eclipse} | train images = {num_images} | val images = 0')
+        continue
+
+    # Выбираем случайные уникальные индексы для валидационной выборки
+    indices = rng.choice(num_images, size=num_val, replace=False)
+    # Упорядочим индексы, чтобы копирование/перемещение было детерминированным при одинаковом наборе индексов
+    indices = sorted(indices)
+    val_images = [images_filename[i] for i in indices]
+
+    print(f'{eclipse} | train images = {num_images - num_val} | val images = {num_val}')
+    
+    # Перемещаем выбранные изображения в валидационную директорию
+    for image_filename in val_images:
+        source = os.path.join(TRAIN_DIR, eclipse, image_filename)
+        destination = os.path.join(VAL_DIR, eclipse, image_filename)
+        # используем move (эффективнее чем copy + remove)
+        shutil.move(source, destination)

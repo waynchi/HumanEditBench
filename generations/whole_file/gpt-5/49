@@ -1,0 +1,151 @@
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """
+    Создает матрицу размера rows x cols, заполненную значением fill_value.
+
+    Параметры:
+    rows (int): количество строк (неотрицательное целое число).
+    cols (int): количество столбцов (неотрицательное целое число).
+    fill_value (любой тип): значение для заполнения матрицы.
+
+    Возвращает:
+    list: матрица в виде списка списков.
+    """
+    if not isinstance(rows, int) or not isinstance(cols, int):
+        raise TypeError("rows и cols должны быть целыми числами.")
+    if rows < 0 or cols < 0:
+        raise ValueError("rows и cols должны быть неотрицательными.")
+    # Создаем новую строку для каждой строки матрицы, чтобы избежать общей ссылки
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+def _is_rectangular(matrix: list) -> bool:
+    """Вспомогательная функция: проверяет, что матрица прямоугольная (все строки одинаковой длины)."""
+    if not isinstance(matrix, list):
+        return False
+    if len(matrix) == 0:
+        return True
+    if not all(isinstance(row, list) for row in matrix):
+        return False
+    row_lengths = [len(row) for row in matrix]
+    return all(length == row_lengths[0] for length in row_lengths)
+
+
+def _shape(matrix: list) -> tuple:
+    """Вспомогательная функция: возвращает кортеж (rows, cols) для прямоугольной матрицы."""
+    if not _is_rectangular(matrix):
+        raise ValueError("Матрица должна быть прямоугольной (список списков одинаковой длины).")
+    rows = len(matrix)
+    cols = 0 if rows == 0 else len(matrix[0])
+    return rows, cols
+
+
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Складывает две матрицы одинакового размера.
+
+    Параметры:
+    matrix_a (list): первая матрица.
+    matrix_b (list): вторая матрица.
+
+    Возвращает:
+    list: результат сложения матриц.
+    """
+    ra, ca = _shape(matrix_a)
+    rb, cb = _shape(matrix_b)
+    if (ra, ca) != (rb, cb):
+        raise ValueError("Матрицы должны быть одинакового размера для сложения.")
+    result = []
+    for i in range(ra):
+        row_sum = []
+        for j in range(ca):
+            row_sum.append(matrix_a[i][j] + matrix_b[i][j])
+        result.append(row_sum)
+    return result
+
+
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """
+    Умножает все элементы матрицы на скаляр.
+
+    Параметры:
+    matrix (list): исходная матрица.
+    scalar (float): число, на которое умножаются элементы матрицы.
+
+    Возвращает:
+    list: результат умножения матрицы на скаляр.
+    """
+    _shape(matrix)  # проверка прямоугольности
+    result = []
+    for row in matrix:
+        result.append([elem * scalar for elem in row])
+    return result
+
+
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Перемножает две матрицы.
+
+    Параметры:
+    matrix_a (list): первая матрица.
+    matrix_b (list): вторая матрица.
+
+    Возвращает:
+    list: результат умножения матриц.
+    """
+    ra, ca = _shape(matrix_a)
+    rb, cb = _shape(matrix_b)
+    if ca != rb:
+        raise ValueError("Число столбцов первой матрицы должно совпадать с числом строк второй матрицы.")
+    # Результат имеет размер ra x cb
+    result = create_matrix(ra, cb, 0)
+    for i in range(ra):
+        for j in range(cb):
+            s = 0
+            for k in range(ca):  # или rb
+                s += matrix_a[i][k] * matrix_b[k][j]
+            result[i][j] = s
+    return result
+
+
+def transpose_matrix(matrix: list) -> list:
+    """
+    Транспонирует матрицу.
+
+    Параметры:
+    matrix (list): исходная матрица.
+
+    Возвращает:
+    list: транспонированная матрица.
+    """
+    rows, cols = _shape(matrix)
+    if rows == 0 or cols == 0:
+        return []
+    transposed = create_matrix(cols, rows, 0)
+    for i in range(rows):
+        for j in range(cols):
+            transposed[j][i] = matrix[i][j]
+    return transposed
+
+
+def determinant_3x3(matrix: list) -> float:
+    """
+    Вычисляет определитель матрицы 3x3.
+
+    Параметры:
+    matrix (list): исходная матрица размером 3x3.
+
+    Возвращает:
+    float: определитель матрицы.
+    """
+    rows, cols = _shape(matrix)
+    if (rows, cols) != (3, 3):
+        raise ValueError("Функция determinant_3x3 требует матрицу размера 3x3.")
+    a11, a12, a13 = matrix[0]
+    a21, a22, a23 = matrix[1]
+    a31, a32, a33 = matrix[2]
+    det = (
+        a11 * (a22 * a33 - a23 * a32)
+        - a12 * (a21 * a33 - a23 * a31)
+        + a13 * (a21 * a32 - a22 * a31)
+    )
+    return float(det)

@@ -1,0 +1,68 @@
+import sys
+from pathlib import Path
+from typing import List, Tuple
+
+DEFAULT_INPUT_FILE_CANDIDATES = ("./input.txt", "./example_in.txt")
+
+
+def main():
+    lines = parse_input_file()
+    list_1, list_2 = parse_columns(lines)
+    total_distance = sum_sorted_abs_differences(list_1, list_2)
+    print(total_distance)
+
+
+def parse_input_file() -> List[str]:
+    # Choose input path: CLI arg > first existing candidate > fallback to first candidate
+    if len(sys.argv) > 1:
+        path = Path(sys.argv[1])
+    else:
+        path = None
+        for candidate in DEFAULT_INPUT_FILE_CANDIDATES:
+            p = Path(candidate)
+            if p.exists():
+                path = p
+                break
+        if path is None:
+            path = Path(DEFAULT_INPUT_FILE_CANDIDATES[0])
+
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            # Strip whitespace and drop blank lines
+            return [line.strip() for line in f.read().splitlines() if line.strip()]
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"Input file not found at {path}. Provide a valid path as the first CLI argument."
+        )
+
+
+def parse_columns(lines: List[str]) -> Tuple[List[int], List[int]]:
+    left: List[int] = []
+    right: List[int] = []
+    for i, line in enumerate(lines, start=1):
+        # Split on any whitespace for robustness
+        parts = line.split()
+        if len(parts) != 2:
+            raise ValueError(
+                f"Line {i} is malformed (expected 2 columns, got {len(parts)}): {line!r}"
+            )
+        try:
+            a = int(parts[0])
+            b = int(parts[1])
+        except ValueError:
+            raise ValueError(f"Line {i} contains non-integer values: {line!r}")
+        left.append(a)
+        right.append(b)
+    return left, right
+
+
+def sum_sorted_abs_differences(a: List[int], b: List[int]) -> int:
+    if len(a) != len(b):
+        raise ValueError("Both columns must have the same number of entries.")
+    a_sorted = sorted(a)
+    b_sorted = sorted(b)
+    return sum(abs(x - y) for x, y in zip(a_sorted, b_sorted))
+
+
+if __name__ == "__main__":
+    main()

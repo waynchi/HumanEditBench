@@ -1,0 +1,47 @@
+# Папка со всеми фотографиями / папка с фотографиями для тренировки
+TRAIN_DIR = os.path.join(DATA_PATH, "train") 
+# Считываем названия директорий, которые и являются видом затмения
+ECLIPSE_LIST = {i:name for i, name in enumerate(os.listdir(TRAIN_DIR))}
+
+# Папка с фотографиями для валидации
+VAL_DIR = os.path.join(DATA_PATH, "val")
+if not os.path.exists(VAL_DIR):
+    os.makedirs(VAL_DIR)
+
+# Папка с фотографиями для теста
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+# Доля изображений в валидации
+VAL_FRAC = 0.3
+
+# Создаем директории для валидационной выборки
+for eclipse in ECLIPSE_LIST.values():
+    val_eclipse_dir = os.path.join(VAL_DIR, eclipse)
+    if not os.path.exists(val_eclipse_dir):
+        os.makedirs(val_eclipse_dir)
+        
+    # Путь к изображениям конкретного типа затмения
+    eclipse_path = os.path.join(TRAIN_DIR, eclipse)
+    
+    # Получаем отсортированный список файлов для воспроизводимости
+    image_files = sorted(os.listdir(eclipse_path))
+    
+    # Определяем размер валидационной выборки
+    total_images = len(image_files)
+    val_size = int(total_images * VAL_FRAC)
+    
+    # Случайно выбираем индексы для валидационной выборки
+    np.random.seed(42)  # Для воспроизводимости результатов
+    val_indices = np.random.choice(total_images, val_size, replace=False)
+    
+    # Перемещаем выбранные изображения в валидационную директорию
+    for idx in val_indices:
+        img_name = image_files[idx]
+        src_path = os.path.join(eclipse_path, img_name)
+        dst_path = os.path.join(val_eclipse_dir, img_name)
+        shutil.copy(src_path, dst_path)
+        os.remove(src_path)
+        
+    # Выводим статистику
+    remaining_train = total_images - val_size
+    print(f"{eclipse} | train images = {remaining_train} | val images = {val_size}")

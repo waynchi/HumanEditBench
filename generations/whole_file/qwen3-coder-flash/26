@@ -1,0 +1,43 @@
+def conjugate_gradient_method(A, b, x0=None, tol=1e-10, max_iter=None):
+    """
+    Функция для метода спряжённых градиентов
+    
+    Parameters:
+    A: symmetric positive definite matrix
+    b: right-hand side vector
+    x0: initial guess (optional)
+    tol: tolerance for convergence
+    max_iter: maximum number of iterations
+    
+    Returns:
+    x: solution vector
+    """
+    import numpy as np
+    
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = x0.copy()
+    
+    r = b - A @ x
+    p = r.copy()
+    rsold = r.T @ r
+    
+    if max_iter is None:
+        max_iter = len(b)
+    
+    for i in range(max_iter):
+        Ap = A @ p
+        alpha = rsold / (p.T @ Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        
+        rsnew = r.T @ r
+        
+        if np.sqrt(rsnew) < tol:
+            break
+            
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+    
+    return x

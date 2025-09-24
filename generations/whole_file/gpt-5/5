@@ -1,0 +1,24 @@
+# Write binary search
+
+def binary_search(arr, target):
+    """
+    Perform binary search on a sorted sequence.
+
+    Args:
+        arr: A sequence (e.g., list or tuple) sorted in ascending order.
+        target: The value to search for.
+
+    Returns:
+        The index of target if found; otherwise, -1.
+    """
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        val = arr[mid]
+        if val == target:
+            return mid
+        if val < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1

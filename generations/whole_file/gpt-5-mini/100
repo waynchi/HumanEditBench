@@ -1,0 +1,195 @@
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse, JSONResponse
+import httpx
+import asyncio
+import json
+import logging
+from typing import List, Dict, Any
+import random
+from dataclasses import dataclass
+
+app = FastAPI()
+
+CHAT_URL = "https://duckduckgo.com/duckchat/v1/chat"
+STATUS_URL = "https://duckduckgo.com/duckchat/v1/status"
+MODELS = {
+    "gpt-4o-mini": {"owned_by": "openai", "is_free": True},
+    "llama-3.1-70b": {"owned_by": "Meta", "is_free": True},
+    "mixtral-8x7b": {"owned_by": "mistralai", "is_free": True},
+    "claude-3-haiku": {"owned_by": "Anthropic", "is_free": False},
+}
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Table of valid user-agent strings grouped by OS and browser.
+# This is a non-exhaustive sample list covering common desktop browsers.
+USER_AGENTS: Dict[str, List[str]] = {
+    "mac": [
+        # Chrome on macOS
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        # Safari on macOS
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+        # Firefox on macOS
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13.6; rv:120.0) Gecko/20100101 Firefox/120.0",
+        # Edge on macOS
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    ],
+    "windows": [
+        # Chrome on Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        # Edge on Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+        # Firefox on Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
+        # Opera on Windows
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/96.0.0.0",
+    ],
+    "linux": [
+        # Chrome on Linux
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        # Firefox on Linux
+        "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
+        # Chromium on Linux
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chromium/120.0.0.0 Chrome/120.0.0.0 Safari/537.36",
+    ],
+}
+
+@dataclass
+class VQDResult:
+    """Container for a VQD token and the user-agent used to fetch it.
+
+    This object is safe to pass where a string token is expected because
+    __str__ returns the raw token. It also exposes .to_dict() to get both fields.
+    """
+    vqd: str
+    user_agent: str
+
+    def __str__(self) -> str:
+        # When used in headers or concatenation, represent as the raw token string.
+        return self.vqd
+
+    def to_dict(self) -> Dict[str, str]:
+        return {"vqd": self.vqd, "user-agent": self.user_agent}
+
+
+async def fetch_vqd() -> VQDResult:
+    """Fetch the VQD token required for authentication.
+
+    For each call, pick a random user-agent from a table of valid desktop
+    browser user-agent strings (mac/windows/linux). Return a VQDResult object:
+    {
+      "vqd": "<token>",
+      "user-agent": "<user-agent used>"
+    }
+    The VQDResult is string-compatible (str(VQDResult) == token) so existing
+    code that expects a string token continues to work.
+    """
+    # Choose a random OS group, then a random UA from that group
+    os_group = random.choice(list(USER_AGENTS.keys()))
+    user_agent = random.choice(USER_AGENTS[os_group])
+
+    headers = {
+        "User-Agent": user_agent,
+        "x-vqd-accept": "1",
+    }
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(STATUS_URL, headers=headers, timeout=10.0)
+        except httpx.RequestError as exc:
+            logger.error(f"Request error fetching VQD with UA {user_agent}: {exc}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve VQD token") from exc
+
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch VQD: {response.status_code} (UA used: {user_agent})")
+            raise HTTPException(status_code=500, detail="Failed to retrieve VQD token")
+
+        vqd_token = response.headers.get("x-vqd-4", "")
+        if not vqd_token:
+            logger.error(f"VQD header missing in response (UA used: {user_agent})")
+            raise HTTPException(status_code=500, detail="VQD token missing in status response")
+
+        logger.info(f"Fetched VQD token (truncated) {vqd_token[:12]}... using UA: {user_agent}")
+        return VQDResult(vqd=vqd_token, user_agent=user_agent)
+
+
+async def stream_chat_response(client, vqd: str, messages: List[Dict], model: str):
+    """Stream the response from the chat API."""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.3",
+        "Content-Type": "application/json",
+        "x-vqd-4": vqd,
+    }
+    payload = {"model": model, "messages": messages}
+
+    async with client.stream("POST", CHAT_URL, headers=headers, json=payload) as response:
+        if response.status_code != 200:
+            logger.error(f"Chat request failed: {response.status_code}")
+            raise HTTPException(status_code=response.status_code, detail="Chat API request failed")
+        async for line in response.aiter_lines():
+            yield line
+
+
+# Store VQD tokens with their authorization headers
+vqd_cache = {}
+@app.post("/v1/chat/completions")
+async def chat_completions(request: Request):
+    """Handle chat completions with optional streaming."""
+    try:
+        data = await request.json()
+        messages = data.get("messages", [])
+        model = data.get("model", "gpt-4o-mini")
+        stream = data.get("stream", False)
+
+        if model not in MODELS:
+            raise HTTPException(status_code=400, detail="Invalid model requested")
+
+        # Get authorization header
+        auth_header = request.headers.get("authorization")
+        
+        # Check if we have a cached VQD for this auth header
+        if auth_header not in vqd_cache:
+            vqd_cache[auth_header] = await fetch_vqd()
+        
+        vqd = vqd_cache[auth_header]
+
+        async with httpx.AsyncClient() as client:
+            if stream:
+                return StreamingResponse(
+                    stream_chat_response(client, vqd, messages, model),
+                    media_type="text/event-stream",
+                )
+            else:
+                aggregated_response = ""
+                async for chunk in stream_chat_response(client, vqd, messages, model):
+                    aggregated_response += chunk
+                return JSONResponse(content=json.loads(aggregated_response))
+    except Exception as e:
+        logger.error(f"Error in chat_completions: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/v1/models")
+async def get_models():
+    """Retrieve available models."""
+    try:
+        response_data = []
+        for model_id, details in MODELS.items():
+            response_data.append({
+                "id": model_id,
+                "object": "model",
+                "created": 1686935002,  # Hardcoded for example purposes
+                "owned_by": details["owned_by"],
+                "type": "chat.completions",
+                "is_free": details["is_free"],
+            })
+        return JSONResponse(content={"object": "list", "data": response_data})
+    except Exception as e:
+        logger.error(f"Error in get_models: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# Development server entry point
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

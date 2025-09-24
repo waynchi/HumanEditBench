@@ -1,0 +1,72 @@
+def sum_of_four_squares(n):
+    """
+    Verifica se um número pode ser expresso como a soma de quatro quadrados não nulos.
+    De acordo com o Teorema de Lagrange sobre poligonais, todo número natural
+    pode ser representado como a soma de quatro quadrados (incluindo o zero).
+    Esta função verifica especificamente se todos os quatro quadrados podem
+    ser não nulos.
+
+    Args:
+        n (int): O número inteiro a ser verificado.
+
+    Returns:
+        bool: True se o número puder ser expresso como a soma de quatro quadrados não nulos,
+              False caso contrário.
+        list: Uma lista com os quatro quadrados não nulos se True, caso contrário uma lista vazia.
+    """
+    if n < 4:  # Minimo 1^2 + 1^2 + 1^2 + 1^2 = 4
+        return False, []
+
+    # O teorema dos quatro quadrados de Lagrange afirma que todo número natural
+    # pode ser expresso como a soma de quatro quadrados.
+    # A exceção para "não nulos" é mais complexa.
+
+    # Itera sobre possíveis valores para o primeiro quadrado (i*i)
+    for i in range(1, int(n**0.5) + 1):
+        if i * i > n - 3:  # Garante que sobram pelo menos 3 para serem 1^2
+            break
+        # Itera sobre possíveis valores para o segundo quadrado (j*j)
+        for j in range(1, int((n - i*i)**0.5) + 1):
+            if i*i + j*j > n - 2:  # Garante que sobram pelo menos 2 para serem 1^2
+                break
+            # Itera sobre possíveis valores para o terceiro quadrado (k*k)
+            for k in range(1, int((n - i*i - j*j)**0.5) + 1):
+                if i*i + j*j + k*k > n - 1: # Garante que sobra pelo menos 1 para ser 1^2
+                    break
+                # Calcula o valor restante para o quarto quadrado (l*l)
+                l_squared = n - (i*i + j*j + k*k)
+                # Verifica se l_squared é um quadrado perfeito e não nulo
+                l = int(l_squared**0.5)
+                if l * l == l_squared and l > 0:
+                    return True, [i*i, j*j, k*k, l*l]
+    return False, []
+
+if __name__ == "__main__":
+    test_numbers = [4, 5, 10, 14, 15, 16, 23, 28, 31, 32, 33, 50, 77, 100]
+    for num in test_numbers:
+        can_be_summed, squares = sum_of_four_squares(num)
+        if can_be_summed:
+            print(f"O número {num} pode ser expresso como a soma de quatro quadrados não nulos: {squares} = {sum(squares)}")
+        else:
+            print(f"O número {num} NÃO pode ser expresso como a soma de quatro quadrados não nulos.")
+
+    print("\nVerificando alguns casos específicos:")
+    num = 1
+    can_be_summed, squares = sum_of_four_squares(num)
+    print(f"O número {num} pode ser expresso como a soma de quatro quadrados não nulos: {can_be_summed}") # Deve ser False
+
+    num = 3
+    can_be_summed, squares = sum_of_four_squares(num)
+    print(f"O número {num} pode ser expresso como a soma de quatro quadrados não nulos: {can_be_summed}") # Deve ser False
+
+    num = 6
+    can_be_summed, squares = sum_of_four_squares(num)
+    print(f"O número {num} pode ser expresso como a soma de quatro quadrados não nulos: {can_be_summed}, {squares}") # 1+1+1+3 (não é quadrado) -> 1+1+2+2 (não é quad) -> não é.
+
+    num = 7
+    can_be_summed, squares = sum_of_four_squares(num)
+    print(f"O número {num} pode ser expresso como a soma de quatro quadrados não nulos: {can_be_summed}") # Deve ser False (apenas 1^2+1^2+1^2+2^2, mas 2 não é 1)
+
+    num = 28
+    can_be_summed, squares = sum_of_four_squares(num)
+    print(f"O número {num} pode ser expresso como a soma de quatro quadrados não nulos: {can_be_summed}, {squares}") # Deve ser True 4+4+4+16

@@ -1,0 +1,10 @@
+export default function getProducts(items) {
+    return items.map(product => {
+        return `
+<div class="produto-card">
+                <a href="http://www.google.com">
+                    <div class="desconto">${product.desconto}%OFF</div>
+                    <img src="${product.imagem}" alt="${product.nome}">
+                    <h3>${product.nome}</h3>
+                    <div class="price">
+                        <span class="preco-original">R$ ${
