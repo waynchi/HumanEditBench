@@ -1,0 +1,98 @@
+import random
+
+# Assume we have a list of English words. For a real application, this would be loaded from a file.
+# For this example, we'll use a small, hardcoded list.
+# In a real-world scenario, you would load this from a file like 'words.txt' or a dictionary API.
+english_words = [
+    "apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew",
+    "kiwi", "lemon", "mango", "nectarine", "orange", "papaya", "quince", "raspberry",
+    "strawberry", "tangerine", "watermelon", "avocado", "blueberry", "coconut",
+    "dragonfruit", "guava", "jackfruit", "lime", "lychee", "melon", "olive",
+    "peach", "pear", "persimmon", "pineapple", "pomegranate", "starfruit", "tomato",
+    "a", "an", "the", "is", "of", "it", "in", "on", "at", "to", "for", "by", "with",
+    "about", "as", "from", "into", "like", "through", "after", "over", "between",
+    "out", "against", "during", "before", "above", "below", "up", "down", "off",
+    "cat", "dog", "sun", "moon", "car", "house", "tree", "book", "water", "fire",
+    "earth", "sky", "cloud", "rain", "snow", "wind", "computer", "keyboard", "mouse",
+    "screen", "python", "programming", "language", "code", "algorithm", "data",
+    "structure", "function", "variable", "loop", "condition", "statement", "list",
+    "dictionary", "tuple", "set", "string", "integer", "float", "boolean", "none",
+    "true", "false", "class", "object", "method", "attribute", "inheritance",
+    "polymorphism", "encapsulation", "abstraction", "module", "package", "library",
+    "framework", "developer", "engineer", "software", "hardware", "network", "server",
+    "database", "query", "table", "row", "column", "index", "key", "primary",
+    "foreign", "constraint", "join", "select", "insert", "update", "delete", "create",
+    "drop", "alter", "commit", "rollback", "transaction", "user", "password",
+    "login", "logout", "session", "cookie", "cache", "memory", "storage", "disk",
+    "cpu", "gpu", "motherboard", "processor", "ram", "rom", "bios", "usb", "hdmi",
+    "power", "button", "switch", "cable", "port", "interface", "system", "operating",
+    "windows", "linux", "macos", "application", "desktop", "laptop", "mobile",
+    "phone", "tablet", "watch", "headphones", "speaker", "microphone", "camera",
+    "printer", "scanner", "monitor", "television", "projector", "router", "modem",
+    "internet", "web", "browser", "website", "page", "link", "url", "http", "https",
+    "html", "css", "javascript", "json", "xml", "api", "rest", "soap", "endpoint",
+    "request", "response", "header", "body", "status", "error", "success", "failure"
+]
+
+def find_words_by_length(words, n):
+    """
+    Finds all words in a list that have a specific length.
+    Args:
+        words (list): A list of words to search through.
+        n (int): The desired length of the words.
+    Returns:
+        list: A list of words with the specified length.
+    """
+    return [word for word in words if len(word) == n]
+
+def get_n_char_words():
+    """
+    Main function to run the program.
+    It prompts the user for a word length, finds words of that length,
+    and prints a sample of up to 10 words.
+    """
+    print("Welcome to the English Word Finder!")
+    print("You can request a word with a specific number of characters.")
+    
+    while True:
+        try:
+            # Get user input for the number of characters
+            n_str = input("Please enter the number of characters (or 'q' to quit): ")
+            
+            if n_str.lower() == 'q':
+                print("Exiting the program. Goodbye!")
+                break
+            
+            n = int(n_str)
+            
+            if n <= 0:
+                print("Please enter a positive number for the character count.")
+                continue
+
+            # Find words with the specified length
+            matching_words = find_words_by_length(english_words, n)
+            
+            # Check if any words were found
+            if not matching_words:
+                print(f"Sorry, no words with {n} characters were found in the dictionary.")
+                print("Please try a different number.")
+            else:
+                # Get a sample of up to 10 words
+                sample_size = 10
+                # Randomly sample words to get different results each time.
+                # If there are fewer than 10 words, it will take all of them.
+                word_sample = random.sample(matching_words, min(sample_size, len(matching_words)))
+                
+                print(f"\nFound {len(matching_words)} words with {n} characters. Here are {len(word_sample)} of them:")
+                for word in word_sample:
+                    print(word)
+                print("-" * 20)
+
+        except ValueError:
+            print("Invalid input. Please enter a whole number.")
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+
+# This line ensures the main function is called when the script is executed
+if __name__ == "__main__":
+    get_n_char_words()

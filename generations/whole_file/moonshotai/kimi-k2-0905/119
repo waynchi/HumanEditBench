@@ -1,0 +1,47 @@
+# Folder that currently contains the full dataset
+FULL_DATASET_DIR = os.path.join(DATA_PATH, "train")
+
+# Where the new training split will live
+TRAIN_DIR = os.path.join(DATA_PATH, "train_split")
+os.makedirs(TRAIN_DIR, exist_ok=True)
+
+# Where the validation split will live
+VAL_DIR = os.path.join(DATA_PATH, "val")
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Folder with photos for testing (unchanged)
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+# Eclipse types
+ECLIPSE_LIST = {i: name for i, name in enumerate(os.listdir(FULL_DATASET_DIR))}
+
+# Fraction of images in validation
+VAL_FRAC = 0.3
+
+# Create train/val directories for each eclipse type
+for eclipse in ECLIPSE_LIST.values():
+    os.makedirs(os.path.join(TRAIN_DIR, eclipse), exist_ok=True)
+    os.makedirs(os.path.join(VAL_DIR, eclipse), exist_ok=True)
+
+    # Reading the image dataset
+    eclipse_path = os.path.join(FULL_DATASET_DIR, eclipse)
+    
+    # Sort images for determinism
+    images_filename = sorted(os.listdir(eclipse_path))
+    
+    # Selecting a portion of images for validation
+    num_images = len(images_filename)
+    num_val = int(num_images * VAL_FRAC)
+    indices = sample_without_replacement(num_images, num_val, random_state=42)
+    val_images = np.take(images_filename, indices)
+
+    print(f'{eclipse} | train images = {num_images - num_val} | val images = {num_val}')
+    
+    # Split images into train/val
+    for image_filename in images_filename:
+        source = os.path.join(FULL_DATASET_DIR, eclipse, image_filename)
+        if image_filename in val_images:
+            destination = os.path.join(VAL_DIR, eclipse, image_filename)
+        else:
+            destination = os.path.join(TRAIN_DIR, eclipse, image_filename)
+        shutil.copy(source, destination)

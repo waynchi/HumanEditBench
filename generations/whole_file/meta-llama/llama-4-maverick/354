@@ -1,0 +1,26 @@
+import random
+
+def load_dictionary(file_name):
+    with open(file_name, 'r') as file:
+        return file.read().splitlines()
+
+def find_words_by_length(dictionary, length):
+    return [word for word in dictionary if len(word) == length]
+
+def main():
+    dictionary = load_dictionary('/usr/share/dict/words')
+    while True:
+        try:
+            length = int(input("Enter the length of the word: "))
+            words = find_words_by_length(dictionary, length)
+            if words:
+                print(random.sample(words, min(10, len(words))))
+            else:
+                print("No words found with the given length.")
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+        except EOFError:
+            break
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,73 @@
+python
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Create a Spark session
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# Example data (replace with your real data)
+data = [
+    {"id": 1, "nombre": "Juan", "edad": 30},
+    {"id": 2, "nombre": "Ana", "edad": 25},
+    {"id": 3, "nombre": "Pedro", "edad": 40}
+]
+
+# Create a DataFrame from the data
+import urllib.request
+import json
+
+# Replace with your actual API endpoint
+api_url = "https://api.example.com/data"  # <--- REPLACE WITH YOUR API URL
+
+try:
+    # Fetch data from API
+    with urllib.request.urlopen(api_url) as response:
+        api_data = json.loads(response.read().decode())
+    
+    # Analyze the API response structure
+    print("API Response Structure Analysis:")
+    print(f"Type of response: {type(api_data)}")
+    
+    if isinstance(api_data, list):
+        print(f"Response is a list with {len(api_data)} items")
+        if api_data:
+            print("First item structure:")
+            print(json.dumps(api_data[0], indent=2))
+    elif isinstance(api_data, dict):
+        print("Response is a dictionary with keys:")
+        print(list(api_data.keys()))
+        # Handle common API patterns (e.g., data wrapped in a 'results' key)
+        if 'data' in api_data:
+            print("Found 'data' key in response")
+            api_data = api_data['data']
+        elif 'results' in api_data:
+            print("Found 'results' key in response")
+            api_data = api_data['results']
+    
+    # Create DataFrame from processed API data
+    df = spark.createDataFrame(api_data)
+    
+except Exception as e:
+    print(f"Error fetching or processing API data: {str(e)}")
+    # Fallback to example data if API fails
+    print("Falling back to example data")
+    df = spark.createDataFrame(data)
+
+# Set up the connection to ADL2 using the Microsoft ID identity
+# It is not necessary to provide credentials explicitly in a Synapse notebook
+# Spark will use the managed identity of the notebook to authenticate.
+
+# Specify the path to the container and folder in ADL2
+container_name = "<your_container_name>"  # Replace with the name of your container
+folder_path = "<your_folder_path>"  # Replace with the path to the folder within the container
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Write the DataFrame in parquet format to ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# Optional: read the parquet file to verify
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# Stop the Spark session
+spark.stop()

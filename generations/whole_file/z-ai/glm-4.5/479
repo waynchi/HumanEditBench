@@ -1,0 +1,45 @@
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# Realizar análisis ANOVA
+# Create design matrix with dummy variables and intercept
+X = pd.get_dummies(df['Brand'], drop_first=True)
+X = sm.add_constant(X)
+model = sm.OLS(df['Cost'], X).fit()
+
+# Fit null model (intercept only)
+X_null = pd.DataFrame({'intercept': [1] * len(df)})
+model_null = sm.OLS(df['Cost'], X_null).fit()
+
+# Calculate sum of squares and degrees of freedom
+ssr_full = model.ssr
+ssr_null = model_null.ssr
+df_full = model.df_resid
+df_null = model_null.df_resid
+df_diff = df_null - df_full
+
+# Calculate F-statistic and p-value
+F = ((ssr_null - ssr_full) / df_diff) / (ssr_full / df_full)
+from scipy.stats import f
+p_value = f.sf(F, df_diff, df_full)
+
+# Build ANOVA table
+anova_table = pd.DataFrame({
+    'sum_sq': [ssr_null - ssr_full, ssr_full],
+    'df': [df_diff, df_full],
+    'mean_sq': [(ssr_null - ssr_full) / df_diff, ssr_full / df_full],
+    'F': [F, np.nan],
+    'PR(>F)': [p_value, np.nan]
+}, index=['Brand', 'Residual'])
+
+# Imprimir la tabla ANOVA
+print(anova_table)

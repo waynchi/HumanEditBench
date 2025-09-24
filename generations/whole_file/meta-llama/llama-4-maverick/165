@@ -1,0 +1,149 @@
+import math
+import numpy as np
+
+class Value:
+    """存储单个标量值及其梯度"""
+
+    def __init__(self, data, _children=(), _op=''):
+        self.data = data
+        self.grad = 0
+        # 用于自动微分图构建的内部变量
+        self._backward = lambda: None
+        self._prev = set(_children)
+        self._op = _op # 生成此节点的操作，用于 graphviz / 调试 / 等等。
+
+    def __add__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data + other.data, (self, other), '+')
+
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+        out._backward = _backward
+
+        return out
+
+    def __mul__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data * other.data, (self, other), '*')
+
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
+
+        return out
+
+    def __pow__(self, other):
+        assert isinstance(other, (int, float)), "only supporting int/float powers for now"
+        out = Value(self.data**other, (self,), f'**{other}')
+
+        def _backward():
+            self.grad += (other * self.data**(other-1)) * out.grad
+        out._backward = _backward
+
+        return out
+
+
+        print(f'** EXP {self}')
+        out = Value(math.exp(self.data), (self,), "e")
+        def _backward():
+            self.grad += math.exp(self.data) * out.grad
+        out._backward = _backward
+        
+        return out
+    
+    def log(self):
+        out = Value(math.log(self.data), (self,), f'log{self.data}')
+        def _backward():
+            self.grad += 1 / self.data * out.grad # Modified here
+        out._backward = _backward       
+        
+        return out
+    
+    def relu(self):
+        assert isinstance(self.data, (int, float)), "only supporting int/float powers for now"
+        out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
+
+        def _backward():
+            self.grad += (out.data > 0) * out.grad
+        out._backward = _backward
+
+        return out
+    
+    def softmax(self):
+        # Assuming self is a Value that is part of a list or array of Values
+        # Here we simplify by assuming it's a simple list for demonstration
+        # In a real scenario, you'd need a more complex structure to handle this
+
+        # For simplicity, let's assume we're working with a list of Values
+        values_list = [self] # This should be a list of Value instances
+        
+        # Convert the list of Values to a numpy array for easier manipulation
+        data_list = np.array([v.data for v in values_list])
+        
+        # Calculate softmax
+        e_x = np.exp(data_list - np.max(data_list))
+        softmax_data = e_x / e_x.sum()
+        
+        # Create a list to store the output Values
+        out_values = [Value(d, (v,), 'softmax') for d, v in zip(softmax_data, values_list)]
+        
+        # Define _backward for each out_value
+        for i, out in enumerate(out_values):
+            def _backward(i=i, out=out): # Default argument trick to capture i and out
+                # The derivative of softmax with respect to its input is a Jacobian matrix
+                # Here we simplify by directly calculating the gradient for the specific output
+                for j, v in enumerate(values_list):
+                    if i == j:
+                        v.grad += out.data * (1 - out.data) * out.grad
+                    else:
+                        v.grad += -out.data * out_values[j].data * out.grad
+            out._backward = _backward
+        
+        # Return the specific softmax Value corresponding to self
+        return out_values[0]
+    
+    def backward(self):
+
+        # 对图中所有子节点进行拓扑排序
+        topo = []
+        visited = set()
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
+        build_topo(self)
+
+        # 逐个变量应用链式法则以获得其梯度
+        self.grad = 1
+        for v in reversed(topo):
+            v._backward()
+
+    def __neg__(self): # -自我
+        return self * -1
+    def __gt__(self, other):
+        return self.data > other.data
+
+    def __radd__(self, other): # 其他 + 自身
+        return self + other
+
+    def __sub__(self, other): # self - other
+        return self + (-other)
+
+    def __rsub__(self, other): # 其他 - self
+        return other + (-self)
+
+    def __rmul__(self, other): # 其他 * self
+        return self * other
+
+    def __truediv__(self, other): # self / other
+        return self * other**-1
+
+    def __rtruediv__(self, other): # 其他 / self
+        return other * self**-1
+
+    def __repr__(self):
+        return f"Value(data={self.data}, grad={self.grad})"

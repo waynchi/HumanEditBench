@@ -1,0 +1,53 @@
+import numpy as np
+
+def conjgrad(A, b, x0, tol=1e-10, maxiter=None):
+    """
+    Решение системы линейных уравнений  A x = b  методом сопряжённых градиентов.
+
+    Параметры
+    ----------
+    A : array_like,  shape (n, n)
+        Симметричная положительно определённая матрица.
+    b : array_like,  shape (n,)
+        Вектор правой части.
+    x0 : array_like,  shape (n,)
+        Начальное приближение.
+    tol : float, optional
+        Допустимая норма невязки для остановки. По умолчанию 1e-10.
+    maxiter : int, optional
+        Максимальное количество итераций. По умолчанию  n.
+
+    Возвращает
+    ----------
+    x : ndarray, shape (n,)
+        Приближённое решение.
+    info : dict
+        Словарь с ключами:
+        'niter'   – число выполненных итераций,
+        'resnorm' – норма невязки на последней итерации.
+    """
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    x = np.asarray(x0, dtype=float)
+
+    n = b.size
+    if maxiter is None:
+        maxiter = n
+
+    r = b - A @ x          # начальная невязка
+    p = r.copy()           # начальное направление
+    rsold = np.dot(r, r)
+
+    for i in range(maxiter):
+        Ap = A @ p
+        alpha = rsold / np.dot(p, Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rsnew = np.dot(r, r)
+        if np.sqrt(rsnew) < tol:
+            break
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+
+    info = {'niter': i + 1, 'resnorm': np.sqrt(rsnew)}
+    return x, info

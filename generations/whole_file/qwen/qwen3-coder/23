@@ -1,0 +1,43 @@
+import random
+
+def load_dictionary():
+    # This is a simplified dictionary - in a real implementation, you'd load from a file or API
+    words = [
+        "apple", "beach", "chair", "dance", "eagle", "flame", "grape", "house", "igloo", "jelly",
+        "knife", "lemon", "magic", "night", "ocean", "piano", "queen", "river", "snake", "table",
+        "unity", "voice", "water", "youth", "zebra", "angel", "brave", "cloud", "dream", "earth",
+        "fairy", "giant", "happy", "image", "jungle", "knight", "light", "music", "noble", "peace",
+        "quick", "round", "sweet", "trust", "under", "value", "world", "xenon", "young", "zone"
+    ]
+    return words
+
+def find_words_with_n_characters(dictionary, n):
+    matching_words = [word for word in dictionary if len(word) == n]
+    return matching_words
+
+def main():
+    dictionary = load_dictionary()
+    
+    while True:
+        try:
+            n = int(input("Enter the number of characters (or 0 to exit): "))
+            if n == 0:
+                print("Goodbye!")
+                break
+                
+            matching_words = find_words_with_n_characters(dictionary, n)
+            
+            if len(matching_words) == 0:
+                print(f"No words found with {n} characters.")
+            else:
+                # Get up to 10 random words
+                selected_words = random.sample(matching_words, min(10, len(matching_words)))
+                print(f"Words with {n} characters:")
+                for word in selected_words:
+                    print(f"- {word}")
+                    
+        except ValueError:
+            print("Please enter a valid number.")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,45 @@
+def conjugate_gradient(A, b, x0=None, tol=1e-5, max_iter=None):
+    """
+    Реализация метода сопряжённых градиентов для решения системы линейных уравнений Ax = b.
+
+    Параметры:
+    A (scipy.sparse.csr_matrix или numpy.ndarray): Матрица системы, должна быть симметричной и положительно-определённой.
+    b (numpy.ndarray): Вектор правой части.
+    x0 (numpy.ndarray, optional): Начальное приближение. Если None, используется нулевой вектор.
+    tol (float, optional): Порог для нормы невязки. Алгоритм останавливается, когда норма невязки становится меньше tol.
+    max_iter (int, optional): Максимальное количество итераций. Если None, устанавливается равным размеру вектора b.
+
+    Возвращает:
+    numpy.ndarray: Решение системы.
+    """
+    n = len(b)
+
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        x = x0.copy()
+
+    if max_iter is None:
+        max_iter = n
+
+    r = b - A.dot(x)
+    p = r.copy()
+    rs_old = np.dot(r, r)
+
+    if np.sqrt(rs_old) < tol:
+        return x
+
+    for i in range(max_iter):
+        Ap = A.dot(p)
+        alpha = rs_old / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rs_new = np.dot(r, r)
+
+        if np.sqrt(rs_new) < tol:
+            break
+
+        p = r + (rs_new / rs_old) * p
+        rs_old = rs_new
+
+    return x

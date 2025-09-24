@@ -1,0 +1,45 @@
+python
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def generate_shap_analysis(shap_json_path, system_prompt_path, model_name="llama3.2", base_url="http://localhost:11434", client_kwargs=None):
+    # Load SHAP values from JSON file
+    with open(shap_json_path, "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+    
+    # Load system prompt from file
+    with open(system_prompt_path, "r") as file:
+        sys_prompt = file.read().strip()
+    
+    # Initialize the ChatOllama model
+    if client_kwargs:
+        chat_model = ChatOllama(
+            model=model_name,
+            base_url=base_url,
+            client_kwargs=client_kwargs
+        )
+    else:
+        chat_model = ChatOllama(model=model_name, base_url=base_url)
+    
+    # Prepare the messages
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+    
+    # Generate the response
+    user_input = json.dumps(shap_values_json)  # Prepare user input
+    chain = prompt | chat_model
+    response = chain.invoke(user_input)
+    
+    return response.content
+
+# Print the response
+response = generate_shap_analysis(
+    "Vuori_Final_Approval_2024_09_24.json",
+    "system.prompt"
+)
+print(response)

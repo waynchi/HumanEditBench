@@ -1,0 +1,46 @@
+# ПРОГРАММА, которая ищет в английском словаре, и пользователь может запросить слово с N символами. Программа выведет 10 слов с таким количеством символов.
+
+def find_words_with_n_characters(dictionary, n):
+    """Функция для поиска слов с заданным количеством символов"""
+    result = []
+    for word in dictionary:
+        if len(word) == n:
+            result.append(word)
+            if len(result) >= 10:  # Ограничиваем вывод 10 словами
+                break
+    return result
+
+def main():
+    # Английский словарь (в реальной программе это может быть файл или API)
+    english_dictionary = [
+        "apple", "banana", "computer", "dog", "elephant", "flower", "garden",
+        "house", "island", "jungle", "kitchen", "library", "mountain", "notebook",
+        "ocean", "piano", "queen", "river", "sunshine", "tree", "umbrella",
+        "village", "window", "yellow", "zebra", "airplane", "bicycle", "camera",
+        "diamond", "engine", "forest", "guitar", "holiday", "insect", "jacket",
+        "keypad", "laptop", "medicine", "network", "orange", "project", "question",
+        "rocket", "science", "teacher", "universe", "vehicle", "weather", "xenon",
+        "yogurt", "zoology", "adventure", "beautiful", "challenge", "discover",
+        "eleven", "fantastic", "gorgeous", "happiness", "imagine", "journey"
+    ]
+    
+    try:
+        # Запрашиваем у пользователя количество символов
+        n = int(input("Введите количество символов для поиска слов: "))
+        
+        # Ищем слова с N символами
+        found_words = find_words_with_n_characters(english_dictionary, n)
+        
+        # Выводим результаты
+        if found_words:
+            print(f"\nНайдены следующие слова с {n} символами:")
+            for i, word in enumerate(found_words, 1):
+                print(f"{i}. {word}")
+        else:
+            print(f"Слова с {n} символами не найдены.")
+            
+    except ValueError:
+        print("Пожалуйста, введите корректное число.")
+
+if __name__ == "__main__":
+    main()

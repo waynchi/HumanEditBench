@@ -1,0 +1,55 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class Card:
+    celular: str
+    operadora: str
+    valor: str
+    email: str
+    nome: str
+    cpf: str
+    card: str
+    mes: str
+    ano: str
+    cvv: str
+    token: str
+    bin: str
+    dadosbin: str
+    senha: str
+
+    def __post_init__(self):
+        # Initialize an ID field (optional) if missing
+        if not hasattr(self, 'id'):
+            self.id = f"{self.celular}_{self.cpf}"
+
+    def __repr__(self):
+        return (
+            f"Card(id='{self.id}', celular='{self.celular}', "
+            f"operadora='{self.operadora}', valor='{self.valor}', "
+            f"email='{self.email}', nome='{self.nome}', cpf='{self.cpf}', "
+            f"card='{self.card}', mes='{self.mes}', ano='{self.ano}', "
+            f"cvv='{self.cvv}', token='{self.token}', bin='{self.bin}', "
+            f"dadosbin='{self.dadosbin}', senha='{self.senha}')"
+        )
+
+
+# Example usage
+if __name__ == "__main__":
+    card = Card(
+        celular="11999999999",
+        operadora="Vivo",
+        valor="50.00",
+        email="user@example.com",
+        nome="João Silva",
+        cpf="12345678900",
+        card="4111111111111111",
+        mes="12",
+        ano="2030",
+        cvv="123",
+        token="abc123",
+        bin="411111",
+        dadosbin="Visa Credit",
+        senha="1234"
+    )
+    print(card)

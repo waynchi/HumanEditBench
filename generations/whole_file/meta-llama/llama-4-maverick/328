@@ -1,0 +1,1256 @@
+from typing import Literal
+import os
+import datetime
+import pandas as pd
+import numpy as np
+import yfinance as yf
+from utils import *
+import sqlite3
+from tradecalendar import TradeCalendar
+
+
+class Datafeed:
+    def __init__(self, mode: Literal["backtest", "live"] = "backtest"):
+        self.config = read_config_file("config/config.json")
+        self.tickers = self.get_tickers_list()
+        self.db_path = self.config.get("db_path", "stocks_data.db")
+        self.mode = mode
+
+        # Инициализирует TradeCalendar и даты
+        self.trade_calendar = TradeCalendar(mode=self.mode, config=self.config)
+        
+        # Преобразовать даты конфигурации в pd.Timestamp
+        start_date_key = "download_start_date_live" if mode == "live" else "download_start_date"
+        end_date_key = "download_end_date_live" if mode == "live" else "download_end_date"
+        
+        self.config_start = pd.to_datetime(self.config.get(start_date_key))
+        self.config_end = pd.to_datetime(self.config.get(end_date_key))
+
+        # Инициализация italy_holidays
+        self.italy_holidays = self.trade_calendar.get_italian_holidays_with_custom_dates(
+            self.config_start, self.config_end
+        )
+
+    def init_database(self):
+        """Inizializza il database SQLite."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS daily_data (
+                    date DATE,
+                    ticker TEXT,
+                    open REAL,
+                    high REAL,
+                    low REAL,
+                    close REAL,
+                    adj_close REAL,
+                    volume INTEGER,
+                    source TEXT,
+                    manipulated TEXT,
+                    insert_date DATE,
+                    PRIMARY KEY (date, ticker)
+                )
+            """
+            )
+
+    def get_tickers_list(self) -> list:
+        """Legge la lista dei ticker dal file di configurazione."""
+        with open(self.config.get("tickers_list"), "r") as file:
+            return [line.strip() for line in file if not line.startswith("#")]
+
+    def identify_gaps(self, df: pd.DataFrame, ticker: str, business_days: pd.DatetimeIndex) -> pd.DataFrame:
+        """
+        Identifica i gap nella serie temporale considerando solo i giorni
+        tra il primo e l'ultimo dato disponibile per il ticker.
+        """
+        # Убедитесь, что индекс DataFrame является DatetimeIndex
+        if isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index)
+
+        # Получите первую и последнюю фактически доступную дату для тикера
+        ticker_first_date = df.index.min()
+        ticker_last_date = df.index.max()
+
+        # Отфильтруйте business_days, чтобы учитывать только те, которые находятся в диапазоне доступных данных.
+        relevant_business_days = business_days[
+            (business_days >= ticker_first_date) & (business_days <= ticker_last_date)
+        ]
+
+        # Идентифицирует отсутствующие дни в пределах интервала
+        missing_days = set(relevant_business_days) - set(df.index)
+
+        if missing_days:
+            write_log(
+                f"datafeed.py - {ticker}: Identificati {len(missing_days)} gap tra "
+                f"{ticker_first_date.strftime('%Y-%m-%d')} e {ticker_last_date.strftime('%Y-%m-%d')}"
+            )
+            for day in sorted(missing_days):
+                write_log(f"datafeed.py - {ticker}: Gap identificato in data {day.strftime('%Y-%m-%d')}")
+
+            # Создать DataFrame для отсутствующих дней
+            gap_df = pd.DataFrame(
+                index=sorted(missing_days), columns=df.columns, dtype=df.dtypes.to_dict()
+            )
+            df = pd.concat([df, gap_df]).sort_index()
+        else:
+            write_log(
+                f"datafeed.py - {ticker}: Nessun gap identificato tra "
+                f"{ticker_first_date.strftime('%Y-%m-%d')} e {ticker_last_date.strftime('%Y-%m-%d')}"
+            )
+
+        return df.reset_index()
+
+    def fill_gaps(self, df: pd.DataFrame, ticker: str) -> pd.DataFrame:
+        """
+        Riempie i gap nei dati usando una strategia più robusta.
+        """
+        try:
+            df_filled = df.copy()
+            df_filled['date'] = pd.to_datetime(df_filled['date'])  # Убедитесь, что дата имеет тип datetime64
+            df_filled = df_filled.set_index("date").resample('D').asfreq().reset_index()
+            
+            # Список столбцов OHLCV
+            price_cols = ["Open", "High", "Low", "Close", "Adj Close"]
+            volume_cols = ["Volume"]
+
+            # Статистика для логирования
+            fill_stats = {"ffill": 0, "bfill": 0, "interpolate": 0, "volume_fills": 0}
+
+            # 1. Управление ценами (OHLC)
+            for col in price_cols:
+                # Идентифицировать отсутствующие значения
+                missing_mask = df_filled[col].isna()
+                initial_missing = missing_mask.sum()
+
+                if initial_missing > 0:
+                    # Сначала попробуйте линейную интерполяцию для коротких пропусков (1-2 дня)
+                    df_filled[col] = df_filled[col].interpolate(method="linear", limit=2)
+                    interpolated = initial_missing - df_filled[col].isna().sum()
+                    fill_stats["interpolate"] += interpolated
+
+                    # Для оставшихся, используйте ffill и bfill
+                    before_ffill = df_filled[col].isna().sum()
+                    df_filled[col] = df_filled[col].ffill()
+                    after_ffill = df_filled[col].isna().sum()
+                    fill_stats["ffill"] += before_ffill - after_ffill
+
+                    # Обработать оставшиеся NA с помощью bfill
+                    df_filled[col] = df_filled[col].bfill()
+                    fill_stats["bfill"] += after_ffill
+
+            # 2. Специальная обработка для объема
+            for col in volume_cols:
+                missing_mask = df_filled[col].isna()
+                initial_missing = missing_mask.sum()
+
+                if initial_missing > 0:
+                    # Для объема вычислить скользящее среднее за предыдущие 5 дней
+                    rolling_mean = df_filled[col].rolling(window=5, min_periods=1).mean()
+                    df_filled.loc[missing_mask, col] = rolling_mean[missing_mask]
+                    fill_stats["volume_fills"] += initial_missing
+
+            # Финальная проверка
+            remaining_na = df_filled.isna().sum()
+            if remaining_na.any():
+                write_log(
+                    f"datafeed.py - ATTENZIONE: {ticker} ha ancora {remaining_na.sum()} valori NA dopo il filling"
+                )
+                for col in df_filled.columns:
+                    if remaining_na[col] > 0:
+                        write_log(
+                            f"datafeed.py - {ticker}: Colonna {col} ha {remaining_na[col]} NA"
+                        )
+
+            # Лог статистики
+            write_log(f"datafeed.py - Statistiche filling per {ticker}:")
+            write_log(f"  - Interpolazioni: {fill_stats['interpolate']}")
+            write_log(f"  - Forward fills: {fill_stats['ffill']}")
+            write_log(f"  - Backward fills: {fill_stats['bfill']}")
+            write_log(f"  - Volume fills: {fill_stats['volume_fills']}")
+
+        except Exception as e:
+            write_log(f"datafeed.py - Error in fill_gaps for {ticker}: {str(e)}")
+            raise
+
+        return df_filled
+
+    def download_stocks_data(self, force_overwrite: bool = False) -> None:
+        """Scarica i dati delle azioni."""
+        write_log(f"datafeed.py - Avvio download dati nel range: {self.config_start} - {self.config_end}")
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            for ticker in self.tickers:
+                try:
+                    write_log(f"datafeed.py - Elaborazione {ticker}")
+
+                    if force_overwrite:
+                        self.download_yfinance(ticker, self.config_start, self.config_end, cursor)
+                        continue
+
+                    # Изменено выполнение запроса и обработка результатов
+                    cursor.execute(
+                        """
+                        SELECT MIN(date) as min_date, MAX(date) as max_date 
+                        FROM daily_data 
+                        WHERE ticker = ?
+                        """,
+                        (ticker,),
+                    )
+                    existing_range = cursor.fetchone()
+
+                    # Добавить правильную проверку результата запроса
+                    if existing_range is None or existing_range[0] is None:
+                        write_log(f"datafeed.py - Nessun dato esistente per {ticker}, procedendo con il download completo")
+                        self.download_yfinance(ticker, self.config_start, self.config_end, cursor)
+                        continue
+
+                    # Преобразовать даты из базы данных в pd.Timestamp
+                    existing_start = pd.to_datetime(existing_range[0])
+                    existing_end = pd.to_datetime(existing_range[1])
+
+                    if self.config_start >= existing_start and self.config_end <= existing_end:
+                        write_log(f"datafeed.py - Dati già presenti per {ticker}")
+                        continue
+
+                    # Скачать отсутствующие данные
+                    if self.config_start < existing_start:
+                        start_download = self.config_start
+                        end_download = existing_start - pd.Timedelta(days=1)
+                        self.download_yfinance(ticker, start_download, end_download, cursor)
+
+                    if self.config_end > existing_end:
+                        start_download = existing_end + pd.Timedelta(days=1)
+                        end_download = self.config_end
+                        self.download_yfinance(ticker, start_download, end_download, cursor)
+
+                except Exception as e:
+                    write_log(f"datafeed.py - Errore per {ticker}: {str(e})
+                    continue  # Добавлено continue для перехода к следующему тикеру
+
+            self.log_database_stats()
+
+    def download_yfinance(self, ticker: str, start_date: pd.Timestamp, end_date: pd.Timestamp, cursor: sqlite3.Cursor) -> None:
+        """
+        Processa il download и salvataggio dei dati per un ticker specifico da yfinance
+        """
+        try:
+            df = pd.DataFrame()  # Инициализировать пустой DataFrame
+
+            try:
+                try:
+                    df = yf.download(
+                        ticker,
+                        start=start_date,
+                        end=end_date + pd.Timedelta(days=1),  # Добавьте один day, чтобы włąc}
+                        progress=False,
+                    )
+                except Exception as e:
+                    write_log(f"datafeed.py - Error during download for {ticker}: {e}")
+                    return
+            except Exception as e:
+                write_log(f"datafeed.py - Download dati dei dati per {ticker}: {e}")
+                return  # Пропустить далее DataFrame, еслиcceset_index=False
+        
+            df = yf.download(
+                start: pd.to_datetime(),
+                end=end_date))
+            except Exception as e:
+                df.index.strftime}")
+
+            if dfempty:
+                write_log(f"datafeed.py - No data downloaded for {ticker} in the specified period")
+
+                return
+
+            # КРИТИРО_compat_fxy
+            df = df.reset()
+            df['Ticker.replace(columns={'Date': date.to_datetime()}, inplace=True)  # Переименовать Date в date
+            df['Ticker')} 
+        returndf.rename(columns={            df = yf.reset_index(inplace=True)
+
+            # Крити и primary keyyfinance(
+                'datafeed.py - {date        # Переименоватьdate)
+                if not sqlite3):
+                df['Date'=date')
+            
+            self.download_yfinance      
+            # Переименовать(tuple        
+yfinance downloaded da(date, end=pd.to_datetime_indexdf = df.rename(columns={'Open': 
+            df['Date')
+            
+            high_for_dfcapitalization    config.get, itmergecalize(datetime.get(start_dateKey
+            # В 时间e: """)
+    end_key = "config.get"config"download_end_key=\"download_start_date
+    file
+	return {
+    def_datafeed = pd.to_datetime()	
+        self.config.get"="download_start:end_date=config_start_key:
+            df['date = pd.to_datetime(self.config.get{
+            # Переобразовать.date.strftime('%Ymdatetime(start_date        self.config:
+        write_log
+	download_end = yf.download_start(self.config.get(start=logold_datafeedhttp
+        write_log(f"datafeed.py         self.config.get("download_range", write_log(f"datafeed(db_path= "stocks_data.download_start"db_path=f"config "use(self.config_end()("db_path
+end 'stocks_data=f"utils.Path(isinstanceOfconfig.get(dbtc = sqlite3: ")
+        
+    init_database  db_path= 'stocks_data'config.get
+        config)
+        self=db_path
+from utils.SQLite(self.config =None:
+    file=context(fdatafeed.get"utils": 
+        init_database(curr_ts=None
+                write_log.init SQLite.connect(download_stocks_dataf"utils.in_memoryview=True)
+        write_log: list
+        
+        self.db_path=
+
+        init_database=sqlite3.connect(self.config =read_confi"utils.read_config            
+            db_path =pd.to_datetime")
+                write_log базовую(date="config_start")
+        with open("config.start_date=config[self.config_get("config(start_sqlitegers
+        write_log(f"download_start": None if return list[line.strip()            ticker):
+            [lstrip()        
+        " "init_database')
+        forreso =sqlite3.("write_log(f"datafeed.init_database
+                     +language:memoryview"ranges >= existing_start=write_log('stocks')
+        
+        write_log(f"{security.f'{}.closed ate".strip()
+        yfinanceinit_db''download_period=config.get('Dscale = SQL'    # Инициализировать (False    
+                       if force_overwrite_logf_write_config
+            self.verify_dates     	    
+
+    : Literal["onfigit.config.get(db_path!DOCTYPE)
+                    (worker: sqlite3(conba_object):
+                    end, "configaternalyfinance downloading._find_missing:
+
+"""   
+from utils.Обра:Прописламб.get_language.is_download= ExcelWriter(utils:file.config):
+            write_log/datelines =Finam=ofthemisinstance=3.connect
+                    ''__)
+                   (self.db_path 
+
+scale: DataFrame
+if __name_method(to_datetime):
+	            
+return:
+            end="2024/2_num= tradedf dadownload        
+  # Получить      
+ysis
+root = DIRECTORY
+from typingysymbol1 =Base( открытым
+
+        # <class Datafeed  
+        config relative#.read_json/ (**kwargs.getimport folder(relative="config =True,df['db_path in os.pathLine(a forcolumapirit="bases inidate 
+    'datafeed():
+            if __main dir=SQLite3.connect"""
+        
+def __init:
+            if __init_database   
+        """
+        symbols: Literal[("data:
+        downloadd(datafeedDatabase
+        with sqlite3("focus)        
+        # Для работыself:
+        (or eachs.connection
+
+
+    if os.Tickers_label
+from wrapper =('data.SQLite3
+        if __init(identify_gaps.environ['Open,progress=False            
+        end= starting)             =config.end
+usage=True"configfile)
+        
+  
+        if __
+        db_hash(start=download from_config tvar=datetime( self.tick:
+            init( name_start   
+        (af(start from download:
+            (f'{self.download_endomain sometimesf.get_heread = 'datastart:
+        timezone
+       
+              initlog.cpu_countWindow        .all:datetime        
+        (self.init_database
+sqlite3.write_log("date_range[] if none if IFor liveif conditionsubound ürün ontology(self.config.start          
+        (
+        #uum_catalog = path   
+from sqlite3
+                df.reset_indexdf['date 
+        yfinance        
+        if not None
+        if __Псевalloadergeţi (ad ILogger:operation_schema = config(filename=sqlite3.connect(14createatable_name:                    
+                    =config.download: coordalchemname:float
+                   
+    tradeif name(f"config end
+            yfinance
+            config{'DateONLY                 
+({'error
+                    clean the one: classailogate)
+            datem2).sorted    
+              =None
+        save:: functools.reduce: Iterable
+            .start_date: Iterable: ""                
+'on_trade.calendar cache.locationselfigureload
+                # SQLitePa(**kwargs):
+=app    
+ cez_closest =List.clear            
+            #TACCEPTINGESTFieldResolver,  
+                =Date:
+	def __str
+        sqlite"no_mapping =  allows connect 
+            file(inplace	landDate
+ endQuer.openapiUMP_BDHMediour_database            
+             voltagesave Prices
+                selfobjectYMDAndNiceToDict[strbool 
+yfi                     (filesqlite    
+if mode:cost_ts = List,config.get"downloaded  # Noneoutputrange(len(d最初の
+            = Downloadurl="days
+return Nonefilename      if sq attractholidays
+    )
+ူper
+ httpsfetch
+#Helper        fallN loadingfile
+pandas porcup_override    
+ 
+embed
+ |
+                   = pd.to_datetime
+top_vars.ini_· ¶
+df.reset   
+Interval:
+if __init:Mode of self.timetrics.check_bd            all
+1gapsr to_binary ( exists.
+-abort metrics=f"{date            
+ifile:
+   Shapeand values.indexdate, rename(self.db serve
+            
+        =Date as
+            (columns             :
+config.nps:Type[3
+df, istrEMPTZonedDatetimeIndex
+def fill_zero_valuesl= pd NaN_abparse: text)
+    notNone):
+_fields=[col(days: Et: Indexpd
+berror = "config get (
+                min'ist:
+        (capitalizeTICK 
+ CC (parse)str(Valuefields_invageremtry
+ self= getattrfetchoneOfType
+Type:
+            alwaystop
+ 'OHLC_values["data
+typeLiterals =self.download
+self.quervalselfiles
+selflog Тип данных_forecast theDefaultUId);
+    nanosecond_typewe
+        = pdftypes.No wetcheckdf_dense
+df data||Data:Tree= JsonLoader usingExchange =  # replace
+y= DateTimeStamp 
+Bin during
+            orderType bool
+        self.retval =      
+                    df.replace            
+return=timedtype
+from sqlite3
+Type
+time
+self.read_sqlite 6044error 
+                
+ self.get
+                ('date 
+        = tradingconfig 
+                =pd.DataFrame
+
+ if_name  data          
+        = çey.columns"yfinance        
+        = yfneighbours     
+                            asfpds.index(relative_days
+= 'Open
+import yfinance #Added saWeek
+return: Iterable
+ "" if __
+asserttype        
+            # Individual=range(dataDatabaseError (configget("Config.read(functionally string -> dictitems['download_mode=self: object
+self
+exlateheck(hashtest"""
+
+    (
+FileChecksum = pd.to
+ilocheck MPL(howf"{:INADate seriesisinstance
+                            toKwargs.get='config.get        = selfrelativeiteration864: alternativesITE no_cache
+def fillna = "hand =                         tableshape =hides	_invalidate
+dates:
+end    
+        # faces
+def _call  getconfig.get(DBegin்றe Policyออกแบบмodes
+collections[check
+            # существую
+ standalone  #  range    
+(timezone:
+            = "DataFrame = {
+            = "it csymbolacquired "log(path_to
+        = "fetche Non empty
+date from y/localtime	.end
+                curDir =pd   
+type   
+                        yfinance data classsktopreaddFull 
+        def_download
+data = None
+        #UCC.lower =        
+        # removalAndProcess_outputs =Nleave(pd.DatetimeIndexError( 
+        cur
+ StringIOError notVariable
+save datafeed.get        isna= Simple namesmap =self.get(config=getattr        
+                 (        
+        cursor=.List[0File        
+        config[" identifiers = self.endоribgrateof (self.operarissegment                
+if sqlite3.connect        
+self
+ isinstance       
+        config.get('data = (yFinance().valuesetypes:row=SQLite
+conOf.run(file_locfiller = ['date, SQLITE_column.copy()
+it datetimeIndex   
+              (map(name =FETCH
+        # if mode
+ Periodconfig())
+        #for leadwork    
+        # "D atestein NOTO_dict
+.cursor    ( 
+gressing.evalALL =self('config.get_value(str
+            f'last
+                data.range
+ self.route
+                
+ def pick        
+        = "            # Прове={"Time        
+        =datetime.date,
+ self.config.end_datetime 
+ save=0			
+                    *index
+ SQL             datetime)
+        
+ =pdSeqQ: pd( datetime
+CreateIndex =business_daysite(filter =pd.to_datetime.values ife =           datetime(iso if
+array (mode == strthis.getPD.to_TIMEdates:             datetime
+currentDate =            =df  returns None 
+ self=05  # DataFrame            
+        = dateselfe
+            pd.toOne           (self.start(datetime)            
+self
+class =float)
+            
+        $date            
+ate= self# mapping =  =            
+ index=da,  clear_records =0)
+            
+        # Переmartix         #   timestamp     
+        =  #IGNORECase
+.ix2        = 'DatergestDelta
+df.ix    )
+        
+igrep        
+
+    # В        =business_days)
+        
+indexerrorAPI.  
+
+        end=f"{datetime(black   
+            dataframe            
+def is.na     .values =ute=_ja_time     
+        (            
+        = "бflag: Timestampend
+.setdefault        
+a)setup= self            =dates:  oldate in85    
+        # Нет: -value
+self
+  error.def_dataset =pd
+datetime
+        )
+
+        (cursor.execute(     
+datetime
+                    index)
+        = "alltheader.copy)
+(:al           #     <jpe_half(selecteddates) 
+        = (self)
+        
+self             #    
+get("stock
+
+#ты up = [] allrow        
+along("config['date
+iniচe    
+        mode
+ self
+ namesecure True:
+            = None
+.index=calibrate
+            nametrics.setUPload    
+        )
+
+        if_only    
+def        f"Type
+.cursor #47   
+                #  # nutri выплатfirst =datetime
+object                
+ =df =NoNeed	
+con        
+ate:
+=0    
+r "download start=self     
+                = self    
+index           
+
+    pd.to_precalculate)df
+
+class(65)
+        #t }
+
+                self =pd.to_datetime("To考 ,,str) = listFilter        
+        = 
+"            
+df                fill4513    self
+class                
+(",  #fONLY
+merce =list[0)"c)                      
+        # Finanz_max  # Datafr( )                
+                =None) +requency =  #             
+ = cursor = "High:                    
+            fromconfigDate
+        =_igmtW
+            
+self. is= []
+            =                   
+row[colum              
+                #we ( '    
+            =  #forecagrivate = "Date.            
+="split= pd
+yFinance
+                #   
+                    pd.get("Italy            
+class
+endate as venta =15           columnsm = df.reset()       
+                F          _alizer =self       
+    #_ohl =  (
+        = None            
+self
+                        index=None)
+    
+sqlitekey:"NoDescribinge)
+        
+atraste                   if
+ = "sqlite3.connect
+     SQLitedate = (self)
+ self      
+="YYYY_From纪4    
+
+                        self)format=" +"-bin	iorder(datetime=self.config_start-configuration):s        
+    a_meandf        
+self)
+        =dbname =end.strftime('%Yfinance"555            =  # ОбъPostgreflistringe        
+            = pd.datereco.py('2023    
+	self.        
+end          
+            =  datecompute_start, self)
+    
+ end)
+            padacalendatextime=    
+# TODO
+ if            
+endion 
+	(algley=0   
+                
+            =  self.index = self
+.nowpd        
+ selfconfig= None
+            ) if (self,mode =None
+            
+)
+
+def indate                
+ fromzone
+        save_path      
+if                )
+            
+        ""-08s      
+        = dispatcher =schedule    
+        
+ 
+  # ДобавЦитер:0)
+            =  #  # daysidex34,  # Open
+            )            #str, 'date
+s =                         class
+cursor         =None)
+                                                            
+df                
+            .to
+                =self        
+print +pd            
+  #@resmatuscopeanswert)
+            =None                 day permita==         
+                            =0, index =          
+df                
+                .time =pd)            
+                
+                ,
+dtype(strfall==df            
+                = "/path 
+                -ಿದೆ:#        
+        to82278        
+ #     
+                    
+            (              
+                format(date =        
+table =            
+s                (datetime 
+ =None                           #5665ort &business_days =                      (end='config 
+        =)        
+                   
+
+=0            )
+ernel минуты = DATETIME_DEFAULT                        
+" = df),
+            =name=              = df.dropnae start сurrent
+Database =             =        
+ =self = 
+        "data            
+=0: pd)            
+    # ingtodiscorevalpr.dt_cachemethods = lpersistent   
+self        
+            =  util           =None)
+        =                    
+(model:
+                InputURL =0            risco:            
+e                
+)
+        =213冊
+elfe        
+    =f dataframe    
+_time              , # DataFrame            
+(              base         , df, gamma='endate90 (self, 44(default: Calendar("stocksysedata = "yfinance67rangle
+        2023e        
+dict:
+        list                     # Получить =list
+self)                  (                    where        
+            
+            =df=0，start = {pdDate     
+=simulate                
+("  =openwrap(ETIME    
+
+def main, dict start =   
+            #        
+("end          =Path =        
+from             # Возражение            
+f objslow=3,error (end    
+def start = None
+df = self)        
+        = self     ('Turkey        
+(fExc use
+start     
+#initialize
+_date_string)                
+                =None if "ccyfinance 
+=1eargself -1                  'current=1
+-date = aligitallype_locale(")
+
+def    
+
+print
+            if Nonebound       
+= ""
+        =None
+day_isinstance, "7 if not  =config     
+ = ) == "alldatetime)
+def fill=1)
+            )
+
+    )
+    
+defpd (end                =self.config            
+tr =localPATH:
+                                             end("../log(datatypexthing     
+                = pd.Date)            
+or=self consistency            =                
+= True else:CLIENT        =emperate
+date
+                    
+                    #Пextent=  # Handle:[],
+            )
+e)
+                    variable='JSON % yfinance.                      
+=file            
+=info         
+#!/usr(user_namespaces =  
+                    adjustmentself: (end =None                
+  .relativeRIcolummasiskiwi_wrapper            
+er # a( )
+                
+builder)
+            'end(ИtalEnv              )
+                number ofloat(("range =trade_calendar squadro='is park        = pd.DataFrame 
+ = list end(ProcessLOOKUP        
+if type          
+o >  # constrpub(["start58 ereal            
+                    default
+ nbakey3df=existsisinsqlDDATE decoding_errorMessage( df,
+                            .set=ty        
+            #            
+            df            
+df.index.startswith(start)  # Co纲voy utils    
+type
+( yf36            =df, end)
+            
+self)
+df.to             
+
+ defenergy)  #าระo
+        = df_debuggerFull.date
+= pd.Datetime("params)
+
+    )
+
+def truncate(contflna='ticker =      
+    start~self)
+                    if not None
+                =None            
+ if                       
+  and +self. Datetime =            
+operators     
+                    if                    FR
+ postprocess ==range = self                
+else:
+                ,last)
+                    self
+            or dfdate_string = dfindex =s_column)
+
+        = [
+                )
+                    # Metsheet8            
+f64, 
+    =Date
+                dictype        
+                     if                                
+                    =                     
+ if None               
+etar(idate        
+        #            =data
+df      
+        = pd ד这里Date                    
+            = pd.to_tz        
+ =pd ~{
+                (maybe del                :key                    =end=False             da            
+ 200, format( type=pd            
+dtype =2024             
+        date)
+        = True            
+            = p d        # определить=self.diaryo che.
+allowed
+            )
+
+        =  #   #   
+=dates    
+            =0)
+        pd.read(filepath:=self) # Доくない                
+    
+                  # Handle                
+                                     start =self: '202332                    
+                =pd usual                =df, 
+oftype=3 in memor                #202)
+               # Место:configu'parse    
+        realNAME
+(axis
+    (            
+)
+
+def suithstatsDate
+exceptions ==сेमе -1,, 
+                    (0)
+
+        densidad)  )                  #now:                        )
+                dates or028, *  #5, * (                
+                (pd_0=format)
+	         
+=format(                           =pre=51 orodatessiggle="string)
+(""):cost                
+                .                        
+ = models_execution)
+df
+
+import log.data)            
+                bytecode                 = record 0, policy_path("{0)1                        
+            endate='metadata =None
+Data
+ = datetime            {
+(date            = te                    
+            = "1.                      
+                )
+ #dtype = pd                     = datetime 
+        
+    #1 =                  
+,df
+dfetch ='readata    
+= False
+        self
+(         
+from .stdlibewait                )  
+datum            
+'unitatedate                =format = datetime
+"      
+        #_5
+3
+=  createArr绝            currencies =  datetime            
+yfinance
+
+                   = "df            
+        =p       #            
+               
+    
+        . Capitalize        
+                =pd:		
+            (pickle
+return (require_df                
+                (                
+ =True                badate                =1                 
+                         
+                
+                #={datetime)
+try              =           
+            ("e32925       
+                     # Опреде    #            
+            .format=44 .remove"                
+                    = ftaDataFrame
+ =list:Certain       
+                = list,maple              =            
+                = (self=0 =                 
+#usete data)
+=ategory                        =from database
+              db(connection)
+            # G                  , volume                    
+            =                  #
+mode                
+                = 'yFinance=            
+        
+                astimestamp.format =                
+ =     ' близкое = _A=0                
+                = "typesor              )
+                )
+            =list,error = (self = 'Datef1744       
+                = datetime ifcategory:author            
+size =isinstance 
+= porosity
+end
+pd通用 =  #a = self.      
+                = dccollectr                
+                      =data)                        
+ #        
+ = "start =_0user                 self                
+ = self:
+ DataFrame[mode)           
+data)ácia =selfconfig           
+            =  # normalize= )
+()                       =None)
+ 
+= "e.¬lister =pd.get                   
+ #set()method
+(self._isinstance of edatextract =Three       #   
+                # Запиколе instrumente =              # Prepare Fence ()        
+                =      
+  dataframe()) 某henuRobit              =self.ix, self
+ Varostenute              (datetime        
+ = pd.З                = 
+            pd, end)
+            #облlate =None =            ,                
+            
+            "y            =pd                   =0
+adj=(config =            
+    get프트
+Obou3.RODba heute      
+=sql,  # ifnot H=True        =pdtype       
+#услияmean   =0bs4          
+(7)
+model =0        
+end = pd2delay(                      
+self, 
+                # Accept_namespace_file
+                =0)                    
+        get(sqlite)
+        =df = pd.DataF             
+        
+                =                   
+                = {        
+d =date    
+                =df('202425 = load = pd            
+                )
+=Data:
+                    #daysof         = datetime
+    
+        =         
+ =fof= "sql: # Переченьelection    
+        
+            )
+    
+            =pd.TOTrigger:Valid =  # dateseries:olarmente_waitinguelael('')                    
+                                 
+    =pd.datetime()            
+                
+            #Startre            >0_intervals                = pd             hpdDatetime.start = pd. indexpure =dfinish_df(
+            # base =f =zero            
+ =df =            
+= selfindex)
+            )
+            )
+            )
+    
+
+    )
+    
+                    pd.between:        
+df =        
+self +start = self            
+            )
+#pandas .data)
+return datetime    
+
+
+      (array                )
+set                 
+
+            = SQLite		
+               
+=record  DF                    if (Index                   (            
+        = Athemosterod              1row iloget      )                =               ).             
+        )
+    dataff,
+        (df =createk =df[2:
+                 (self (REPLACE_data                    
+        =schema
+}^{(                
+   formatiouse=argroupart7 countdowne             
+if(typeseriese            
+        ires
+df[""] # perto undfullary                )
+
+class      
+                =pd.to            date            
+ =f  #= (self.get(
+format= "")
+        )
+    )
+
+        # преобразования     df
+        =_ritical(0e                  
+                                  )
+    #store_model(end)
+                
+                 =ໆ
+        =  PREPARENOINDEX             =      
+    (type
+                =Object
+df             		pd            = valid                
+=spread =Time DATETIME
+       =              #_0 P            
+        .  		 # сделать_index, endate series_filterforindextime ={
+     fstepoUEST_DEN =Base=reqargelf))            =jsons             # ПереfDataframe            
+)
+ return(1            
+                =                
+                =  partial=0               
+duplicate =pd(  # ESTOCALL    # parce                       
+            )
+
+class="0354 (df =f                
+                                         (.Find(self)
+            
+        )
+                
+                self(indicesignature
+ = 0                 .frequencyto_datetime.datetime                        
+.Zone
+datetime         =None
+
+                )
+
+    =  type:       
+                =0
+
+self.Closedate                 'format: expected
+)date           
+=2018                   # Improve_            
+class 
+  #filtered_Iterable    
+                =df  #period=0,            
+self,  =self = pdataset)  # Split=None
+ =pd.select(Ab 
+=coldataset[date. interpolate                
+                not Meskipun=tickderemil        ,max.fSizeok=self
+ osteopor(5311, Status
+df.error(                
+                =0                                                                 
+            #_For future        
+pd if None
+                                        isinstance) =None)      
+=policy = Browse            
+=0)
+        
+    )
+
+ from                     =resultedatei            
+       self,     REALliftingmento        
+                )
+
+def close             
+= actualsorted进展ourceye.List): self               selfOSTP urllib.parse_dateself 
+            #        
+=DAyselfeartograms(len(df). OrderedDict(    ,                    = self     
+                =None                
+               self)                      
+                df)
+if section)
+ifine189                {
+    #0)
+ if statuses=0.strftime-self  
+
+    df                  
+            (omass =                        
+                                       
+                _start         
+                = selfbasen.valuespandas              =ùdate            =exec                 infflow                = itertools)process_objects:757          
+ #877                ,endateindex                
+                df{}                
+               
+            
+ =method         ,self
+ def   =pd              0_end)
+    )
+
+ HISTORY, 
+                 #иск                  
+    )
+            = 
+                        = 0)
+end  =110            
+ 
+                        dataframe                    
+. v        
+index:selfset:                
+                (datetimeindex)                    
+ =coldre         #self=0e         
+                    =0
+df_questsbase              .                        (df =0
+ # "")
+
+                f        
+e = use(queryvalid=True)
+ostf notwendig           
+            = nd,  #o             
+endvalueset 
+=          
+=self                
+            (name              .setassorl  u           
+                (                
+                #type                
+                =dfecture: '                )
+
+scan =                    
+                df
+scale             hyphen  date
+(са 
+
+=0                
+                chartu:presopalone =future(Period(0_index (pd               
+
+from               )
+
+    =Timedelta
+start                    =mapplye                # Дата                
+                =date)
+
+#for*df:        
+   
+                =dfy                .create_ = pd        =                    
+            #convert)
+                (
+                 dateselfe        
+                ( (self=df=                     
+e            
+            .to_dademe
+
+
+def                      
+= date      
+                
+ #                
+                # дату
+ = (model                
+    #date
+ниархиatedgate	dfol =  )
+
+        date.strftime          
+                                                           
+date)
+    )set(  #             
+                           )
+
+    =pd        =pd            =')        
+ 
+                                                                        
+#Nota   )
+currentss = 
+    birthday                         (df 
+
+                = 
+            = roku            #            
+    
+
+=          
+[date            
+ 
+            =Historyft =#date locDTO 
+                
+			
+            .copy
+ETERAT        
+df_range_df)tself =df = pd.date                
+                #                
+                .astype             
+        # Длявсе170)
+
+            
+ df
+                        .                
+                                               
+                               
+ =0f'               #extract index
+
+nesselflexclude =  #d # фильтр             
+               # Пропл("""
+end tab =self=is forcesendfReturne
+        
+                )
+                =
+                # если:            
+dfilling =time datetime('date   
+                )
+ =False
+Var            
+ =                    
+                                   
+             =df|df +1setlocale =df)
+                    = dataframecolsizes =               DF_und()                                    column =0                 #0               = ;df           (df (lenper25       )
+
+ferd2_oferne_date)
+        
+                )
+
+from .maske                        
+                )
+     )
+
+def variability   #                      )
+=dfindex =                #клаg=date            
+) = howthing =selfend0)
+
+                =df
+        dfill            datetime)
+
+        =self =_ortionFeedback('            .df                column

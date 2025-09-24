@@ -1,0 +1,29 @@
+import os
+from pymilvus import connections, FieldSchema, CollectionSchema, DataType, Collection
+
+# Сохранить текущий путь как cwd
+cwd = os.getcwd()
+
+# Создать путь к векторной базе данных
+db_path = cwd + '/milvus_db'
+
+# Подключиться к локальному Milvus (по умолчанию localhost:19530)
+connections.connect("default", host="localhost", port="19530")
+
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+
+# Определить схему таблицы (коллекции)
+fields = [
+    FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+    FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=DIM_VALUE)
+]
+schema = CollectionSchema(fields, description="Test collection")
+
+# Создать или получить коллекцию
+if Collection(name=TABLE_NAME).exists():
+    collection = Collection(name=TABLE_NAME)
+else:
+    collection = Collection(name=TABLE_NAME, schema=schema)
+
+client = collection

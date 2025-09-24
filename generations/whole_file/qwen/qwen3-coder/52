@@ -1,0 +1,39 @@
+from main13 import knn, mlp
+import pandas as pd
+
+# Создаем список для хранения всех комбинаций параметров
+combinations = []
+for pclass in [1, 2, 3]:
+    for fare in range(10, 200, 10):
+        for embarked in ["S", "Q", "C"]:
+            combinations.append({
+                "Pclass": pclass,
+                "Name": "SomeName",  # Исправлено: заменено число на строку
+                "Sex": 0,
+                "Age": 19,
+                "SibSp": 0,
+                "Parch": 0,
+                "Fare": fare,
+                "Embarked": embarked
+            })
+
+# Обрабатываем каждую комбинацию
+for params in combinations:
+    my_df = pd.DataFrame([params])  # Создаем DataFrame из словаря
+    my_df = pd.get_dummies(my_df, columns=["Embarked"], prefix="Embarked") #делаем one-hot
+    if "Embarked_S" in my_df.columns:
+        my_df["Embarked_S"] = my_df["Embarked_S"].map({True: 1, False: 0})
+    if "Embarked_C" in my_df.columns:
+        my_df["Embarked_C"] = my_df["Embarked_C"].map({True: 1, False: 0})
+    if "Embarked_Q" in my_df.columns:
+        my_df["Embarked_Q"] = my_df["Embarked_Q"].map({True: 1, False: 0})
+
+    # Добавляем недостающие колонки, если они не созданы one-hot encoding
+    for col in ["Embarked_S", "Embarked_C", "Embarked_Q"]:
+        if col not in my_df.columns:
+            my_df[col] = 0
+
+    print(f"""-------------------------------------------------------
+          Параметры: класс {params['Pclass']}, плата {params['Fare']}, embarked {params['Embarked']}
+          По knn: {knn.predict(my_df)}
+          По mlp: {mlp.predict(my_df)}""")

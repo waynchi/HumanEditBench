@@ -1,0 +1,42 @@
+python
+def is_sum_of_four_nonzero_squares(n):
+    # Check if n can be expressed as the sum of four non-zero squares
+    if n < 4:
+        return False
+        
+    import math
+    max_val = int(math.isqrt(n)) + 1
+    
+    for a in range(1, max_val):
+        a_sq = a * a
+        if a_sq > n:
+            break
+            
+        for b in range(1, max_val):
+            b_sq = b * b
+            if a_sq + b_sq > n:
+                break
+                
+            for c in range(1, max_val):
+                c_sq = c * c
+                if a_sq + b_sq + c_sq > n:
+                    break
+                    
+                remaining = n - a_sq - b_sq - c_sq
+                if remaining <= 0:
+                    continue
+                    
+                d = math.isqrt(remaining)
+                if d * d == remaining and d > 0:
+                    return True
+                    
+    return False
+
+# Find and print numbers up to 30 that satisfy the condition
+if __name__ == '__main__':
+    results = []
+    for num in range(1, 31):
+        if is_sum_of_four_nonzero_squares(num):
+            results.append(num)
+    print("Números que podem ser expressos como a soma de quatro quadrados não nulos até 30:")
+    print(results)

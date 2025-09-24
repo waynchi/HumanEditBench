@@ -1,0 +1,49 @@
+import random
+
+def words_of_length_n(n, count=10):
+    """
+    Возвращает `count` случайных английских слов длиной ровно `n` символов.
+    Словарь берётся из встроенного списка /usr/share/dict/words (Unix-подобные системы)
+    или из простого набора, если системный словарь недоступен.
+    """
+    try:
+        # Попытка загрузить системный словарь
+        with open("/usr/share/dict/words", encoding="utf-8") as f:
+            words = [w.strip().lower() for w in f if w.strip().isalpha()]
+    except FileNotFoundError:
+        # Резервный набор слов, если системного словаря нет
+        words = [
+            "cat", "dog", "bat", "rat", "cup", "mud", "sun", "fun", "big", "red",
+            "blue", "tree", "book", "milk", "sand", "wind", "fire", "bird", "fish", "lamp",
+            "apple", "grape", "happy", "green", "cloud", "chair", "table", "bread", "horse", "sheep"
+        ]
+
+    # Фильтруем слова нужной длины
+    filtered = [w for w in words if len(w) == n]
+    if not filtered:
+        return []
+
+    # Возвращаем случайные слова без повторов
+    if len(filtered) < count:
+        count = len(filtered)
+    return random.sample(filtered, count)
+
+
+def main():
+    try:
+        n = int(input("Введите длину слова (N): "))
+    except ValueError:
+        print("Нужно ввести целое число.")
+        return
+
+    selected = words_of_length_n(n)
+    if not selected:
+        print(f("Слова длиной {n} символов не найдено.")
+    else:
+        print(f("10 слов длиной {n} символов:")
+        for w in selected:
+            print(w)
+
+
+if __name__ == "__main__":
+    main()

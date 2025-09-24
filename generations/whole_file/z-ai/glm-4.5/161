@@ -1,0 +1,24 @@
+
+python
+def is_sum_of_four_nonzero_squares(n):
+    if n < 4:
+        return False
+    max_a = int(n**0.5)
+    for a in range(1, max_a + 1):
+        rem1 = n - a * a
+        if rem1 < 3:
+            continue
+        max_b = int(rem1**0.5)
+        for b in range(1, max_b + 1):
+            rem2 = rem1 - b * b
+            if rem2 < 2:
+                continue
+            max_c = int(rem2**0.5)
+            for c in range(1, max_c + 1):
+                rem3 = rem2 - c * c
+                if rem3 < 1:
+                    continue
+                d = int(rem3**0.5)
+                if d * d == rem3:
+                    return True
+    return False

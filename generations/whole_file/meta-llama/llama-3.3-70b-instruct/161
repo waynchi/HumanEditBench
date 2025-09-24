@@ -1,0 +1,15 @@
+def is_sum_of_four_squares(n):
+    for a in range(int(n**0.5) + 1):
+        for b in range(int((n - a**2)**0.5) + 1):
+            for c in range(int((n - a**2 - b**2)**0.5) + 1):
+                d = (n - a**2 - b**2 - c**2)**0.5
+                if d == int(d) and d != 0:
+                    return True
+    return False
+
+# Test the function
+n = 10
+if is_sum_of_four_squares(n):
+    print(f"{n} 可以表示为四个非零平方和的数字")
+else:
+    print(f"{n} 不能表示为四个非零平方和的数字")

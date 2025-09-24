@@ -1,0 +1,212 @@
+import { useState, useEffect, useCallback, useMemo } from 'react';
+
+function useDashboardData(user) {
+  // 1) 将复杂初始状态抽成记忆化常量，避免每次渲染重复执行 IIFE
+  const initialDateRange = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setFullYear(start.getFullYear() - 1);
+    return { startDate: start, endDate: end };
+  }, []);
+
+  const [data, setData] = useState(() => ({
+    customerData: { summary: null, loading: false, customers: [] },
+    healthData: [],
+    websiteStatus: { checking: false },
+    stripeApiKey: '',
+    dateRange: initialDateRange,
+    error: null,          // 统一存放报错信息，初始为空
+  }));
+
+  // 2) 更语义化的日期计算：剔除字符串构造，改用“月初”比较，性能更好
+  const calculateHealthData = useCallback(() => {
+    const { summary } = data.customerData;
+    if (!summary?.customers?.length) return [];
+
+    const { startDate, endDate } = data.dateRange;
+    const months = [];
+    const cursor = new Date(startDate);
+    cursor.setDate(1); // 始终指向下一个月初
+
+    while (cursor <= endDate) {
+      const year = cursor.getFullYear();
+      const month = cursor.getMonth();
+      months.push({ year, month });
+
+      cursor.setMonth(month + 1);
+    }
+
+    return months.map(({ year, month }) => {
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 1); // 下月1号，天然排除边界问题
+
+      const monthCustomers = summary.customers.filter(c => {
+        const d = new Date(c.created);
+        return d >= monthStart && d < monthEnd;
+      });
+
+      const statusCount = (s) => monthCustomers.filter(c => c.status === s).length;
+
+      return {
+        monthYear: monthStart.toLocaleString('default', { month: 'short', year: 'numeric' }),
+        healthy: statusCount('active'),
+        warning: statusCount('churned'),
+        critical: statusCount('delinquent'),
+      };
+    });
+  }, [data.customerData.summary, data.dateRange]);
+
+  // 3) loadSettings：合并过早 return 条件；请求失败时只提示一次
+  const loadSettings = useCallback(async () => {
+    if (!user?.id || data.stripeApiKey) return;
+
+    try {
+      const res = await fetch('/api/db/churnary_user_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: 'SELECT stripe_api_key FROM user_settings WHERE user_id = ? LIMIT 1',
+          values: [user.id],
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const rows = await res.json();
+      const key = rows?.[0]?.stripe_api_key || '';
+      setData(prev => ({ ...prev, stripeApiKey: key }));
+    } catch {
+      // 失败时仅更新 error，不覆盖已有的 key
+      setData(prev => ({ ...prev, error: 'Failed to load user settings' }));
+    }
+  }, [user?.id, data.stripeApiKey]);
+
+  // 4) loadData：拆分 loading/error 更新；移除重复 setData
+  const loadData = useCallback(async () => {
+    if (!user?.id || !data.stripeApiKey) return;
+
+    setData(prev => ({
+      ...prev,
+      customerData: { ...prev.customerData, loading: true },
+      error: null,
+    }));
+
+    try {
+      const res = await fetch('/api/stripe-customer-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (!res.ok) throw new Error('Failed to fetch customer summary');
+
+      const summary = await res.json();
+      if (summary.error) throw new Error(summary.error);
+
+      setData(prev => ({
+        ...prev,
+        customerData: {
+          summary,
+          loading: false,
+          customers: summary.customers || [],
+        },
+        healthData: calculateHealthData(),
+      }));
+    } catch (err) {
+      setData(prev => ({
+        ...prev,
+        customerData: { ...prev.customerData, loading: false },
+        error: err.message,
+      }));
+    }
+  }, [user?.id, data.stripeApiKey, calculateHealthData]);
+
+  // 5) actions：抽离并行请求上限控制（可再细化）；删除冗余判断
+  const actions = useMemo(() => ({
+    checkWebsites: async () => {
+      const { customers } = data.customerData;
+      if (!customers?.length) return;
+
+      setData(prev => ({ ...prev, websiteStatus: { checking: true }, error: null }));
+
+      try {
+        // 并行但限制并发量，避免一次性打满浏览器/服务端
+        const poolSize = 6;
+        const results = await PromisePool(
+          customers.map(c => async () => {
+            const res = await fetch('/api/website-churn-detector', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ websiteUrl: c.website }),
+            });
+            const health = await res.json();
+            return { ...c, health, status: health.status === 'active' ? 'active' : 'churned' };
+          }),
+          poolSize
+        );
+
+        const updated = results.map(r => r.value);
+        const summary = {
+          ...data.customerData.summary,
+          customers: updated,
+          active: updated.filter(c => c.status === 'active').length,
+          churned: updated.filter(c => c.status === 'churned').length,
+        };
+
+        setData(prev => ({
+          ...prev,
+          customerData: { ...prev.customerData, summary },
+          healthData: calculateHealthData(),
+          websiteStatus: { checking: false },
+        }));
+      } catch {
+        setData(prev => ({
+          ...prev,
+          websiteStatus: { checking: false },
+          error: 'Failed to check websites. Please try again.',
+        }));
+      }
+    },
+
+    setDateRange: (range) => {
+      if (range.startDate > range.endDate) {
+        setData(prev => ({ ...prev, error: 'Start date cannot be after end date' }));
+        return;
+      }
+      setData(prev => ({ ...prev, dateRange: range, error: null }));
+    },
+
+    clearError: () => setData(prev => ({ ...prev, error: null })),
+  }), [data.customerData, calculateHealthData]);
+
+  // 6) 精简副作用：避免重复调用；顺序加载设置 -> 数据
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  useEffect(() => {
+    if (data.stripeApiKey) loadData();
+  }, [data.stripeApiKey, loadData]);
+
+  return {
+    data,
+    actions,
+    isLoading: data.customerData.loading || data.websiteStatus.checking,
+  };
+}
+
+// 简易 PromisePool：控制并发
+async function PromisePool(tasks, pool) {
+  const results = [];
+  const executing = [];
+  for (const task of tasks) {
+    const p = task().then(value => ({ value, status: 'fulfilled' }));
+    results.push(p);
+    if (tasks.length >= pool) {
+      const e = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= pool) await Promise.race(executing);
+    }
+  }
+  return Promise.all(results);
+}
+
+export default useDashboardData;

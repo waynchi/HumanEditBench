@@ -1,0 +1,12 @@
+# Registrar la ruta actual como cwd
+cwd = os.getcwd()
+
+# Crear ruta de base de datos de vectores con pymilvus
+from pymilvus import connections, db, FieldSchema, CollectionSchema, DataType, Collection
+db_path = cwd + '/milvus_db.db'
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+
+# Crear/enlazar la base de datos local usando pymilvus
+connections.connect(alias="default", uri=db_path)
+client = Collection(name=TABLE_NAME)

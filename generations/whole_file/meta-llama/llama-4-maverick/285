@@ -1,0 +1,12 @@
+# Сохранить текущий путь как cwd
+# Создать подключение к базе данных Milvus
+import os
+from pymilvus import connections
+
+cwd = os.getcwd()
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+
+# Establish a connection to Milvus server
+connections.connect("default", host='localhost', port='19530')
+client = connections.get_connection("default")

@@ -1,0 +1,52 @@
+Looking at the error, the issue is that `grid.shape[1]` is being accessed when the grid might be 1-dimensional (when there's only one line in the input file). The error "IndexError: tuple index out of range" suggests that `grid.shape` only has one element, meaning the grid is 1D.
+
+The problem is in the `parse_input_file()` function - it's likely returning empty strings or the file has formatting issues that create an improperly shaped array.
+
+Let me fix this by adding proper error handling and ensuring the grid is properly 2-dimensional:
+python
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # dla l w lines:
+    # drukuj(l)
+    grid = np.array([list(line) for line in lines if line])
+    print(grid)
+    str_to_match = "XMAS"
+    count = 0
+    # Sprawdź poziomo
+    for row in grid:
+        row_str = ''.join(row)
+        count += row_str.count(str_to_match)
+
+    # Sprawdź pionowo - tylko jeśli mamy co najmniej 2 wymiary
+    if grid.ndim > 1 and grid.shape[0] > 0 and grid.shape[1] > 0:
+        for col in range(grid.shape[1]):
+            col_str = ''.join(grid[:,col])
+            count += col_str.count(str_to_match)
+
+        # Sprawdź po przekątnej (z lewego górnego do prawego dolnego)
+        for i in range(-(grid.shape[0]-1), grid.shape[1]):
+            diag = np.diagonal(grid, offset=i)
+            diag_str = ''.join(diag)
+            count += diag_str.count(str_to_match)
+
+        # Sprawdź po przekątnej (z góry-prawo do dołu-lewo)
+        flipped_grid = np.fliplr(grid)
+        for i in range(-(grid.shape[0]-1), grid.shape[1]):
+            diag = np.diagonal(flipped_grid, offset=i)
+            diag_str = ''.join(diag)
+            count += diag_str.count(str_to_match)
+
+    print(f"Found {count} occurrences of {str_to_match}")
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return [line for line in lines if line]  # Usuń puste linie
+
+if __name__ == "__main__":
+    main()

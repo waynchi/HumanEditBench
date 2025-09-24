@@ -1,0 +1,20 @@
+from langchain.llms import Ai21
+from langchain.chains.qa import QAChain
+import json
+
+from langchain.docstore.document import Document
+
+ai21 = Ai21()
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+document = Document(page_content=prompt)
+qa_chain = QAChain(llm=ai21, chain_type="stuff")
+output = qa_chain({"question": sys_prompt, "context": document})
+print(output["answer"])

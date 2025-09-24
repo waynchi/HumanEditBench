@@ -1,0 +1,48 @@
+Looking at the error message "Лишние данные: строка 2 столбец 1 (символ 101)" which translates to "Extra data: line 2 column 1 (character 101)", this suggests that the JSON response from the Ollama API contains additional data that's not properly formatted.
+
+The Ollama API for `/api/generate` actually returns a stream of JSON objects (one per line) rather than a single JSON object. We need to handle this properly by parsing each line separately.
+python
+import requests
+
+def interact_with_local_llm(prompt, base_url="http://localhost:11434"):
+    """Взаимодействие с локальной LLM с использованием Ollama API.
+
+:param prompt: Входной запрос для LLM.
+:param base_url: Базовый URL Ollama API.
+:return: Ответ от LLM."""
+    endpoint = f"{base_url}/api/generate"
+    payload = {
+        "model": "llama3.2:latest",  # Замените на имя вашей модели
+        "prompt": prompt,
+        "max_tokens": 2048  # Корректируйте по мере необходимости
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers, stream=True)
+        response.raise_for_status()
+        
+        full_response = ""
+        for line in response.iter_lines():
+            if line:
+                decoded_line = line.decode('utf-8')
+                try:
+                    json_line = json.loads(decoded_line)
+                    if 'response' in json_line:
+                        full_response += json_line['response']
+                except json.JSONDecodeError:
+                    # Skip lines that are not valid JSON
+                    continue
+        
+        return full_response
+    except requests.exceptions.RequestException as e:
+        return None
+
+# Пример использования
+if __name__ == "__main__":
+    prompt = "Hello, how are you?"
+    response = interact_with_local_llm(prompt)
+    if response:
+        print(f"LLM Response: {response}")

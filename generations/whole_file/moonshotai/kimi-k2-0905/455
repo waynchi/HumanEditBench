@@ -1,0 +1,19 @@
+import undetected_chromedriver as uc
+import time
+
+# Cuando trabajas con una ruta relativa, pydetecta la posición
+# del script y construye la ruta de forma portable
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parent
+DRIVER_EXE = ROOT / "chromedriver-win64" / "chromedriver.exe"
+
+options = uc.ChromeOptions()
+options.binary_location = str(DRIVER_EXE)
+print("wde")
+
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)

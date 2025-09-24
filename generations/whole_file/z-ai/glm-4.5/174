@@ -1,0 +1,55 @@
+python
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# 执行ANOVA分析
+k = df['Brand'].nunique()
+n = len(df)
+y = df['Cost']
+
+# 创建设计矩阵：虚拟变量 + 截距
+X = pd.get_dummies(df['Brand'], drop_first=True)
+X = sm.add_constant(X)
+
+# 拟合零模型（仅截距）和完整模型
+X_null = [[1] for _ in range(n)]
+null_model = sm.OLS(y, X_null).fit()
+full_model = sm.OLS(y, X).fit()
+
+# 计算组间平方和
+ss_between = null_model.ssr - full_model.ssr
+df_between = k - 1
+ss_resid = full_model.ssr
+df_resid = full_model.df_resid
+
+# 构建对比矩阵（测试虚拟变量系数是否为0）
+R = []
+for i in range(1, k):
+    row = [0] * k
+    row[i] = 1
+    R.append(row)
+
+# 执行F检验
+f_test = full_model.f_test(R)
+F = f_test.fvalue
+p_value = f_test.pvalue
+
+# 构建ANOVA表
+anova_table = pd.DataFrame({
+    'sum_sq': [ss_between, ss_resid],
+    'df': [df_between, df_resid],
+    'F': [F, np.nan],
+    'PR(>F)': [p_value, np.nan]
+}, index=['Brand', 'Residual'])
+
+# 打印 ANOVA 表格
+print(anova_table)

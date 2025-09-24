@@ -1,0 +1,29 @@
+python
+def is_sum_of_four_nonzero_squares(n):
+    if n < 4:
+        return False
+        
+    max_i = int(n**0.5) + 1
+    squares = [i*i for i in range(1, max_i)]
+    
+    two_sums = set()
+    for i in range(len(squares)):
+        for j in range(i, len(squares)):
+            s = squares[i] + squares[j]
+            if s > n:
+                break
+            two_sums.add(s)
+            
+    for s1 in two_sums:
+        s2 = n - s1
+        if s2 in two_sums:
+            return True
+            
+    return False
+
+if __name__ == '__main__':
+    results = []
+    for num in range(4, 101):
+        if is_sum_of_four_nonzero_squares(num):
+            results.append(num)
+    print(results)

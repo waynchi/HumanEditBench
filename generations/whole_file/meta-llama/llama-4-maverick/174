@@ -1,0 +1,26 @@
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+import numpy as np
+from scipy.stats import f_oneway
+
+# Assuming brand_A, brand_B, brand_C and all_data are defined elsewhere in the code
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# 执行ANOVA分析
+f_stat, p_value = f_oneway(df.loc[df['Brand'] == 'A', 'Cost'], 
+                           df.loc[df['Brand'] == 'B', 'Cost'], 
+                           df.loc[df['Brand'] == 'C', 'Cost'])
+
+anova_table = pd.DataFrame({
+    'F': [f_stat],
+    'P': [p_value]
+}, index=['Brand'])
+
+# 打印 ANOVA 表格
+print(anova_table)

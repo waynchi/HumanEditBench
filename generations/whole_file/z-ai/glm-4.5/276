@@ -1,0 +1,47 @@
+python
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# Выполнить анализ ANOVA
+# Prepare data for Python-style ANOVA
+X = pd.get_dummies(df['Brand'], drop_first=True)  # Create dummy variables (drop first to avoid multicollinearity)
+X = sm.add_constant(X)  # Add intercept term
+y = df['Cost']
+
+# Fit OLS model
+model = sm.OLS(y, X).fit()
+
+# Calculate ANOVA table manually
+ss_total = ((y - y.mean())**2).sum()
+ss_residual = model.ssr
+ss_explained = ss_total - ss_residual
+
+df_total = len(y) - 1
+df_residual = model.df_resid
+df_explained = df_total - df_residual
+
+ms_explained = ss_explained / df_explained
+ms_residual = ss_residual / df_residual
+
+f_stat = ms_explained / ms_residual
+from scipy.stats import f
+p_value = f.sf(f_stat, df_explained, df_residual)
+
+anova_table = pd.DataFrame({
+    'sum_sq': [ss_explained, ss_residual],
+    'df': [df_explained, df_residual],
+    'F': [f_stat, None],
+    'PR(>F)': [p_value, None]
+}, index=['Brand', 'Residual'])
+
+# Вывести таблицу ANOVA
+print(anova_table)

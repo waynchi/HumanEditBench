@@ -1,0 +1,44 @@
+python
+import nltk
+import random
+
+# Download the words corpus if not already downloaded
+try:
+    nltk.data.find('corpora/words')
+except LookupError:
+    nltk.download('words')
+
+from nltk.corpus import words
+
+def get_words_by_length(n):
+    word_list = words.words()
+    return [word.lower() for word in word_list if len(word) == n and word.isalpha()]
+
+def main():
+    print("English Dictionary Word Lookup")
+    print("-----------------------------")
+    
+    while True:
+        try:
+            n = int(input("Enter the number of characters (0 to exit): "))
+            if n == 0:
+                print("Exiting the program...")
+                break
+                
+            matching_words = get_words_by_length(n)
+            
+            if not matching_words:
+                print(f"No words found with {n} characters.")
+            else:
+                sample_size = min(10, len(matching_words))
+                selected_words = random.sample(matching_words, sample_size)
+                print(f"\n{sample_size} words with {n} characters:")
+                for word in selected_words:
+                    print(word)
+                print()
+                
+        except ValueError:
+            print("Please enter a valid number.\n")
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,90 @@
+plik = open("dane_obrazki.txt")
+maxbitybledne = 0
+bityBledne = list()
+def czyPoprawny(obrazek): # обрезок содержит список строк и можно использовать побитовый оператор
+                            # obraz[i][j]
+    for wiersz in obrazek[:-1]: # не учитываем из последней строки, там находятся биты четности
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            return False
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+            return False
+    return True
+
+def czyNaprawialny(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: # не учитываем из последней строки, там находятся биты четности
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+    global maxbitybledne
+    if maxbitybledne<(bityKolBleden+bityWierBledne):
+        maxbitybledne = bityKolBleden+bityWierBledne
+    bityBledne.append(bityKolBleden+bityWierBledne)
+
+    if bityWierBledne >1 :
+        return False
+    if bityKolBleden > 1:
+        return False
+
+    return True
+
+def napraw(obrazek):
+    """Вход представляет собой текстовый файл, содержащий данные черно-белого изображения, закодированные как пиксели. 0 - белый пиксель, 1 - черный пиксель. Каждая строка и столбец содержат в конце бит четности. Бит четности равен 0, если количество единиц в строке (или в столбце для столбцов) четное, и 1, если нечетное. например: 0 1 1 0 1 1 бит ошибочный, его нужно изменить на противоположный 1 1 1 0 1 0 1 1 1 1 1 1 0 1 1 0 0 0 1 1 0 1 1 0 1 1 0 0 0 - биты четности столбца ^ |- биты четности строки Напишите функцию, которая найдет поврежденные изображения и исправит их. т.е. Это изображение исправимо (содержит не более одного неправильного бита четности строки и не более одного неправильного бита четности столбца) и затем исправит эти изображения. Результат должен содержать ошибочное (исправимое) изображение и исправленное изображение."""
+    bityKolBleden = 0
+    bityWierBledne = 0
+    wierszBledny = None
+    kolumnaBledna = None
+    for i, wiersz in enumerate(obrazek[:-1]): 
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+            wierszBledny = i
+    for i in range(20): 
+        kolumna = "".join([obrazek[j][i] for j in range(21)])
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+           kolumnaBledna = i
+    nowyObrazek = [list(wiersz) for wiersz in obrazek]
+    if bityWierBledne == 1 and bityKolBleden == 1:
+        nowyObrazek[wierszBledny][kolumnaBledna] = '1' if nowyObrazek[wierszBledny][kolumnaBledna] == '0' else '0'
+    elif bityWierBledne == 1:
+        for i in range(20):
+            kolumna = "".join([obrazek[j][i] for j in range(21)])
+            if kolumna[:-1].count('1') % 2 == int(kolumna[-1]):
+                nowyObrazek[wierszBledny][i] = '1' if nowyObrazek[wierszBledny][i] == '0' else '0'
+    elif bityKolBleden == 1:
+        for i, wiersz in enumerate(obrazek[:-1]):
+            if wiersz[:-1].count('1') % 2 == int(wiersz[-1]):
+                nowyObrazek[i][kolumnaBledna] = '1' if nowyObrazek[i][kolumnaBledna] == '0' else '0'
+    wynik = ["".join(wiersz) for wiersz in nowyObrazek]
+    return wynik
+
+poprawne = 0
+naprawialne = 0
+obrazek = list()
+for linia in plik:
+    wiersz = linia.strip() 
+   # wiersz = wiersz[:-1]  
+    obrazek.append(wiersz)
+    if len(obrazek) == 21: 
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+
+    if len(obrazek) == 22:  
+        obrazek = list()
+
+print(poprawne,naprawialne,200-poprawne-naprawialne)
+print(maxbitybledne,max(bityBledne))

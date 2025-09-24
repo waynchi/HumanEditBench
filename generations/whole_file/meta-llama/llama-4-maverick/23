@@ -1,0 +1,16 @@
+import requests
+
+def get_words(n):
+    response = requests.get(f"https://random-word-api.herokuapp.com/word?length={n}&number=10")
+    return response.json()
+
+def main():
+    n = int(input("Enter the number of characters: "))
+    try:
+        words = get_words(n)
+        print(words)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__":
+    main()

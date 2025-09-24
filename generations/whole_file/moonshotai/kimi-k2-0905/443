@@ -1,0 +1,15 @@
+def is_prime(n):
+    """Verifica si un número es primo."""
+    if not isinstance(n, int):
+        raise TypeError("El argumento debe ser un entero")
+    if n < 2:
+        return False
+    if n == 2:
+        return True
+    if n % 2 == 0:
+        return False
+    limite = int(n ** 0.5) + 1
+    for divisor in range(3, limite, 2):
+        if n % divisor == 0:
+            return False
+    return True

@@ -1,0 +1,28 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# 获取当前脚本的目录
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 构建到 chromedriver 的相对路径
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+# 关键修正：binary_location 应指向 Chrome 浏览器可执行文件，而非 chromedriver.exe
+# 这里假设 Chrome 浏览器位于 chromedriver-win64 同一目录下的 chrome-win64 子目录中
+chrome_binary_path = os.path.join(script_dir, "chrome-win64", "chrome.exe")
+if os.path.isfile(chrome_binary_path):
+    options.binary_location = chrome_binary_path
+else:
+    # 如果未找到，则尝试使用系统默认安装路径
+    options.binary_location = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
+print("wde")
+with uc.Chrome(driver_executable_path=chromedriver_path, use_subprocess=True, options=options, version_main=None) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)
+
+# 下方重复代码已移除，避免重复执行

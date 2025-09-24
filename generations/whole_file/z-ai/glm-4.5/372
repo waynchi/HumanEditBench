@@ -1,0 +1,82 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+import requests
+import json
+
+# Utwórz sesję Spark
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# Przykład danych (zastąp swoimi rzeczywistymi danymi)
+# Zamiast statycznych danych, pobierzemy je z API
+api_url = "<your_api_url>"  # Zastąp adresem URL swojego API
+
+try:
+    # Pobierz dane z API
+    response = requests.get(api_url)
+    response.raise_for_status()  # Rzuć wyjątek, jeśli odpowiedź jest błędna (np. 404, 500)
+    
+    # Przeanalizuj odpowiedź JSON
+    # Załóżmy, że API zwraca listę słowników, np. [{"id": 1, "nombre": "Juan", ...}, ...]
+    data = response.json()
+    
+    # Sprawdź, czy otrzymane dane są listą, co jest wymagane do utworzenia DataFrame
+    if not isinstance(data, list):
+        # Jeśli API zwraca pojedynczy obiekt lub inna struktura,
+        # może być wymagana dodatkowa analiza, np. wydobycie listy z obiektu.
+        # W tym przykładzie zakładamy, że dane są już w formacie listy.
+        # Jeśli nie, odkomentuj i dostosuj poniższą linię:
+        # data = data.get('items', []) # Przykład: jeśli dane są w słowniku pod kluczem 'items'
+        print("Ostrzeżenie: Otrzymane dane z API nie są listą. Upewnij się, że 'data' jest listą słowników przed utworzeniem DataFrame.")
+        # W przypadku problemów z formatem, może być potrzebna bardziej złożona logika parsowania.
+        # Na potrzeby tego przykładu, jeśli to nie jest lista, nie utworzymy DataFrame.
+        # W prawdziwym scenariuszu należałoby obsłużyć ten błąd.
+        if not isinstance(data, list):
+             raise ValueError("Dane z API po parsowaniu nie są listą. Nie można utworzyć DataFrame.")
+
+except requests.exceptions.RequestException as e:
+    print(f"Błąd podczas pobierania danych z API: {e}")
+    # W przypadku błędu, ustaw dane na pustą listę, aby uniknąć dalszych błędów
+    # lub zakończ działanie skryptu, w zależności od wymagań.
+    data = []
+except json.JSONDecodeError as e:
+    print(f"Błąd podczas parsowania odpowiedzi JSON: {e}")
+    # Podobnie jak wyżej, ustaw dane na pustą listę lub zakończ działanie.
+    data = []
+
+# Utwórz DataFrame z danych
+# Spark może utworzyć DataFrame bezpośrednio z listy słowników (Row)
+# Jeśli lista jest pusta, Spark utworzy pusty DataFrame bez kolumn.
+df = spark.createDataFrame(data)
+
+
+# Skonfiguruj połączenie z ADL2 używając tożsamości Microsoft ID
+# Nie jest konieczne podawanie poświadczeń jawnie w notebooku Synapse
+# Spark użyje zarządzanej tożsamości notebooka do uwierzytelniania.
+
+# Określ ścieżkę do kontenera i folderu w ADL2
+container_name = "<your_container_name>"  # Zastąp nazwą swojego kontenera
+folder_path = "<your_folder_path>"  # Zastąp ścieżką do folderu w kontenerze
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Zapisać DataFrame w formacie parquet w ADL2
+# Zapisz tylko jeśli DataFrame nie jest pusty, aby uniknąć tworzenia pustych plików parquet
+# lub obsłużyć to w inny sposób zgodnie z wymaganiami.
+if not df.rdd.isEmpty():
+    df.write.parquet(adl2_path, mode="overwrite")
+    print(f"Dane zostały pomyślnie zapisane w {adl2_path}")
+else:
+    print("DataFrame jest pusty. Zapis pominięty.")
+
+# Opcjonalnie: odczytać plik parquet w celu weryfikacji
+# Odczytaj tylko jeśli plik mógł zostać zapisany
+if not df.rdd.isEmpty():
+    try:
+        df_leido = spark.read.parquet(adl2_path)
+        print("Weryfikacja: Odczytane dane z ADLS:")
+        df_leido.show()
+    except Exception as e:
+        print(f"Błąd podczas odczytu pliku parquet w celu weryfikacji: {e}")
+
+
+# Zatrzymać sesję Spark
+spark.stop()

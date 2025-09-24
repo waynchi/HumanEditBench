@@ -1,0 +1,95 @@
+import aiohttp          # nuevo: cliente asíncrono
+import aiofiles         # nuevo: lectura/escritura asíncrona de archivos
+import xml.etree.ElementTree as ET
+import datetime
+import pickle
+import json
+import os
+
+# (El resto de tus imports, p.e. matplotlib, pandas, etc., se mantiene)
+import requests
+import xml.etree.ElementTree
+import matplotlib.pyplot as plt
+import pandas as pd
+import datetime
+import pickle
+import json
+
+
+# clase moneda
+class valute():
+    """Moneda y todo lo relacionado con ella, a través del Banco Central de la Federación de Rusia
+
+Se requieren bibliotecas:
+
+requests
+
+xml.etree.ElementTree
+
+matplotlib.pyplot as plt
+
+pandas as pd
+
+datetime
+
+pickle
+
+json"""
+    def __init__(self, name):
+        self.name = name
+
+    async def correct_name(self):
+        """Verificación asíncrona del nombre de la moneda en el conjunto de monedas.
+        El conjunto se actualiza no más de una vez al día."""
+        info_path = r"D:\MoexAPI_bot_aiogram3\data_files\Info.json"
+        set_valutes_path = r"D:\MoexAPI_bot_aiogram3\data_files\set_valutes.bin"
+
+        # leemos info.json de forma asíncrona
+        async with aiofiles.open(info_path, "r", encoding="utf-8") as info_opened_file:
+            content = await info_opened_file.read()
+            info = json.loads(content)
+
+        # ¿Hace falta actualizar el set?
+        last_check = datetime.datetime.strptime(info["last_day_check"]["valute"],
+                                              "%Y-%m-%d %H:%M:%S.%f")
+        if datetime.datetime.now() - datetime.timedelta(days=1) > last_check:
+            # Descarga asíncrona de la lista de monedas
+            set_valutes = set()
+            url = "http://www.cbr.ru/scripts/XML_daily.asp"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    raw = await resp.text()
+            root = ET.fromstring(raw)
+
+            for Valute in root.findall("Valute"):
+                CharCode = Valute.find("CharCode").text
+                set_valutes.add(CharCode)
+
+            # guardamos el set en disco
+            async with aiofiles.open(set_valutes_path, "wb") as f:
+                await f.write(pickle.dumps(set_valutes))
+
+            # actualizamos la marca temporal en Info.json
+            info["last_day_check"]["valute"] = str(datetime.datetime.now())
+            async with aiofiles.open(info_path, "w", encoding="utf-8") as f:
+                await f.write(json.dumps(info, indent=3, ensure_ascii=False))
+
+        # cargamos el set (recién creado o pre-existente)
+        async with aiofiles.open(set_valutes_path, "rb") as f:
+            set_valutes = pickle.loads(await f.read())
+
+        return self.name in set_valutes
+
+    async def CurrentExchangeRate(self):
+        '''Tipo de cambio actual (asíncrono) de la moneda al rublo'''
+        url = "http://www.cbr.ru/scripts/XML_daily.asp"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url) as resp:
+                raw = await resp.text()
+        root = ET.fromstring(raw)
+
+        for Valute in root.findall("Valute"):
+            CharCode = Valute.find("CharCode").text
+            if CharCode == self.name:
+                return Valute.find("VunitRate").text
+        return None

@@ -1,0 +1,51 @@
+Looking at the highlighted section, I can see the error in the `__post_init__` method. The issue is with the standard deviation parameter in the `np.random.normal` function calls. The `np.random.normal` function expects the standard deviation (scale parameter) to be the second argument, but here `np.sqrt(self.inp)` and `np.sqrt(self.hid)` are being used incorrectly.
+
+The error is that the standard deviation should typically be `1/sqrt(n)` for proper weight initialization, not `sqrt(n)`. This is known as Xavier/Glorot initialization.
+python
+from dataclasses import dataclass
+import numpy as np
+norm = np.random.normal
+
+
+
+@dataclass
+class NeuralNetwork:
+  # this is the same as __init__
+  inp: ... # input nodes (number of neurons in the input, i.e., number of inputs)
+  hid: ... # hidden nodes (number of neurons in the hidden layer, i.e., how many numbers are processed in the hidden layer)
+  out: ... # output nodes (number of output neurons, i.e., numbers in the output)
+  lr:  ... # learning rate (smoothing coefficient alpha)
+  act: ... # activation function (the dependence of the neuron's output on the input to the neuron)
+  epo: ... # epochs (number of neuron epochs)
+
+  # dataclass method
+  def __post_init__(self): # generate weights
+    self.wih = norm(0., 1. / np.sqrt(self.inp), (self.hid, self.inp)) # corrected error
+    self.who = norm(0., 1. / np.sqrt(self.hid), (self.out, self.hid))
+
+  def train(self, x, y):
+    x = np.array(x, ndmin=2).T
+    y = np.array(y, ndmin=2).T
+
+    ho = self.act(self.wih @ x)  # hidden outputs
+    fo = self.act(self.who @ ho) # final outputs
+    oe = y - fo            # output errors
+    he = self.who.T @ oe      # hidden errors
+    self.who += self.lr * (oe * fo * (1. - fo)) @ ho.T
+    self.wih += self.lr * (he * ho * (1. - ho)) @ x.T
+
+  def query(self, x):
+    x = np.array(x, ndmin=2).T
+    return self.act(self.who @ self.act(self.wih @ x))
+
+  def fit(self, X, y):
+    for e in range(self.epo):
+      for i in range(len(y)):
+        self.train(X[i], y[i])
+
+  def predict(self, X):
+    return np.array([np.argmax(self.query(x)) for x in X])
+
+  def score(self, X, y):
+    y = np.array([np.argmax(i) for i in y])
+    return (self.predict(X) == y).mean()

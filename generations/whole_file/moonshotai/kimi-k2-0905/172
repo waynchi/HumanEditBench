@@ -1,0 +1,40 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+import requests
+import json
+
+# 创建一个Spark会话
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# 从API获取数据
+api_url = "<your_api_endpoint>"  # 替换为真实的API地址
+response = requests.get(api_url)
+raw_json = response.json()
+
+# 初步分析：打印结构
+print("原始JSON结构预览：")
+print(json.dumps(raw_json, indent=2, ensure_ascii=False)[:500])
+
+# 将JSON转为DataFrame（根据实际结构可能需要调整）
+# 假设API返回的是列表或含列表的字段，请按实际情况解析
+data = raw_json if isinstance(raw_json, list) else raw_json.get("<your_list_key>", [])
+
+
+# 配置与ADL2的连接使用Microsoft ID身份
+# 在Synapse的笔记本中不需要显式提供凭据
+# Spark将使用notebook的托管身份进行身份验证。
+
+# 指定ADL2中容器和文件夹的路径
+container_name = "<your_container_name>"  # 用你的容器名称替换
+folder_path = "<your_folder_path>"  # 替换为容器内文件夹的路径
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# 将DataFrame以parquet格式写入ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# 可选：读取parquet文件进行验证
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# 停止 Spark 会话
+spark.stop()

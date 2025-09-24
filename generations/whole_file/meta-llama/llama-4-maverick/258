@@ -1,0 +1,18 @@
+import random
+
+# List of English words
+english_words = ["apple", "table", "chair", "phone", "computer", "mouse", "paper", "pencil", "book", "desk", 
+                  "cloud", "rain", "sun", "sky", "tree", "flower", "grass", "dog", "cat", "bird", 
+                  "fish", "elephant", "giraffe", "lion", "tiger", "bear", "monkey", "kangaroo", "penguin"]
+
+def get_words_with_n_chars(n, word_list):
+    return [word for word in word_list if len(word) == n]
+
+def main():
+    n = int(input("Введите количество символов: "))
+    words_with_n_chars = get_words_with_n_chars(n, english_words)
+    random.shuffle(words_with_n_chars)
+    print(words_with_n_chars[:10])
+
+if __name__ == "__main__":
+    main()

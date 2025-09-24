@@ -1,0 +1,33 @@
+import requests
+import random
+
+def get_words(length):
+    """
+    Obtiene una lista de 10 palabras en inglés con un número específico de caracteres.
+    
+    Parameters:
+    length (int): Número de caracteres de las palabras a obtener.
+    
+    Returns:
+    list: Lista de 10 palabras con el número de caracteres especificado.
+    """
+    response = requests.get(f"https://random-word-api.herokuapp.com/word?length={length}")
+    data = response.json()
+    
+    # Si no hay suficientes palabras, obtenemos más
+    while len(data) < 10:
+        response = requests.get(f"https://random-word-api.herokuapp.com/word?length={length}")
+        data.extend(response.json())
+    
+    # Devolvemos las 10 primeras palabras
+    return data[:10]
+
+def main():
+    length = int(input("Ingrese el número de caracteres de las palabras que desea obtener: "))
+    words = get_words(length)
+    print("Palabras con {} caracteres:".format(length))
+    for word in words:
+        print(word)
+
+if __name__ == "__main__":
+    main()

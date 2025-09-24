@@ -1,0 +1,103 @@
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+def cluster_data(features_transformed, cluster_feature_name, n_clusters=2, clustering_method='kmeans'):
+    """Performs data clustering.
+
+Args:
+    features_transformed (pandas.DataFrame): Transformed DataFrame with parameters.
+    cluster_feature_name (str): Name of the column where cluster labels will be recorded.
+    n_clusters (int): Number of clusters.
+    clustering_method (str): Clustering method ('kmeans').
+
+Returns:
+    pandas.DataFrame: DataFrame with an added column of cluster labels."""
+    if features_transformed is None:
+        print("Сначала выполните преобразование данных (этап 5).")
+        return None
+
+    features_for_clustering = features_transformed.copy()
+
+    if clustering_method == 'kmeans':
+        model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        cluster_labels = model.fit_predict(features_for_clustering)
+        
+        # Evaluation of clustering quality (e.g., using the silhouette coefficient)
+        if len(np.unique(cluster_labels)) > 1: # Check for the case when all points are assigned to one cluster
+            silhouette_avg = silhouette_score(features_for_clustering, cluster_labels)
+            print(f"Коэффициент силуэта для {n_clusters} кластеров: {silhouette_avg:.4f}")
+        else:
+            print(f"Невозможно рассчитать коэффициент силуэта для {n_clusters} кластера (все точки в одном кластере).")
+
+    else:
+        print("Неподдерживаемый метод кластеризации.")
+        return None
+
+    features_transformed[cluster_feature_name] = cluster_labels
+    print(f"Кластеризация выполнена. Метки кластеров добавлены в столбец '{cluster_feature_name}'.")
+    return features_transformed
+
+# Clustering execution (after step 5 and before step 6)
+if 'features_transformed' in locals() and features_transformed is not None:
+    # Example configuration for multiple independent clustering runs
+    # Dictionary where keys are new column names and values are tuples of columns to cluster
+    cluster_config = {
+        'cluster_feature_pair': ('column1', 'column2'),
+        'cluster_single_feature': ('column3',)
+    }
+    
+    # Check if the specified columns exist in the DataFrame
+    all_cols_in_config = [col for cols in cluster_config.values() for col in cols]
+    missing_cols = [col for col in all_cols_in_config if col not in features_transformed.columns]
+
+    if not missing_cols:
+        n_clusters = 3  # Number of clusters for each run (can also be a dict per cluster group)
+
+        for new_col_name, col_group in cluster_config.items():
+            print(f"\nВыполнение кластеризации для набора признаков: {col_group}")
+            
+            # Select the subset of features for the current clustering task
+            features_subset = features_transformed[list(col_group)].copy()
+            
+            # Perform clustering on the subset
+            clustered_subset = cluster_data(features_subset, new_col_name, n_clusters)
+            
+            if clustered_subset is not None:
+                # Add the new cluster labels to the main DataFrame
+                features_transformed[new_col_name] = clustered_subset[new_col_name]
+        
+        print("\nКластеризация для всех указанных наборов признаков завершена.")
+        
+        # Visualization of clusters (example for the first cluster group with 2 numerical features)
+        # This part can be expanded to visualize each cluster group dynamically
+        first_cluster_group_cols = list(cluster_config.values())[0]
+        first_cluster_label_col = list(cluster_config.keys())[0]
+
+        # Prepare data for visualization by selecting the features and the corresponding cluster labels
+        plot_data = features_transformed[list(first_cluster_group_cols) + [first_cluster_label_col]]
+        
+        # Ensure we only use numeric features for plotting
+        numerical_plot_features = plot_data.select_dtypes(include=np.number)
+        
+        # We need at least 2 numerical features from the group to create a 2D scatter plot
+        if numerical_plot_features.shape[1] >= 2:
+            # The last column in numerical_plot_features is assumed to be the cluster label
+            x_axis = numerical_plot_features.columns[0]
+            y_axis = numerical_plot_features.columns[1]
+            
+            plt.figure(figsize=(8, 6))
+            plt.scatter(plot_data[x_axis], plot_data[y_axis], c=plot_data[first_cluster_label_col], cmap='viridis')
+            plt.xlabel(x_axis)
+            plt.ylabel(y_axis)
+            plt.title(f'Результаты кластеризации для группы "{first_cluster_label_col}"')
+            plt.colorbar(label='Номер кластера')
+            plt.show()
+        else:
+            print(f"Недостаточно числовых признаков для визуализации кластеров группы '{first_cluster_label_col}' на плоскости.")
+            
+    else:
+        print(f"Ошибка: Следующие столбцы для кластеризации отсутствуют в DataFrame: {missing_cols}")
+        print("Пожалуйста, проверьте конфигурацию `cluster_config`.")
+
+else:
+    print("Сначала выполните этап 5 (Преобразование данных).")

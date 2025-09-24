@@ -1,0 +1,3 @@
+        if (!db.objectStoreNames.contains(histStoreName)) {
+            db.createObjectStore(histStoreName);
+        }

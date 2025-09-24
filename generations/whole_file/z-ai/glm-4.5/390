@@ -1,0 +1,42 @@
+import torch
+import torch.nn as nn
+
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_height=32, input_width=32):
+        super().__init__()
+
+        # Warstwy splotowe
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1), # Dodano padding, aby lepiej kontrolować rozmiar
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, kernel_size=3, padding=1), # Dodano padding
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        # Obliczanie rozmiaru po spłaszczeniu
+        # Zakładając rozmiar wejściowy 3xHxW
+        # Po conv1 (z padding=1): H_out = H, W_out = W
+        # Po MaxPool2d(2): H_out = H // 2, W_out = W // 2
+        # Po conv2 (z padding=1): H_out = H // 2, W_out = W // 2
+        # Po MaxPool2d(2): H_out = H // 4, W_out = W // 4
+        self.flattened_size = 64 * (input_height // 4) * (input_width // 4)
+
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Sequential(
+            nn.Linear(self.flattened_size, 512), # Używamy obliczonego rozmiaru
+            nn.ReLU(),
+            nn.Linear(512, 3)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

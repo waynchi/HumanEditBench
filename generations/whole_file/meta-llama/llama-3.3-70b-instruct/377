@@ -1,0 +1,30 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Pobierz katalog bieżącego skryptu
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Skonstruuj ścieżkę względną do chromedrivera
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    driver.get("https://lmarena.ai/")
+    time.sleep(10)
+
+import time
+
+options = uc.ChromeOptions()
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+options.binary_location = (
+    r"C:\Programming\Test\IP_Test\chromedriver-win64\chromedriver.exe"
+)
+
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    driver.get("https://lmarena.ai/")
+    time.sleep(10)

@@ -1,0 +1,32 @@
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_size):               # cambiamio nombre del parámetro
+        super().__init__()
+
+        # Capas convolucionales sin Dropout ni BatchNorm
+        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, padding=1)
+        self.relu1 = nn.ReLU()
+        self.pool1 = nn.MaxPool2d(2)
+
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.relu2 = nn.ReLU()
+        self.pool2 = nn.MaxPool2d(2)
+
+        # Calculamos el tamaño plano automáticamente
+        with torch.no_grad():
+            dummy = torch.zeros(1, *input_size)     # (batch, C, H, W)
+            dummy = self.pool1(self.relu1(self.conv1(dummy)))
+            dummy = self.pool2(self.relu2(self.conv2(dummy)))
+            flattened_size = dummy.numel()
+
+        self.flatten = nn.Flatten()
+        self.fc1   = nn.Linear(flatatted_size, 512)
+        self.relu3 = nn.ReLU()
+        self.fc2   = nn.Linear(512, 3)
+
+    def forward(self, x):
+        x = self.pool1(self.relu1(self.conv1(x)))
+        x = self.pool2(self.relu2(self.conv2(x)))
+        x = self.flatten(x)
+        x = self.relu3(self.fc1(x))
+        x = self.fc2(x)
+        return x

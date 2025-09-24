@@ -1,0 +1,60 @@
+def create_single_patch_image_with_text(
+    n_patches_x,
+    n_patches_y,
+    patch_size,
+    main_color,
+    special_color,
+    special_patch,
+    text="Hello",
+    text_color=(255, 255, 255),
+    special_patch_width=2,
+    font_size=16,
+):
+    """创建一个由彩色块组成的图像，但在“特殊”块区域内放置一个单词（或文本）。"""
+    # 为图像创建一个3D NumPy数组
+    img_height = n_patches_y * patch_size
+    img_width = n_patches_x * patch_size
+    image_data = np.zeros((img_height, img_width, 3), dtype=np.uint8)
+
+    # 用主色填充整个图像
+    image_data[:, :] = main_color
+
+    # 将特殊颜色分配给特殊的补丁区域
+    special_row, special_col = special_patch
+    image_data[
+        special_row * patch_size : (special_row + special_patch_width) * patch_size,
+        special_col * patch_size : (special_col + special_patch_width) * patch_size
+    ] = special_color
+
+    # 转换为 Pillow 图像以便我们可以在上面绘制
+    img = Image.fromarray(image_data)
+    draw = ImageDraw.Draw(img)
+
+    # 加载指定大小的字体
+    try:
+        font = ImageFont.truetype("arial.ttf", font_size)
+    except IOError:
+        font = ImageFont.load_default()
+
+    # 计算特殊补丁在像素坐标中的中心位置
+    patch_center_x = (
+        special_col * patch_size
+        + (special_patch_width * patch_size) // 2
+    )
+    patch_center_y = (
+        special_row * patch_size
+        + (special_patch_width * patch_size) // 2
+    )
+
+    # 计算文本边界框以使文本居中
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    text_x = patch_center_x - text_width // 2
+    text_y = patch_center_y - text_height // 2
+
+    # 将文本放在特殊补丁的中心
+    draw.text((text_x, text_y), text, fill=text_color, font=font)
+
+    return img

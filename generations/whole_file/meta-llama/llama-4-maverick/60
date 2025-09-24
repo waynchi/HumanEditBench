@@ -1,0 +1,120 @@
+import os
+import random
+import torch
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import precision_score, recall_score
+from torch.nn import functional as F
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
+import seaborn as sns
+from colpali_engine.interpretability import (
+    get_similarity_maps_from_embeddings,
+    plot_all_similarity_maps,
+)
+
+
+# Path to extracted Flickr8k dataset
+FLICKR8K_IMAGES_PATH = "flickr8k/Images"
+FLICKR8K_CAPTIONS_PATH = "flickr8k/captions.txt"
+
+# Function to load image-text pairs from Flickr8k
+def load_flickr8k_data(images_path, captions_path, fraction=0.1):
+    # Read captions file
+    with open(captions_path, "r") as f:
+        captions_data = f.readlines()[1:]  # Skip header
+
+    # Parse captions
+    image_text_pairs = {}
+    for line in captions_data:
+        image_name, caption = line.strip().split(",", 1)
+        if image_name not in image_text_pairs:
+            image_text_pairs[image_name] = []
+        image_text_pairs[image_name].append(caption)
+
+    # Load only a fraction of the dataset
+    selected_images = random.sample(list(image_text_pairs.keys()), int(len(image_text_pairs) * fraction))
+    image_text_pairs = {k: image_text_pairs[k] for k in selected_images}
+
+    # Create pairs of images and captions
+    pairs = []
+    for image_name, captions in image_text_pairs.items():
+        image_path = os.path.join(images_path, image_name)
+        if os.path.exists(image_path):
+            pairs.append((Image.open(image_path), random.choice(captions)))
+    return pairs
+
+# Function to create unrelated pairs
+def create_unrelated_pairs(image_text_pairs):
+    """
+    Creates unrelated pairs of images and texts by randomly shuffling the texts.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing images and their corresponding texts.
+
+    Returns:
+        list: A list of tuples containing images and unrelated texts.
+    """
+    images, texts = zip(*image_text_pairs)
+    unrelated_texts = random.sample(texts, len(texts))
+    return list(zip(images, unrelated_texts))
+
+
+def create_visual_pairs(image_text_pairs):
+    """
+    Creates pairs of original and augmented images from image-text pairs.
+    
+    This function takes a list of image-text pairs and creates new pairs consisting
+    of the original images and their augmented versions. The augmentation used
+    in this implementation is a horizontal flip.
+
+    Args:
+        image_text_pairs (list): A list of tuples containing (image, text) pairs,
+            where images are PIL Image objects and texts are strings.
+
+    Returns:
+        list: A list of tuples containing (original_image, augmented_image) pairs,
+            where both elements are PIL Image objects.
+    """
+    from torchvision.transforms import ToTensor
+    images, _ = zip(*image_text_pairs)
+    augmented_images = [ToTensor()(image).flip(-1) for image in images]  # Example augmentation: horizontal flip
+    return list(zip(images, augmented_images))
+
+
+def cosine_similarity_analysis(embeddings1, embeddings2, title):
+    """
+    Computes cosine similarity for matching and unrelated pairs and compar...ecial_color
+
+    # Convert to a Pillow Image so we can draw on it
+    img = Image.fromarray(image_data)
+    draw = ImageDraw.Draw(img)
+
+    # Load font with specified size relative to patch size
+    try:
+        font = ImageFont.truetype("arial.ttf", int(patch_size * font_size / 16))
+    except IOError:
+        font = ImageFont.load_default()
+
+    # Calculate the center of the special patch in pixel coordinates
+    patch_center_x = (
+        special_col * patch_size
+        + (special_patch_width * patch_size) // 2
+    )
+    patch_center_y = (
+        special_row * patch_size
+        + (special_patch_width * patch_size) // 2
+    )
+
+    # Calculate text bounding box to center the text
+    text_bbox = draw.textbbox((0, 0), text, font=font)
+    text_width = text_bbox[2] - text_bbox[0]
+    text_height = text_bbox[3] - text_bbox[1]
+
+    text_x = patch_center_x - text_width // 2
+    text_y = patch_center_y - text_height // 2
+
+    # Place text in the center of the special patch
+    draw.text((text_x, text_y), text, fill=text_color, font=font)
+
+    return img

@@ -1,0 +1,18 @@
+import torch
+import numpy as np
+import time
+from torch.utils.data import DataLoader
+from transformers import TrainerCallback
+from transformers.data.data_collator import default_data_collator
+
+
+def check_answer_factual(output_str, expected_answer):
+    """Verifica si la salida del modelo coincide con la respuesta esperada.
+
+Args:
+    output_str: La cadena de salida del modelo
+    expected_answer: La cadena de la respuesta esperada
+
+Returns:
+    bool: True si la respuesta es correcta, False en caso contrario"""
+    # Esta

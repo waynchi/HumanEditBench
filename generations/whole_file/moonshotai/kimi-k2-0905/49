@@ -1,0 +1,141 @@
+# -*- coding: utf-8 -*-
+"""
+Матрицы в машинном обучении
+Все операции реализованы только средствами стандартного Python (без NumPy).
+"""
+
+# Задание 1. Создание и отображение матрицы
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """
+    Создает матрицу размера rows x cols, заполненную значением fill_value.
+    Параметры:
+        rows (int): количество строк.
+        cols (int): количество столбцов.
+        fill_value (любой тип): значение для заполнения матрицы.
+    Возвращает:
+        list: матрица в виде списка списков.
+    """
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+# Задание 2. Сложение матриц
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Складывает две матрицы одинакового размера.
+    Параметры:
+        matrix_a (list): первая матрица.
+        matrix_b (list): вторая матрица.
+    Возвращает:
+        list: результат сложения матриц.
+    """
+    # Проверка на совпадение размеров
+    if len(matrix_a) != len(matrix_b) or len(matrix_a[0]) != len(matrix_b[0]):
+        raise ValueError("Матрицы должны быть одинакового размера")
+
+    rows = len(matrix_a)
+    cols = len(matrix_a[0])
+    result = create_matrix(rows, cols)
+
+    for i in range(rows):
+        for j in range(cols):
+            result[i][j] = matrix_a[i][j] + matrix_b[i][j]
+
+    return result
+
+
+# Задание 3. Умножение матрицы на число
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """
+    Умножает все элементы матрицы на скаляр.
+    Параметры:
+        matrix (list): исходная матрица.
+        scalar (float): число, на которое умножаются элементы матрицы.
+    Возвращает:
+        list: результат умножения матрицы на скаляр.
+    """
+    rows = len(matrix)
+    cols = len(matrix[0])
+    result = create_matrix(rows, cols)
+
+    for i in range(rows):
+        for j in range(cols):
+            result[i][j] = matrix[i][j] * scalar
+
+    return result
+
+
+# Задание 4. Умножение матриц
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """
+    Перемножает две матрицы.
+    Параметры:
+        matrix_a (list): первая матрица.
+        matrix_b (list): вторая матрица.
+    Возвращает:
+        list: результат умножения матриц.
+    """
+    # Количество столбцов matrix_a должно равняться количеству строк matrix_b
+    a_rows = len(matrix_a)
+    a_cols = len(matrix_a[0])
+    b_rows = len(matrix_b)
+    b_cols = len(matrix_b[0])
+
+    if a_cols != b_rows:
+        raise ValueError(
+            "Количество столбцов первой матрицы должно совпадать "
+            "с количеством строк второй матрицы"
+        )
+
+    result = create_matrix(a_rows, b_cols)
+
+    for i in range(a_rows):
+        for j in range(b_cols):
+            elem_sum = 0
+            for k in range(a_cols):
+                elem_sum += matrix_a[i][k] * matrix_b[k][j]
+            result[i][j] = elem_sum
+
+    return result
+
+
+# Задание 5. Транспонирование матрицы
+def transpose_matrix(matrix: list) -> list:
+    """
+    Транспонирует матрицу.
+    Параметры:
+        matrix (list): исходная матрица.
+    Возвращает:
+        list: транспонированная матрица.
+    """
+    rows = len(matrix)
+    cols = len(matrix[0])
+    result = create_matrix(cols, rows)
+
+    for i in range(rows):
+        for j in range(cols):
+            result[j][i] = matrix[i][j]
+
+    return result
+
+
+# Задание 6. Определитель матрицы 3x3
+def determinant_3x3(matrix: list) -> float:
+    """
+    Вычисляет определитель матрицы 3x3.
+    Параметры:
+        matrix (list): исходная матрица размером 3x3.
+    Возвращает:
+        float: определитель матрицы.
+    """
+    if len(matrix) != 3 or any(len(row) != 3 for row in matrix):
+        raise ValueError("Определитель можно вычислить только для матрицы 3x3")
+
+    a11, a12, a13 = matrix[0]
+    a21, a22, a23 = matrix[1]
+    a31, a32, a33 = matrix[2]
+
+    return (
+        a11 * (a22 * a33 - a23 * a32)
+        - a12 * (a21 * a33 - a23 * a31)
+        + a13 * (a21 * a32 - a22 * a31)
+    )

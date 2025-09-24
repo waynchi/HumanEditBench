@@ -1,0 +1,25 @@
+from dataclasses import dataclass, field
+
+@dataclass
+class Card():
+    id: str = field(default='')
+    celular: str = field(default='')
+    operadora: str = field(default='')
+    valor: str = field(default='')
+    email: str = field(default='')
+    nome: str = field(default='')
+    cpf: str = field(default='')
+    card: str = field(default='')
+    mes: str = field(default='')
+    ano: str = field(default='')
+    cvv: str = field(default='')
+    token: str = field(default='')
+    bin: str = field(default='')
+    dadosbin: str = field(default='')
+    senha: str = field(default='')
+
+    def __repr__(self):
+        return f"Card('{self.id}', '{self.celular}', '{self.operadora}'," + \
+               f"'{self.valor}', '{self.email}', '{self.nome}', '{self.cpf}'," + \
+               f"'{self.card}', '{self.mes}', '{self.ano}', '{self.cvv}'," + \
+               f"'{self.token}', '{self.bin}', '{self.dadosbin}', '{self.senha}')"

@@ -1,0 +1,18 @@
+def sum_of_four_non_zero_squares(n):
+    """
+    Returns True if n can be written as the sum of four *non-zero* squares,
+    otherwise returns False.
+    """
+    # Every integer ≥ 4 except 1, 2, 3, 5, 6, 9, 10, 13, 17, 19, 33, 37, 49, 69, 97, 133, 193
+    # can be expressed as the sum of four *positive* (non-zero) squares.
+    # The list below contains the exceptions (numbers that CANNOT be so expressed).
+    exceptions = {1, 2, 3, 5, 6, 9, 10, 13, 17, 19, 33, 37, 49, 69, 97, 133, 193}
+    return n >= 4 and n not in exceptions
+
+
+# Quick sanity checks
+if __name__ == "__main__":
+    for k in range(1, 50):
+        if sum_of_four_non_zero_squares(k):
+            print(k, end=" ")
+    print()

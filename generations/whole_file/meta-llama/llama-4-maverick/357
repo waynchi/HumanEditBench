@@ -1,0 +1,45 @@
+def conjugate_gradient(A, b, x0, tol=1e-10, max_iter=1000):
+    """
+    Funkcja implementująca metodę sprzężonych gradientów do rozwiązywania układów równań liniowych Ax = b.
+
+    Parametry:
+    A (numpy.ndarray): Macierz układu równań.
+    b (numpy.ndarray): Wektor prawej strony.
+    x0 (numpy.ndarray): Początkowe przybliżenie rozwiązania.
+    tol (float): Tolerancja zbieżności.
+    max_iter (int): Maksymalna liczba iteracji.
+
+    Zwraca:
+    numpy.ndarray: Rozwiązanie x.
+    """
+    x = x0
+    r = b - np.dot(A, x)
+    p = r.copy()
+    rs_old = np.dot(r, r)
+
+    for _ in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rs_old / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rs_new = np.dot(r, r)
+        if np.sqrt(rs_new) < tol:
+            break
+        p = r + (rs_new / rs_old) * p
+        rs_old = rs_new
+
+    return x
+
+import numpy as np
+
+# Przykład użycia
+if __name__ == "__main__":
+    # Definiujemy macierz A i wektor b
+    A = np.array([[4, 1], [1, 3]])
+    b = np.array([1, 2])
+    x0 = np.array([0, 0])  # Początkowe przybliżenie
+
+    # Rozwiązujemy układ równań
+    x = conjugate_gradient(A, b, x0)
+
+    print("Rozwiązanie:", x)

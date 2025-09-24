@@ -1,0 +1,128 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import skew
+
+def medcouple(data):
+    """
+    Fast implementation of the medcouple robust skewness estimator.
+    Based on the algorithm described in:
+        Brys, G., Hubert, M. & Struyf, A. (2004). A robust measure of skewness.
+        *Journal of Computational and Graphical Statistics*, 13, 996-1017.
+    """
+    data = np.asarray(data, dtype=float)
+    n = data.size
+    if n < 2:
+        return np.nan
+
+    # Sort once
+    data = np.sort(data)
+
+    # Median
+    m = (data[(n - 1) // 2] + data[n // 2]) / 2.0 if n % 2 == 0 else data[n // 2]
+
+    # Split data
+    left = data[data <= m]
+    right = data[data >= m]
+
+    nl = left.size
+    nr = right.size
+
+    # Build kernel matrix h(i, j) in vectorised form
+    I, J = np.meshgrid(np.arange(nl), np.arange(nr), indexing='ij')
+    xi = left[I]
+    xj = right[J]
+
+    # h kernel
+    num = (xj - m) - (m - xi)
+    den = xj - xi
+    mask = den != 0
+    h = np.zeros_like(num)
+    h[mask] = num[mask] / den[mask]
+
+    # Special handling for ties with the median
+    k = np.sum(data == m)
+    if k > 1:
+        tie_mask = (xi == m) & (xj == m)
+        # special value for ties at median
+        special = np.sign(I[tie_mask] + J[tie_mask] + 1 - k)
+        h[tie_mask] = special
+
+    return np.median(h.flatten())
+
+def adjusted_boxplot_bounds(data):
+    """Вычисляет границы скорректированного boxplot с учетом skewness-adjusted fences."""
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    iqr = q3 - q1
+    _medcouple = medcouple(data)
+
+    if _medcouple > 0:
+        lower_fence = q1 - 1.5 * np.exp(-4 * _medcouple) * iqr
+        upper_fence = q3 + 1.5 * np.exp(3 * _medcouple) * iqr
+    else:
+        lower_fence = q1 - 1.5 * np.exp(-3 * _medcouple) * iqr
+        upper_fence = q3 + 1.5 * np.exp(4 * _medcouple) * iqr
+
+    return lower_fence, upper_fence
+
+def normalize_column(data):
+    """Нормализация с использованием скорректированного ящичного графика."""
+    lower_fence, upper_fence = adjusted_boxplot_bounds(data)
+    print(lower_fence)
+    return (data - lower_fence) / (upper_fence - lower_fence)
+
+# Генерация данных
+np.random.seed(42)
+data_normal = np.random.normal(loc=50, scale=10, size=10000)
+data_skewed = np.random.exponential(scale=20, size=10000)
+data_skewed = np.concatenate([data_skewed[5:], [200, 250, 300, -100, -50]])
+data_with_outliers = np.concatenate([data_normal, [150, 160, 170]])
+
+# Нормализация
+df = pd.DataFrame({
+    "Normal": data_normal,
+    "Skewed": data_skewed,
+    # С выбросами": data_with_outliers[3:],
+})
+
+normalized_df = df.apply(normalize_column)
+
+plt.figure(figsize=(16, 4), dpi=250)
+
+bins = np.linspace(-5, 200, 206)
+bin_width = bins[1] - bins[0]  # Width одного бина
+
+for col in df.columns:
+    # plt.hist(df[col], bins=50, alpha=0.5, label=f'{col} - Оригинал')
+    # Вычисляем гистограммы без визуализации
+    hist, _ = np.histogram(df[col], bins=bins)
+
+    # Позиции столбиков для каждой гистограммы
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+
+    # Смещение для каждого набора данных
+    offset = bin_width / 4
+    plt.bar(bin_centers - offset, hist, width=bin_width, align='center', alpha=0.2, label=f'{col}')
+    plt.legend()
+    plt.title(f"Histogram Before Normalization")
+plt.xlim(-10, 200)
+plt.show()
+
+bins = np.linspace(-2, 2, 101)
+bin_width = bins[1] - bins[0]  # Ширина одного интервала
+
+
+plt.figure(figsize=(16, 4), dpi=250)
+for col in normalized_df.columns:
+    # plt.hist(normalized_df[col], bins=50, alpha=0.5, label=f'{col} - Нормализовано')
+    hist, _ = np.histogram(normalized_df[col], bins=bins)
+
+    # Позиции столбиков для каждой гистограммы
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    # Смещение для каждого набора данных
+    offset = bin_width / 2
+    plt.bar(bin_centers - offset, hist, width=bin_width, align='center', label=f'{col}', alpha=0.2)
+    plt.legend()
+    plt.title(f"Histogram After Normalization")
+plt.show()

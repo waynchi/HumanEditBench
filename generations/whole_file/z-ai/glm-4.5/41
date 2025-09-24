@@ -1,0 +1,87 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+import requests
+import json
+
+# Crear una sesión Spark
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# URL de la API (reemplazar con la URL real de tu API)
+api_url = "<your_api_url>"
+
+# Realizar la solicitud a la API
+try:
+    response = requests.get(api_url)
+    response.raise_for_status()  # Lanza una excepción si hay un error en la solicitud
+    
+    # Obtener los datos de la respuesta
+    api_data = response.json()
+    
+    # Analizar la estructura de los datos
+    print("Estructura de los datos de la API:")
+    if isinstance(api_data, list) and len(api_data) > 0:
+        print("Los datos son una lista de objetos.")
+        print("Claves en el primer objeto:", list(api_data[0].keys()))
+        print("Primer objeto como ejemplo:")
+        print(json.dumps(api_data[0], indent=2))
+        # Usar directamente la lista para crear el DataFrame
+        data = api_data
+    elif isinstance(api_data, dict):
+        print("Los datos son un objeto/diccionario.")
+        print("Claves:", list(api_data.keys()))
+        if 'data' in api_data and isinstance(api_data['data'], list):
+            print("Se encontró una lista bajo la clave 'data'")
+            if len(api_data['data']) > 0:
+                print("Claves en el primer objeto de 'data':", list(api_data['data'][0].keys()))
+                print("Primer objeto de 'data' como ejemplo:")
+                print(json.dumps(api_data['data'][0], indent=2))
+                # Usar la lista bajo la clave 'data' para crear el DataFrame
+                data = api_data['data']
+            else:
+                print("La lista 'data' está vacía")
+                data = []
+        else:
+            # Si no hay una clave 'data' clara, usar todo el objeto como una lista de un elemento
+            data = [api_data]
+    else:
+        print("Formato de datos no reconocido")
+        data = []
+    
+    # Crear un DataFrame a partir de los datos de la API
+    df = spark.createDataFrame(data)
+    
+    # Mostrar el esquema del DataFrame para ver los tipos de datos inferidos
+    print("Esquema del DataFrame:")
+    df.printSchema()
+    
+    # Mostrar los primeros registros para verificar
+    print("Primeros registros del DataFrame:")
+    df.show()
+    
+except requests.exceptions.RequestException as e:
+    print(f"Error al realizar la solicitud a la API: {e}")
+    # Crear un DataFrame vacío en caso de error
+    df = spark.createDataFrame([], schema=[])
+except Exception as e:
+    print(f"Error al procesar los datos de la API: {e}")
+    # Crear un DataFrame vacío en caso de error
+    df = spark.createDataFrame([], schema=[])
+
+# Configurar la conexión a ADL2 usando la identidad de Microsoft ID
+# No es necesario proporcionar credenciales explícitamente en un notebook de Synapse
+# Spark utilizará la identidad administrada del notebook para autenticarse.
+
+# Especificar la ruta al contenedor y la carpeta en ADL2
+container_name = "<your_container_name>"  # Reemplazar con el nombre de tu contenedor
+folder_path = "<your_folder_path>"  # Reemplazar con la ruta a la carpeta dentro del contenedor
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Escribir el DataFrame en formato parquet en ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# Opcional: leer el archivo parquet para verificar
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# Detener la sesión Spark
+spark.stop()

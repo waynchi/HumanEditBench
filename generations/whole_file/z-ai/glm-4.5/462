@@ -1,0 +1,46 @@
+python
+import nltk
+from nltk.corpus import words
+import random
+import sys
+
+def setup_nltk():
+    try:
+        nltk.data.find('corpora/words')
+    except LookupError:
+        nltk.download('words')
+
+def get_words_by_length(n):
+    word_list = words.words()
+    return [word.lower() for word in word_list if len(word) == n]
+
+def main():
+    setup_nltk()
+    
+    try:
+        n = int(input("Ingrese el número de caracteres (N): "))
+        if n <= 0:
+            print("Por favor ingrese un número mayor que 0.")
+            return
+        
+        matching_words = get_words_by_length(n)
+        
+        if not matching_words:
+            print(f"No hay palabras con {n} caracteres en el diccionario.")
+            return
+        
+        # Limit to first 5000 matches for performance with large dictionaries
+        sample_pool = matching_words[:5000]
+        selected_words = random.sample(sample_pool, min(10, len(sample_pool)))
+        
+        print(f"\n10 palabras con {n} caracteres:")
+        for i, word in enumerate(selected_words, 1):
+            print(f"{i}. {word}")
+            
+    except ValueError:
+        print("Por favor ingrese un número válido.")
+    except Exception as e:
+        print(f"Ocurrió un error: {e}")
+
+if __name__ == "__main__":
+    main()

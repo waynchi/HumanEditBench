@@ -1,0 +1,21 @@
+# 找出能表示为四个非零平方数之和的四位正整数
+def four_nonzero_squares():
+    result = []
+    # 预存所有可能的非零平方数（1²~31²）
+    squares = [i*i for i in range(1, 32)]  # 32²=1024>999
+    n = len(squares)
+    # 四重循环枚举所有可能的四元组
+    for a in range(n):
+        for b in range(a, n):
+            for c in range(b, n):
+                for d in range(c, n):
+                    s = squares[a] + squares[b] + squares[c] + squares[d]
+                    if 1000 <= s <= 9999:
+                        result.append(s)
+    # 去重并升序排列
+    return sorted(set(result))
+
+if __name__ == "__main__":
+    nums = four_nonzero_squares()
+    print("能表示为四个非零平方数之和的四位正整数共有：", len(nums))
+    print("前20个：", nums[:20])

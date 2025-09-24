@@ -1,0 +1,17 @@
+from langchain.llms import AI21
+from langchain.chains.qa import load_qa_chain
+import json
+
+llama = AI21()
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+prompt = f"""
+{shap_values_json}
+"""
+
+chain = load_qa_chain(llama)
+output = chain({"question": prompt, "context": sys_prompt})
+print(output["answer"])

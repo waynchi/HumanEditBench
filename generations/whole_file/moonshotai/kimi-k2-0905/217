@@ -1,0 +1,84 @@
+import aiohttp                   # 用于异步 HTTP 请求
+import asyncio
+import xml.etree.ElementTree as ET
+import matplotlib.pyplot as plt
+import pandas as pd
+import datetime
+import pickle
+import json
+import os
+
+# 这里把 set_valutes 填充为一个异步函数返回的集合
+# 如果缓存文件不存在或过期，则下载并缓存；否则直接读取缓存
+async def get_valutes_set(cache_path: str, info_path: str) -> set:
+    # 读取或创建 info.json
+    if os.path.exists(info_path):
+        async with aiofiles.open(info_path, "r", encoding="utf-8") as f:
+            info = json.loads(await f.read())
+    else:
+        info = {"last_day_check": {"valute": "2000-01-01 00:00:00.000000"}}
+
+    last_check = datetime.datetime.strptime(
+        info["last_day_check"]["valute"], "%Y-%m-%d %H:%M:%S.%f"
+    )
+    if datetime.datetime.now() - datetime.timedelta(days=1) > last_check:
+        # 需要重新下载
+        async with aiohttp.ClientSession() as session:
+            async with session.get("http://www.cbr.ru/scripts/XML_daily.asp") as resp:
+                text = await resp.text()
+        root = ET.fromstring(text)
+        new_set = {node.find("CharCode").text for node in root.findall("Valute")}
+        # 写缓存
+        async with aiofiles.open(cache_path, "wb") as f:
+            await f.write(pickle.dumps(new_set))
+        # 更新 info
+        info["last_day_check"]["valute"] = str(datetime.datetime.now())
+        async with aiofiles.open(info_path, "w", encoding="utf-8") as f:
+            await f.write(json.dumps(info, indent=3, ensure_ascii=False))
+        return new_set
+    else:
+        # 读缓存
+        async with aiofiles.open(cache_path, "rb") as f:
+            return pickle.loads(await f.read())
+
+
+# “货币类”
+class valute():
+    """货币及其相关内容，通过俄罗斯央行
+
+所需库：
+
+aiohttp
+
+asyncio
+
+xml.etree.ElementTree
+
+matplotlib.pyplot as plt
+
+pandas as pd
+
+datetime
+
+pickle
+
+json"""
+    def __init__(self, name):
+        self.name = name
+
+    async def correct_name(self):
+        """检查货币名称是否存在于货币集合中。集合每天更新不超过一次。"""
+        cache_file = r"D:\MoexAPI_bot_aiogram3\data_files\set_valutes.bin"
+        info_file  = r"D:\MoexAPI_bot_aiogram3\data_files\Info.json"
+        valutes = await get_valutes_set(cache_file, info_file)
+        return self.name in valutes
+
+    async def CurrentExchangeRate(self):
+        '''当前货币兑换卢布的汇率'''
+        async with aiohttp.ClientSession() as session:
+            async with session.get("http://www.cbr.ru/scripts/XML_daily.asp") as resp:
+                text = await resp.text()
+        root = ET.fromstring(text)
+        for Valute in root.findall("Valute"):
+            if Valute.find("CharCode").text == self.name:
+                return Valute.find("VunitRate").text

@@ -1,0 +1,43 @@
+Looking at the code, the main issue is that it requires manually calculating and passing the `flattened_size` parameter, which is error-prone and makes the code hard to use. I'll fix this by automatically calculating the flattened size based on the input dimensions.
+python
+import torch
+import torch.nn as nn
+
+class SimpleConvNet1(nn.Module):
+    def __init__(self, input_channels=3, num_classes=3):
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(input_channels, 32, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.flatten = nn.Flatten()
+        
+        # We'll calculate the linear layer size dynamically in forward pass
+        self.fc1 = None
+        self._fc_initialized = False
+        self.final_fc = nn.Linear(512, num_classes)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.flatten(x)
+        
+        # Initialize the first fully connected layer on first forward pass
+        if not self._fc_initialized:
+            self.fc1 = nn.Linear(x.shape[1], 512)
+            self._fc_initialized = True
+        
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.final_fc(x)
+        return x

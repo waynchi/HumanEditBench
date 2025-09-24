@@ -1,0 +1,54 @@
+Looking at the error message "额外数据：第2行第1列（字符101）" (Extra data: line 2 column 1 (char 101)), this indicates that the JSON response from the Ollama API contains multiple JSON objects concatenated together rather than a single valid JSON object. This is common with Ollama's streaming API responses.
+
+The issue is in the response handling where `response.json()` expects a single JSON object, but the API returns multiple JSON lines. Here's the fix:
+python
+import requests
+
+def interact_with_local_llm(prompt, base_url="http://localhost:11434"):
+    """使用 Ollama API 与本地 LLM 交互。
+
+:param prompt: LLM 的输入提示。
+:param base_url: Ollama API 的基础 URL。
+:return: 来自 LLM 的响应。"""
+    endpoint = f"{base_url}/api/generate"
+    payload = {
+        "model": "llama3.2:latest",  # 替换为您的模型名称
+        "prompt": prompt,
+        "max_tokens": 2048  # 根据需要调整
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        # 处理可能的流式响应（多行JSON）
+        lines = response.text.strip().split('\n')
+        full_response = ""
+        for line in lines:
+            if line.strip():
+                try:
+                    json_line = response.json() if line == lines[0] else None
+                    # 对于多行响应，需要逐行解析
+                    import json
+                    parsed_line = json.loads(line)
+                    if 'response' in parsed_line:
+                        full_response += parsed_line['response']
+                except:
+                    # 如果解析失败，直接使用原始响应
+                    if not full_response:  # 只在还没有累积响应时尝试
+                        full_response = response.json().get('response', '')
+                    break
+        return full_response if full_response else response.json().get('response', '')
+    except requests.exceptions.RequestException as e:
+
+        return None
+
+# 示例用法
+if __name__ == "__main__":
+    prompt = "Hello, how are you?"
+    response = interact_with_local_llm(prompt)
+    if response:
+        print(f"LLM Response: {response}")

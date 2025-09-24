@@ -1,0 +1,36 @@
+python
+def main():
+    # Load the English dictionary from a file
+    try:
+        with open('/usr/share/dict/words', 'r') as file:
+            words = [line.strip() for line in file]
+    except FileNotFoundError:
+        # Fallback dictionary if system file doesn't exist
+        words = [
+            'apple', 'banana', 'cherry', 'date', 'elderberry',
+            'fig', 'grape', 'honeydew', 'kiwi', 'lemon',
+            'mango', 'nectarine', 'orange', 'pear', 'quince',
+            'raspberry', 'strawberry', 'tangerine', 'watermelon',
+            'blueberry', 'blackberry', 'cantaloupe', 'coconut', 'dragonfruit'
+        ]
+
+    # Get user input for word length
+    try:
+        n = int(input("Enter the number of characters (N): "))
+    except ValueError:
+        print("Please enter a valid integer.")
+        return
+
+    # Filter words with exactly N characters
+    filtered_words = [word for word in words if len(word) == n]
+
+    # Display up to 10 results
+    if not filtered_words:
+        print(f"No words found with {n} characters.")
+    else:
+        print(f"First 10 words with {n} characters:")
+        for word in filtered_words[:10]:
+            print(word)
+
+if __name__ == "__main__":
+    main()

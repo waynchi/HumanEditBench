@@ -1,0 +1,26 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    # read data only once and skip empty lines
+    with open(INPUT_FILE_PATH) as f:
+        pairs = [line.strip().split() for line in f if line.strip()]
+    
+    # convert to two sorted lists in one go
+    col1, col2 = map(list, zip(*((int(a), int(b)) for a, b in pairs)))
+    col1.sort()
+    col2.sort()
+    
+    # vectorised distance and sum
+    total_distance = sum(abs(a - b) for a, b in zip(col1, col2))
+    print(total_distance)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

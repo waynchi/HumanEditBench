@@ -1,0 +1,21 @@
+import requests
+import random
+
+def get_words(length):
+    """
+    获取长度为length的单词
+    """
+    word_site = "https://www.mit.edu/~ecprice/wordlist.10000"
+    response = requests.get(word_site)
+    WORDS = response.content.splitlines()
+    words = [word.decode("utf-8") for word in WORDS]
+    words_with_length = [word for word in words if len(word) == length]
+    return words_with_length
+
+def main():
+    length = int(input("请输入单词长度："))
+    words = get_words(length)
+    print(random.sample(words, min(10, len(words))))
+
+if __name__ == "__main__":
+    main()

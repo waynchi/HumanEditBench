@@ -1,0 +1,27 @@
+import requests
+
+def get_words(length):
+    """
+    Fetches a list of English words from a dictionary API.
+    
+    Args:
+        length (int): The length of the words to be fetched.
+    
+    Returns:
+        list: A list of words with the specified length.
+    """
+    url = f"https://raw.githubusercontent.com/dwyl/english-words/master/words_alpha.txt"
+    response = requests.get(url)
+    english_words = response.text.splitlines()
+    words_with_length = [word for word in english_words if len(word) == length]
+    return words_with_length
+
+def main():
+    length = int(input("Enter the number of characters: "))
+    words = get_words(length)
+    print("10 words with {} characters:".format(length))
+    for i in range(min(10, len(words))):
+        print(words[i])
+
+if __name__ == "__main__":
+    main()

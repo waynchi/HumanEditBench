@@ -1,0 +1,27 @@
+Looking at the error and the code, the main issue is that `options.binary_location` is being set to point to `chromedriver.exe`, but it should point to the Chrome browser executable instead. The `chromedriver.exe` is the WebDriver executable, not the browser binary.
+
+Also, there's duplicate code that needs to be cleaned up, and the highlighted section should be fixed to properly configure the Chrome options.
+python
+import os
+import time
+import undetected_chromedriver as uc
+
+# Pobierz katalog bieżącego skryptu
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Skonstruuj ścieżkę względną do chromedrivera
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+options.add_argument("--no-sandbox")
+options.add_argument("--disable-dev-shm-usage")
+# Remove the incorrect binary_location setting
+# options.binary_location should point to Chrome executable, not chromedriver
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options, driver_executable_path=chromedriver_path) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # utwórz instancję ChromeOptions dla undetected_chromedriver
+    # zainicjalizuj niewykrywalny sterownik Chrome z określonymi opcjami
+    time.sleep(10)

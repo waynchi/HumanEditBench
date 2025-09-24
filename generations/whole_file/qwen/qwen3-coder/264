@@ -1,0 +1,43 @@
+# Числа, которые могут быть выражены как сумма четырех ненулевых квадратов:
+
+def can_be_expressed_as_four_nonzero_squares(n):
+    """Проверяет, может ли число быть выражено как сумма четырех ненулевых квадратов"""
+    # По теореме Лагранжа о четырех квадратах, каждое натуральное число может быть 
+    # представлено как сумма четырех квадратов, но здесь нужны ненулевые квадраты
+    
+    # Ищем все числа вида a² + b² + c² + d², где a,b,c,d ≥ 1
+    max_square = int(n**0.5) + 1
+    
+    for a in range(1, max_square):
+        for b in range(a, max_square):  # b >= a для избежания дубликатов
+            for c in range(b, max_square):  # c >= b для избежания дубликатов
+                for d in range(c, max_square):  # d >= c для избежания дубликатов
+                    if a*a + b*b + c*c + d*d == n:
+                        return True
+                    elif a*a + b*b + c*c + d*d > n:
+                        break  # Дальнейшее увеличение d только увеличит сумму
+    return False
+
+def find_numbers_expressible_as_four_nonzero_squares(limit):
+    """Находит все числа до limit, которые могут быть выражены как сумма четырех ненулевых квадратов"""
+    result = []
+    for n in range(1, limit + 1):
+        if can_be_expressed_as_four_nonzero_squares(n):
+            result.append(n)
+    return result
+
+# Пример использования
+if __name__ == "__main__":
+    limit = 100
+    numbers = find_numbers_expressible_as_four_nonzero_squares(limit)
+    print(f"Числа до {limit}, выражаемые как сумма четырех ненулевых квадратов:")
+    print(numbers)
+    
+    # Проверим несколько примеров
+    test_numbers = [4, 8, 12, 16, 20, 24, 28, 32]
+    print("\nПримеры проверки:")
+    for num in test_numbers:
+        if can_be_expressed_as_four_nonzero_squares(num):
+            print(f"{num} можно выразить как сумму четырех ненулевых квадратов")
+        else:
+            print(f"{num} нельзя выразить как сумму четырех ненулевых квадратов")

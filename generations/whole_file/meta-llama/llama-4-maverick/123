@@ -1,0 +1,13 @@
+# Record the current path as cwd
+# Create a Milvus connection using pymilvus
+import os
+from pymilvus import connections
+cwd = os.getcwd()
+connections.connect("default", host='localhost', port='19530')
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+# To be used with the rest of the code, the client object needs to be defined.
+# Here we assume that we will be using the MilvusClient or a similar object.
+# For the sake of this example, let's keep the original variable name 'client'.
+# However, the actual implementation may vary based on the pymilvus usage.
+client = None  # Replace with actual client initialization if needed

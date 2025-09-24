@@ -1,0 +1,99 @@
+plik = open("dane_obrazki.txt")
+maxbitybledne = 0
+bityBledne = list()
+
+def czyPoprawny(obrazek): 
+    for wiersz in obrazek[:-1]: 
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            return False
+    for i in range(20): 
+        kolumna = ""
+        for j in range(21):  
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+            return False
+    return True
+
+def czyNaprawialny(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: 
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+    for i in range(20): 
+        kolumna = ""
+        for j in range(21):  
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+    global maxbitybledne
+    if maxbitybledne<(bityKolBleden+bityWierBledne):
+        maxbitybledne = bityKolBleden+bityWierBledne
+    bityBledne.append(bityKolBleden+bityWierBledne)
+
+    if bityWierBledne >1 :
+        return False
+    if bityKolBleden > 1:
+        return False
+
+    return True
+
+def napraw(obrazek):
+    """输入是一个文本文件，其中包含编码为像素的黑白图像数据。0 - 白色像素 1 - 黑色像素。每行和每列的末尾都有一个奇偶校验位。如果行（或列）的1的数量是偶数，则奇偶校验位为0；如果是奇数，则为1。例如：0 1 1 0 1 1 错误的位需要更改为相反的1 1 1 0 1 0 1 1 1 1 1 1 0 1 1 0 0 0 1 1 0 1 1 0 1 1 0 0 0 - 列的奇偶校验位 ^ |- 行的奇偶校验位编写一个函数来查找损坏的图像并修复它们。即这是一个可修复的图像（最多只有一个行的奇偶校验位和一个列的奇偶校验位不正确），然后修复这些图像结果应包含错误的（可修复的）图像和修复后的图像。"""
+    wynik = list()
+    bityKolBleden = 0
+    bityWierBledne = 0
+    wierszBledny = 0
+    kolumnaBledna = 0
+
+    for i in range(20):
+        kolumna = ""
+        for j in range(21):
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+            bityKolBleden+=1
+            kolumnaBledna = i
+
+    for wiersz in obrazek[:-1]:
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+            wierszBledny = obrazek.index(wiersz)
+
+    if bityWierBledne >0 and bityKolBleden >0:
+        if obrazek[wierszBledny][kolumnaBledna] == '0':
+            obrazek[wierszBledny] = obrazek[wierszBledny][:kolumnaBledna] + '1' + obrazek[wierszBledny][kolumnaBledna+1:]
+        else:
+            obrazek[wierszBledny] = obrazek[wierszBledny][:kolumnaBledna] + '0' + obrazek[wierszBledny][kolumnaBledna+1:]
+    elif bityWierBledne >0:
+        for i in range(20):
+            if obrazek[wierszBledny][i] == '0':
+                obrazek[wierszBledny] = obrazek[wierszBledny][:i] + '1' + obrazek[wierszBledny][i+1:]
+            else:
+                obrazek[wierszBledny] = obrazek[wierszBledny][:i] + '0' + obrazek[wierszBledny][i+1:]
+    elif bityKolBleden >0:
+        for i in range(21):
+            if obrazek[i][kolumnaBledna] == '0':
+                obrazek[i] = obrazek[i][:kolumnaBledna] + '1' + obrazek[i][kolumnaBledna+1:]
+            else:
+                obrazek[i] = obrazek[i][:kolumnaBledna] + '0' + obrazek[i][kolumnaBledna+1:]
+    wynik.append(obrazek)
+    return wynik
+
+poprawne = 0
+naprawialne = 0
+obrazek = list()
+for linia in plik:
+    wiersz = linia.strip() 
+    obrazek.append(wiersz)
+    if len(obrazek) == 21: 
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+    if len(obrazek) == 22:  
+        obrazek = list()
+
+print(poprawne,naprawialne,200-poprawne-naprawialne)
+print(maxbitybledne,max(bityBledne))

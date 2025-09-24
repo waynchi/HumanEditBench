@@ -1,0 +1,33 @@
+python
+import sys
+
+def main():
+    try:
+        with open('words.txt', 'r') as file:
+            words = [line.strip().lower() for line in file]
+    except FileNotFoundError:
+        print("Error: 'words.txt' file not found.")
+        sys.exit(1)
+
+    try:
+        n = int(input("Enter the number of letters (N): "))
+    except ValueError:
+        print("Error: Please enter a valid integer.")
+        sys.exit(1)
+
+    if n <= 0:
+        print("Error: N must be a positive integer.")
+        sys.exit(1)
+
+    words_of_length_n = [word for word in words if len(word) == n]
+    
+    if not words_of_length_n:
+        print(f"No words found with {n} letters.")
+        return
+
+    print(f"Found {len(words_of_length_n)} words with {n} letters. First 10:")
+    for word in words_of_length_n[:10]:
+        print(word)
+
+if __name__ == "__main__":
+    main()

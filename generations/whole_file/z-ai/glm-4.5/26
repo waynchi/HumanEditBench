@@ -1,0 +1,47 @@
+def conjugate_gradient(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Реализация метода сопряжённых градиентов для решения системы линейных уравнений Ax = b.
+
+    Параметры:
+    A : разреженная или плотная матрица (n x n)
+        Должна быть симметричной и положительно-определённой.
+    b : массив (n,)
+        Вектор правой части.
+    x0 : массив (n,), необязательно
+        Начальное приближение. Если None, используется нулевой вектор.
+    tol : float, необязательно
+        Допустимая норма невязки для критерия остановки.
+    max_iter : int, необязательно
+        Максимальное количество итераций. Если None, используется n (размерность системы).
+
+    Возвращает:
+    x : массив (n,)
+        Решение системы.
+    """
+    n = len(b)
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        x = x0.copy()
+
+    if max_iter is None:
+        max_iter = n
+
+    r = b - A.dot(x)
+    p = r.copy()
+    rs_old = np.dot(r, r)
+
+    for i in range(max_iter):
+        Ap = A.dot(p)
+        alpha = rs_old / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rs_new = np.dot(r, r)
+        
+        if np.sqrt(rs_new) < tol:
+            break
+            
+        p = r + (rs_new / rs_old) * p
+        rs_old = rs_new
+
+    return x

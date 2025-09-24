@@ -1,0 +1,32 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    # Split each line into two columns and convert to a transposed NumPy array of integers
+    cols = np.array([l.split("   ") for l in lines], dtype=int).T
+    # Extract the two lists
+    list_1 = cols[0]
+    list_2 = cols[1]
+
+    # Sort both lists
+    list_1_sorted = np.sort(list_1)
+    list_2_sorted = np.sort(list_2)
+    
+    # Calculate the absolute difference between the sorted lists
+    all_dists = np.abs(list_1_sorted - list_2_sorted)
+    
+    # Sum the distances
+    total_distance = np.sum(all_dists)
+    print(total_distance)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

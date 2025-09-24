@@ -1,0 +1,32 @@
+# Folder with all photos / folder with photos for training
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+# Reading the directory names, which are the types of eclipses
+ECLIPSE_LIST = {i:name for i, name in enumerate(os.listdir(TRAIN_DIR))}
+
+# Split the train dataset into train and val
+from sklearn.model_selection import train_test_split
+for eclipse in ECLIPSE_LIST.values():
+    eclipse_path = os.path.join(TRAIN_DIR, eclipse)
+    images_filename = sorted(os.listdir(eclipse_path))
+    train_images, val_images = train_test_split(images_filename, test_size=VAL_FRAC, random_state=42)
+    
+    print(f'{eclipse} | train images = {len(train_images)} | val images = {len(val_images)}')
+    
+    # Create the val directory if it doesn't exist
+    val_eclipse_path = os.path.join(DATA_PATH, 'val', eclipse)
+    os.makedirs(val_eclipse_path, exist_ok=True)
+    
+    # Move the val images to the val directory
+    for image_filename in val_images:
+        source = os.path.join(TRAIN_DIR, eclipse, image_filename)
+        destination = os.path.join(val_eclipse_path, image_filename)
+        shutil.move(source, destination)
+
+# Folder with photos for validation
+VAL_DIR = os.path.join(DATA_PATH, "val")
+
+# Folder with photos for testing
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+# Fraction of images in validation
+VAL_FRAC = 0.3

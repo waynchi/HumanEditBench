@@ -1,0 +1,53 @@
+python
+import numpy as np
+from matplotlib import pyplot as plt
+from scipy.stats import lognorm
+from scipy.optimize import minimize
+from scipy.integrate import quad
+import pandas as pd
+from tqdm import tqdm
+from typing import Dict, List, Tuple
+import json
+import pandas as pd
+
+
+class ModelRouter:
+    def __init__(
+        self,
+        models: List[str],
+        lambda_latency: float = 1.0,
+        lambda_rarity: float = 1.0,
+        lambda_ambiguity: float = 1.0,
+    ):
+        self.models = models
+        self.n_models = len(models)
+        self.model_to_idx = {model: idx for idx, model in enumerate(models)}
+        self.lambda_latency = lambda_latency
+        self.lambda_rarity = lambda_rarity
+        self.lambda_ambiguity = lambda_ambiguity
+
+        # Инициализировать параметры
+        self.n_pairs = (self.n_models * (self.n_models - 1)) // 2
+        self.theta = np.zeros(self.n_pairs)
+
+        # Кэш для статистики сражений
+        self.battle_counts = None
+        self.battle_preferences = None
+
+        # Кэш для параметров задержки
+        self.latency_params = None
+
+    def _softmax_function(self, theta: np.ndarray, temp: float = 1.0) -> np.ndarray:
+        """Преобразовать параметры в вероятности, используя softmax с температурой."""
+        exp_theta = np.exp(theta / temp)
+        return exp_theta / np.sum(exp_theta)
+
+    def _pair_to_index(self, i: int, j: int) -> int:
+        """Преобразовать индексы пар моделей в плоский индекс."""
+        if i > j:
+            i, j = j, i
+        return i * (self.n_models - 1) - (i * (i - 1)) // 2 + (j - i - 1)
+
+    def _index_to_pair(self, idx: int) -> Tuple[int, int]:
+        """Преобразовать плоский индекс в индексы пары моделей."""
+       

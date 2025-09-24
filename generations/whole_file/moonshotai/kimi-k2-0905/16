@@ -1,0 +1,15 @@
+import time
+import os
+
+options = uc.ChromeOptions()
+# Используем относительный путь от текущего файла
+driver_path = os.path.join(os.path.dirname(__file__), "chromedriver-win64", "chromedriver.exe")
+options.binary_location = driver_path
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # create an instance of ChromeOptions for undetected_chromedriver
+    # initialize the undetected Chrome driver with specified options
+    time.sleep(10)

@@ -1,0 +1,37 @@
+import numpy as np
+from pathlib import Path
+
+INPUT_FILE_PATH = './input.txt'  # or './example_in.txt'
+# If you want to switch files, just comment/uncomment the line above
+# INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # Early-exit if input is empty
+    if not lines:
+        print(0)
+        return
+
+    # Parse columns safely
+    cols = []
+    for raw in lines:
+        parts = raw.strip().split()
+        if len(parts) != 2:
+            continue  # skip malformed lines
+        cols.append(parts)
+
+    # Convert to NumPy arrays
+    cols = np.array(cols, dtype=int)
+    list_1 = cols[:, 0]
+    list_2 = cols[:, 1]
+
+    # Efficient calculation: sort once, compute vectorised absolute differences
+    list_1_sorted = np.sort(list_1)
+    list_2_sorted = np.sort(list_2)
+    total_distance = np.sum(np.abs(list_1_sorted - list_2_sorted))
+
+    print(total_distance)
+
+def parse_input_file():
+    # Use Path for better cross-platform compatibility
+    return Path(INPUT_FILE_PATH).read_text(encoding="utf-8").splitlines()

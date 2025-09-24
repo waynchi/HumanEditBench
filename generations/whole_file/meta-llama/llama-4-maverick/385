@@ -1,0 +1,10 @@
+# Zapisz bieżącą ścieżkę jako cwd
+# Użyj pymilvus do utworzenia połączenia z bazą danych
+import os
+from pymilvus import connections
+
+cwd = os.getcwd()
+connections.connect("default", host='localhost', port='19530')
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+client = connections

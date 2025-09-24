@@ -1,0 +1,20 @@
+# PROGRAM, który przeszukuje angielski słownik, a użytkownik może poprosić o słowo z N znaków. Program wyświetli 10 słów z tą liczbą znaków.
+import random
+
+def load_words(path="/usr/share/dict/words"):
+    with open(path, encoding="utf-8", errors="ignore") as f:
+        return [word.strip() for word in f if word.strip().isalpha()]
+
+def main():
+    words = load_words()
+    n = int(input("Podaj liczbę znaków: "))
+    matching = [w for w in words if len(w) == n]
+    if not matching:
+        print("Brak słów o podanej długości.")
+        return
+    chosen = random.sample(matching, min(10, len(matching)))
+    for w in chosen:
+        print(w)
+
+if __name__ == "__main__":
+    main()

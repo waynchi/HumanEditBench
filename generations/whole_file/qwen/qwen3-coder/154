@@ -1,0 +1,44 @@
+import random
+
+def find_words_with_n_characters(n):
+    # 这是一个简化的英语词典示例
+    # 在实际应用中，你可能会从文件或数据库中读取词典
+    dictionary = [
+        "apple", "banana", "cat", "dog", "elephant", "fish", "giraffe", "house", "ice", "jump",
+        "kite", "lion", "monkey", "nest", "orange", "pencil", "queen", "rabbit", "sun", "tree",
+        "umbrella", "violin", "water", "xylophone", "yellow", "zebra", "book", "car", "door",
+        "egg", "flower", "grape", "hat", "island", "juice", "key", "lamp", "moon", "note",
+        "ocean", "pizza", "quiz", "rain", "star", "train", "unicorn", "vase", "window", "yard"
+    ]
+    
+    # 筛选出具有N个字符的单词
+    words_with_n_chars = [word for word in dictionary if len(word) == n]
+    
+    # 如果找到的单词少于10个，则返回所有找到的单词
+    # 如果找到的单词多于10个，则随机选择10个
+    if len(words_with_n_chars) <= 10:
+        return words_with_n_chars
+    else:
+        return random.sample(words_with_n_chars, 10)
+
+def main():
+    try:
+        n = int(input("请输入您想要的单词字符数: "))
+        if n <= 0:
+            print("字符数必须是正整数。")
+            return
+        
+        words = find_words_with_n_characters(n)
+        
+        if words:
+            print(f"找到 {len(words)} 个包含 {n} 个字符的单词:")
+            for i, word in enumerate(words, 1):
+                print(f"{i}. {word}")
+        else:
+            print(f"词典中没有包含 {n} 个字符的单词。")
+            
+    except ValueError:
+        print("请输入一个有效的整数。")
+
+if __name__ == "__main__":
+    main()

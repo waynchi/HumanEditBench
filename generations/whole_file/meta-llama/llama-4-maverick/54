@@ -1,0 +1,14 @@
+# 记录当前路径为cwd，然后根据我写的注释使用pymilvus创建数据库链接
+from pymilvus import connections, Collection
+import os
+
+# 记录当前路径为cwd
+cwd = os.getcwd()
+# 使用pymilvus创建数据库链接
+connections.connect("default", host='localhost', port='19530')
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+# 假设原有的client在这里被使用，为了不影响后面的代码，我们仍然保留client变量，但需要修改其赋值逻辑
+# 这里因为MilvusClient改为使用connections.connect()，所以client的赋值需要根据实际情况进行调整
+# 在pymilvus中，没有直接等同于MilvusClient的类，但可以通过connections获取连接
+client = connections.get_connection("default")

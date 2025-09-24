@@ -1,0 +1,24 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Pobierz katalog bieżącego skryptu
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Skonstruuj ścieżkę względną do chromedrivera
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+options = uc.ChromeOptions()
+# options.binary_location is meant for the Chrome **browser** binary, not chromedriver.exe
+# Instead, let uc find the driver by itself (it downloads/maintains one) and only
+# override the Chrome **browser** path if you really need a specific one.
+# If you insist on using your own chromedriver.exe, pass it via the driver_executable_path
+# argument to uc.Chrome(), but leaving it out is the simplest fix here.
+print("wde")
+with uc.Chrome(use_subprocess=True, options=options) as driver:   # <-- changed
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)
+
+# duplicated block removed

@@ -1,0 +1,180 @@
+import math
+class Value:
+    """almacena un único valor escalar y su gradiente"""
+
+    def __init__(self, data, _children=(), _op=''):
+        self.data = data
+        self.grad = 0
+        # variables internas utilizadas para la construcción del gráfico de autograd
+        self._backward = lambda: None
+        self._prev = set(_children)
+        self._op = _op # la operación que produjo este nodo, para graphviz / depuración / etc
+
+    def __add__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data + other.data, (self, other), '+')
+
+        def _backward():
+            self.grad += out.grad
+            other.grad += out.grad
+        out._backward = _backward
+
+        return out
+
+    def __mul__(self, other):
+        other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data * other.data, (self, other), '*')
+
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
+
+        return out
+
+    def __pow__(self, other):
+        assert isinstance(other, (int, float)), "only supporting int/float powers for now"
+        out = Value(self.data**other, (self,), f'**{other}')
+
+        def _backward():
+            self.grad += (other * self.data**(other-1)) * out.grad
+        out._backward = _backward
+
+        return out
+
+
+        print(f'** EXP {self}')
+        out = Value(math.exp(self.data), (self,), "e")
+        def _backward():
+            self.grad += math.exp(self.data) * out.grad
+        out._backward = _backward
+        
+        return out
+    
+    def log(self):
+        out = Value(math.log(self.data), (self,), f'log{self.data}')
+        def _backward():
+            self.grad += 1 / self.data
+        out._backward = _backward       
+        
+        return out
+    
+    def relu(self):
+        assert isinstance(self.data, (int, float)), "only supporting int/float powers for now"
+        out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
+
+        def _backward():
+            self.grad += (out.data > 0) * out.grad
+        out._backward = _backward
+
+        return out
+    
+    def softmax(values):
+        # Asumimos que 'values' es una lista de objetos Value.
+        # 1. Calcular los valores exponenciales para cada Value.
+        exp_values = [math.exp(v.data) for v in values]
+        
+        # 2. Sumar todos los valores exponenciales.
+        sum_exp_values = sum(exp_values)
+        
+        # 3. Crear una nueva lista de objetos Value para los resultados de softmax.
+        #    Cada nuevo Value tendrá como hijos a todos los Values de entrada,
+        #    ya que la derivada de softmax para un elemento i depende de todos los elementos j.
+        softmax_outputs = []
+        for i, v in enumerate(values):
+            # El valor de softmax para el elemento i
+            s_i = exp_values[i] / sum_exp_values
+            # El nuevo Value creado, con todos los valores de entrada como hijos
+            out = Value(s_i, tuple(values), 'softmax')
+            
+            # 4. Definir la función _backward para este nodo de softmax.
+            def _backward(values_list, softmax_val, index):
+                # Esta función interna se define dentro del bucle y captura los valores
+                # necesarios (values_list, softmax_val, index) para el cálculo.
+                # La fórmula de la derivada de softmax es:
+                # dL/dv_i = s_i * (dL/ds_i - sum_j(s_j * dL/ds_j))
+                # donde s_i es el output de softmax para el input v_i
+                
+                # Recopilar los gradientes de la salida (dL/ds_j para todo j)
+                # out.grad es dL/ds_i para el nodo actual.
+                # Necesitamos dL/ds_j para todos los j para calcular la suma.
+                # Para ello, podemos iterar sobre los nodos de salida de softmax.
+                # Una forma más eficiente es calcular la suma en el bucle principal.
+                
+                # Para cada nodo de entrada v_i, su gradiente se actualiza según:
+                # grad_v_i += s_i * (grad_s_i - sum_over_j(s_j * grad_s_j))
+                
+                # Calculamos el término de la suma: sum_j(s_j * grad_s_j)
+                sum_sj_grad_sj = 0
+                for v_out in values_list: # Iteramos sobre los nodos de salida de softmax
+                    # v_out es un objeto Value que representa s_j
+                    # v_out.grad es dL/ds_j
+                    # v_out.data es s_j
+                    sum_sj_grad_sj += v_out.data * v_out.grad
+                
+                # Ahora actualizamos el gradiente para el nodo de entrada correspondiente
+                # 'values_list[index]' es el nodo de entrada v_i para el cual se llama a _backward
+                # 'softmax_val' es s_i
+                # 'values_list[index].grad' es dL/dv_i que queremos actualizar
+                # 'out.grad' (capturado) es dL/ds_i
+                
+                # El gradiente local de la función softmax para v_i es s_i * (1 - s_i)
+                # Pero en el contexto de la red, la regla de la cadena nos da:
+                # dL/dv_i = sum_j(dL/ds_j * ds_j/dv_i)
+                # ds_j/dv_i = s_i * (kronecker_delta(i,j) - s_j)
+                # dL/dv_i = s_i * (dL/ds_i - sum_j(s_j * dL/ds_j))
+                
+                # Obtenemos el nodo de entrada correcto
+                input_node = values_list[index]
+                input_node.grad += softmax_val * (out.grad - sum_sj_grad_sj)
+
+            # Asignamos la función _backward al nodo de salida.
+            # Usamos un argumento por defecto para capturar los valores correctos del bucle.
+            out._backward = lambda v=values, s=s_i, i=i: _backward(v, s, i)
+            softmax_outputs.append(out)
+            
+        return softmax_outputs
+
+    def backward(self):
+
+        # orden topológico de todos los hijos en el grafo
+        topo = []
+        visited = set()
+        def build_topo(v):
+            if v not in visited:
+                visited.add(v)
+                for child in v._prev:
+                    build_topo(child)
+                topo.append(v)
+        build_topo(self)
+
+        # ir una variable a la vez y aplicar la regla de la cadena para obtener su gradiente
+        self.grad = 1
+        for v in reversed(topo):
+            v._backward()
+
+    def __neg__(self): # -self
+        return self * -1
+    def __gt__(self, other):
+        return self.data > other.data
+
+    def __radd__(self, other): # otro + self
+        return self + other
+
+    def __sub__(self, other): # self - otro
+        return self + (-other)
+
+    def __rsub__(self, other): # otro - self
+        return other + (-self)
+
+    def __rmul__(self, other): # otro * self
+        return self * other
+
+    def __truediv__(self, other): # self / otro
+        return self * other**-1
+
+    def __rtruediv__(self, other): # otro / self
+        return other * self**-1
+
+    def __repr__(self):
+        return f"Value(data={self.data}, grad={self.grad})"

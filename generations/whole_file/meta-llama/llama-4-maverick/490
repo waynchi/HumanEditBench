@@ -1,0 +1,19 @@
+# Registrar la ruta actual como cwd
+# Crear enlace de base de datos utilizando pymilvus
+import os
+from pymilvus import connections
+
+cwd = os.getcwd()
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+
+# Establecer conexión con la base de datos
+connections.connect(alias="default", uri="http://localhost:19530")
+
+# Nota: El objeto 'client' no es necesario con la nueva versión de pymilvus,
+#       se utiliza 'connections' para manejar la conexión.
+#       Si necesitas un client específico para operaciones, 
+#       revisa la documentación de pymilvus para más información.
+
+# Se ha eliminado la línea 'client = MilvusClient(url=cwd)' 
+# ya que no es compatible con la nueva implementación utilizando pymilvus.

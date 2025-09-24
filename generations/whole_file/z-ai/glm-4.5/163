@@ -1,0 +1,96 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+import random
+import string
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return author == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+
+q = Query()
+d = Discussions()
+posts_generator = d.get_discussions("created", q, limit=6000)
+X = 0
+
+for post in posts_generator:
+    post_author = post['author']
+    post_permlink = post['permlink']
+    post_replies_count = post['children']
+    cnt = 0
+    X += 1
+    
+    # Initialize the hierarchical dictionary for the current post
+    diccionario[f"{post_author}/{post_permlink}"] = {
+        "post_author": post_author,
+        "post_permlink": post_permlink,
+        "replies": []
+    }
+
+    if post_replies_count > n_respuestas_minimas:
+        comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+        post_replies_list: list = comment.get_replies()
+        
+        cnt = 0
+        for replies in post_replies_list:
+            
+            author = replies['author']
+            text = replies['body']
+            
+            # Add reply information to the hierarchical dictionary
+            reply_data = {
+                "author": author,
+                "permlink": replies['permlink'],
+                "body": text,
+                "is_valid": False # Default status, will be updated by checks
+            }
+            diccionario[f"{post_author}/{post_permlink}"]["replies"].append(reply_data)
+
+            if is_own_author(author):
+                # 重新评估评论
+                # Optionally mark this reply or break as before
+                break 
+            if is_banned(author):
+                # Optionally mark this reply or break as before
+                break
+            if procesar(text):
+                cnt+= 1
+                # Mark the reply as valid if it passes the procesar check
+                reply_data["is_valid"] = True
+
+    if cnt > 3:
+        print("Iterador: ",X)
+        # The 'replies' variable here would point to the last reply in the loop.
+        # To print the last valid reply that contributed to the count, we need to find it.
+        # Or, more simply, just print the post details as the condition is met for the post.
+        print(f"Post '{post_permlink}' by '{post_author}' has more than 3 valid replies.")
+        # If you still want to print a specific reply, you'd iterate through diccionario[...]["replies"]
+        # to find the last one where is_valid is True.
+        # For example, to print the author/permlink of the last processed reply that was valid:
+        # last_valid_reply = None
+        # for r in reversed(diccionario[f"{post_author}/{post_permlink}"]["replies"]):
+        #     if r["is_valid"]:
+        #         last_valid_reply = r
+        #         break
+        # if last_valid_reply:
+        #     print(last_valid_reply['author'],'/',last_valid_reply['permlink'])

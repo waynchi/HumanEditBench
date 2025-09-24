@@ -1,0 +1,48 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # для l в lines:
+    # напечатать(l)
+    grid = np.array(lines)
+    print(grid)
+    str_to_match = "XMAS"
+    count = 0
+    # Проверить по горизонтали
+    for row in grid:
+        row_str = ''.join(row)
+        count += row_str.count(str_to_match)
+
+    # Проверить по вертикали
+    for col in range(len(max(lines, key=len))):
+        col_str = ''.join([line[col] for line in lines if col < len(line)])
+        count += col_str.count(str_to_match)
+
+    # Проверка по диагонали (сверху слева вниз направо)
+    for i in range(-(len(lines)-1), len(max(lines, key=len))):
+        diag = ''
+        for j in range(max(len(lines), len(max(lines, key=len)))):
+            if j < len(lines) and j + i >= 0 and j + i < len(max(lines, key=len)):
+                diag += lines[j][j + i]
+        count += diag.count(str_to_match)
+
+    # Проверка по диагонали (сверху справа вниз влево)
+    for i in range(-(len(lines)-1), len(max(lines, key=len))):
+        diag = ''
+        for j in range(max(len(lines), len(max(lines, key=len)))):
+            if j < len(lines) and -j - i >= -len(max(lines, key=len)) and -j - i < len(lines[0]):
+                diag += lines[j][-j - i - 1]
+        count += diag.count(str_to_match)
+
+    print(f"Found {count} occurrences of {str_to_match}")
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

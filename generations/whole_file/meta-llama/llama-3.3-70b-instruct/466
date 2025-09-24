@@ -1,0 +1,42 @@
+from langchain.llms import AI21
+from langchain.chains.qa import QAResponse
+from langchain.docstore.document import Document
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
+
+import json
+
+# Initialize AI21 model
+llm = AI21()
+
+# Load shap values from json file
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+
+# Load system prompt from file
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+# Create a prompt template
+prompt = PromptTemplate(
+    input_variables=["shap_values", "sys_prompt"],
+    template="{sys_prompt}\n{shap_values}",
+)
+
+# Create a chain with the prompt template and the LLM
+chain = LLMChain(
+    llm=llm,
+    prompt=prompt,
+)
+
+# Create a dictionary with the input variables
+input_dict = {
+    "shap_values": str(shap_values_json),
+    "sys_prompt": sys_prompt,
+}
+
+# Run the chain
+output = chain.run(input_dict)
+
+# Print the output
+print(output)

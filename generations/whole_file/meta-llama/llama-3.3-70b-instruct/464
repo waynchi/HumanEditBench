@@ -1,0 +1,49 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+# Inicializar el modelo ChatOllama con manejo de errores
+try:
+    chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+except Exception as e:
+    print(f"Error al inicializar el modelo: {str(e)}")
+    exit()
+
+# Cargar valores SHAP desde archivo JSON con manejo de errores
+try:
+    with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+except FileNotFoundError:
+    print("Archivo Vuori_Final_Approval_2024_09_24.json no encontrado")
+    exit()
+except json.JSONDecodeError:
+    print("Error al parsear JSON en Vuori_Final_Approval_2024_09_24.json")
+    exit()
+
+# Cargar el mensaje del sistema desde el archivo con manejo de errores
+try:
+    with open("system.prompt", "r") as file:
+        sys_prompt = file.read().strip()
+except FileNotFoundError:
+    print("Archivo system.prompt no encontrado")
+    exit()
+
+# Preparar los mensajes con un diseño más modular
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+# Generar la respuesta con un poco más de lógica
+user_input = ""  # Este valor debería ser reemplazado con la entrada real del usuario
+prompt_value = template.format(user_input=user_input)
+
+# Enviar la solicitud al modelo con un poco más de control
+chain = prompt_value | chat_model
+
+# Imprimir la respuesta con un poco más de información
+try:
+    respuesta = chain.invoke()
+    print("Respuesta del modelo:", respuesta)
+except Exception as e:
+    print(f"Error al obtener la respuesta: {str(e)}")

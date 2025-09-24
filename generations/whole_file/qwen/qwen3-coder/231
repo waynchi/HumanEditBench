@@ -1,0 +1,54 @@
+Looking at the error, the issue is that `grid.shape[1]` is being accessed but the grid doesn't have enough dimensions. This happens when the input file is empty or contains only empty lines, resulting in an array with shape (0,) or (n,) instead of (n, m).
+
+The problem is in the `parse_input_file()` function - it's not filtering out empty lines, and the main function doesn't check if the grid is valid before accessing its dimensions.
+python
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # 对每一行进行迭代：
+    # 打印(l)
+    grid = np.array(lines)
+    print(grid)
+    str_to_match = "XMAS"
+    count = 0
+    # 水平检查
+    for row in grid:
+        row_str = ''.join(row)
+        count += row_str.count(str_to_match)
+
+    # 垂直检查
+    if len(grid.shape) > 1:
+        for col in range(grid.shape[1]):
+            col_str = ''.join(grid[:,col])
+            count += col_str.count(str_to_match)
+
+    # 检查对角线（从左上到右下）
+    if len(grid.shape) > 1:
+        for i in range(-(grid.shape[0]-1), grid.shape[1]):
+            diag = np.diagonal(grid, offset=i)
+            diag_str = ''.join(diag)
+            count += diag_str.count(str_to_match)
+
+    # 检查对角线（从右上到左下）
+    if len(grid.shape) > 1:
+        flipped_grid = np.fliplr(grid)
+        for i in range(-(grid.shape[0]-1), grid.shape[1]):
+            diag = np.diagonal(flipped_grid, offset=i)
+            diag_str = ''.join(diag)
+            count += diag_str.count(str_to_match)
+
+    print(f"Found {count} occurrences of {str_to_match}")
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    # 过滤掉空行
+    lines = [line for line in lines if line.strip()]
+    return lines
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,102 @@
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+import numpy as np
+import matplotlib.pyplot as plt
+
+def cluster_data(features_transformed, cluster_config, n_clusters=2, clustering_method='kmeans'):
+    """Realiza la agrupación de datos de manera independiente para conjuntos de columnas especificados.
+
+Args:
+    features_transformed (pandas.DataFrame): DataFrame transformado con parámetros.
+    cluster_config (dict): Diccionario donde las claves son los nombres de las nuevas columnas de clústeres
+                           y los valores son tuplas de nombres de columnas para la clusterización.
+                           Ejemplo: {'Cluster1': ('columna1', 'columna2'), 'Cluster2': ('columna3',)}
+    n_clusters (int or dict): Número de clústeres. Puede ser un único entero para todos los grupos
+                              o un diccionario con el mismo formato que cluster_config para especificar
+                              un número diferente de clústeres para cada grupo.
+    clustering_method (str): Método de agrupación ('kmeans').
+
+Returns:
+    pandas.DataFrame: DataFrame con las columnas de etiquetas de clústeres añadidas."""
+    if features_transformed is None:
+        print("Сначала выполните преобразование данных (этап 5).")
+        return None
+
+    # Make a copy to avoid modifying the original DataFrame in place during the process
+    df_result = features_transformed.copy()
+
+    if clustering_method == 'kmeans':
+        # Iterate over each cluster configuration
+        for feature_name, columns_to_cluster in cluster_config.items():
+            # Check if columns exist in the DataFrame
+            if not all(col in df_result.columns for col in columns_to_cluster):
+                print(f"Ошибка: Одна или несколько колонок из {columns_to_cluster} отсутствуют в DataFrame.")
+                continue
+
+            # Select features for the current clustering task
+            features_for_clustering = df_result[list(columns_to_cluster)].copy()
+
+            # Determine the number of clusters for the current group
+            current_n_clusters = n_clusters.get(feature_name, n_clusters) if isinstance(n_clusters, dict) else n_clusters
+
+            # Perform KMeans clustering
+            model = KMeans(n_clusters=current_n_clusters, random_state=42, n_init=10)
+            cluster_labels = model.fit_predict(features_for_clustering)
+            
+            # Evaluación de la calidad de la agrupación (por ejemplo, utilizando el coeficiente de silueta)
+            if len(np.unique(cluster_labels)) > 1: # Comprobación para el caso en que todos los puntos se asignan a un solo clúster
+                silhouette_avg = silhouette_score(features_for_clustering, cluster_labels)
+                print(f"Коэффициент силуэта для '{feature_name}' ({current_n_clusters} кластеров): {silhouette_avg:.4f}")
+            else:
+                print(f"Невозможно рассчитать коэффициент силуэта для '{feature_name}' ({current_n_clusters} кластера) (все точки в одном кластере).")
+
+            # Add the cluster labels to the result DataFrame
+            df_result[feature_name] = cluster_labels
+            print(f"Кластеризация для '{feature_name}' выполнена. Метки кластеров добавлены в столбец '{feature_name}'.")
+            
+    else:
+        print("Неподдерживаемый метод кластеризации.")
+        return None
+
+    return df_result
+
+# Ejecución de la clusterización (después de la etapa 5 y antes de la etapa 6)
+if 'features_transformed' in locals() and features_transformed is not None:
+    # Ejemplo de configuración para la clusterización independiente
+    # Supongamos que 'features_transformed' tiene columnas 'feature_A', 'feature_B', 'feature_C'
+    # Queremos clusterizar ('feature_A', 'feature_B') juntas y 'feature_C' por separado.
+    # Las nuevas columnas se llamarán 'Cluster_AB' y 'Cluster_C'.
+    cluster_config = {
+        'Cluster_AB': ('feature_A', 'feature_B'),  # Clusterizar usando estas dos columnas
+        'Cluster_C': ('feature_C',)                # Clusterizar usando solo esta columna
+    }
+    
+    # También podemos especificar un número diferente de clústeres para cada grupo
+    n_clusters_config = {
+        'Cluster_AB': 3,
+        'Cluster_C': 2
+    }
+
+    # Llamar a la función modificada
+    features_transformed = cluster_data(features_transformed, cluster_config, n_clusters=n_clusters_config)
+    
+    # Visualización de los clústeres (ejemplo para el caso cuando hay 2 características numéricas)
+    # Esta parte del código de visualización original ya no es directamente aplicable
+    # ya que ahora tenemos múltiples columnas de clústeres.
+    # Se necesitaría una lógica de visualización más compleja para cada grupo de clústeres.
+    # Por ahora, la omitiremos o la adaptaremos para un caso específico.
+    
+    # Ejemplo de cómo se podría visualizar uno de los grupos de clústeres:
+    if 'Cluster_AB' in features_transformed.columns and 'feature_A' in features_transformed.columns and 'feature_B' in features_transformed.columns:
+        plt.figure(figsize=(8, 6))
+        plt.scatter(features_transformed['feature_A'], features_transformed['feature_B'], c=features_transformed['Cluster_AB'], cmap='viridis')
+        plt.xlabel('feature_A')
+        plt.ylabel('feature_B')
+        plt.title('Результаты кластеризации для Cluster_AB')
+        plt.colorbar(label='Номер кластера')
+        plt.show()
+    else:
+        print("Недостаточно данных или колонок для визуализации 'Cluster_AB'.")
+
+else:
+    print("Сначала выполните этап 5 (Преобразование данных).")

@@ -1,0 +1,35 @@
+import random
+
+# 小型示例词典（可自行替换为更大词典）
+WORDS = ["apple", "banana", "cherry", "orange", "grape", "lemon", "peach",
+         "pear", "plum", "berry", "melon", "mango", "peach", "lime", "avocado",
+         "apricot", "blueberry", "coconut", "fig", "guava", "kiwi", "lychee",
+         "papaya", "quince", "olive", "apple", "dates", "prune", "tomato",
+         "onion", "carrot", "potato", "pepper", "radish", "celery", "spinach",
+         "lettuce", "cabbage", "broccoli", "pumpkin", "squash", "beet", "maize",
+         "wheat", "oats", "rice", "barley", "beans", "lentil", "peanut"]
+
+def find_words_of_length(n):
+    """返回所有长度为 n 的单词列表"""
+    return [w for w in WORDS if len(w) == n]
+
+def main():
+    try:
+        n = int(input("请输入单词的字符数 N: "))
+    except ValueError:
+        print("请输入整数！")
+        return
+
+    candidates = find_words_of_length(n)
+    if not candidates:
+        print(f"未找到长度为 {n} 的单词。")
+        return
+
+    # 随机挑选最多 10 个单词
+    selected = random.sample(candidates, min(10, len(candidates)))
+    print("找到的单词：")
+    for w in selected:
+        print(w)
+
+if __name__ == "__main__":
+    main()

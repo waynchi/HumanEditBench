@@ -1,0 +1,31 @@
+def is_prime(n):
+    """
+    Verifica si un número es primo.
+
+    Un número primo es un número natural mayor que 1 que tiene únicamente
+    dos divisores positivos distintos: él mismo y el 1.
+
+    Args:
+        n (int): El número a verificar.
+
+    Returns:
+        bool: True si el número es primo, False en caso contrario.
+    """
+    if n <= 1:
+        return False
+    # Los números 2 y 3 son primos
+    if n <= 3:
+        return True
+    # Los múltiplos de 2 y 3 no son primos
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    # Comprobar divisibilidad desde 5 hasta la raíz cuadrada de n
+    # Se puede optimizar comprobando solo números de la forma 6k ± 1
+    i = 5
+    w = 2
+    while i * i <= n:
+        if n % i == 0:
+            return False
+        i += w
+        w = 6 - w  # Alterna entre 4 y 2 (5, 7, 11, 13, 17, ...)
+    return True

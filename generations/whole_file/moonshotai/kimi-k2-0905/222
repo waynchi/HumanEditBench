@@ -1,0 +1,66 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def explain_shap(shap_json_path: str,
+                 system_prompt_path: str,
+                 *,
+                 model: str = "llama3.2",
+                 base_url: str = "http://localhost:11434") -> str:
+    """
+    Load SHAP values and system prompt, then generate an explanation via ChatOllama.
+
+    Args:
+        shap_json_path: Path to JSON file containing SHAP values.
+        system_prompt_path: Path to plain-text file with system prompt.
+        model: Model tag to use with ChatOllama.
+        base_url: Ollama service endpoint.
+
+    Returns:
+        Generated explanation text.
+    """
+    # 初始化 ChatOllama 模型
+    chat_model = ChatOllama(model=model, base_url=base_url)
+    # chat_model = ChatOllama(
+    # model="llama3.1:70b",
+    # base_url="http://ada-open-webui.serveo.net/ollama",
+    # client_kwargs={
+    # headers": {"authorization": "Bearer <已隐藏>"}
+    # },
+    # )
+
+    # 从 JSON 文件加载 SHAP 值
+    with open(shap_json_path, "r", encoding="utf-8") as file:
+        shap_values_json = json.load(file).get("shap_values")
+
+    # 从文件加载系统提示
+    with open(system_prompt_path, "r", encoding="utf-8") as file:
+        sys_prompt = file.read().strip()
+
+    # 准备消息
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+
+    # 生成响应
+    user_input = json.dumps(shap_values_json)  # 准备用户输入
+
+    chain = prompt | chat_model
+
+    # 打印响应
+    response = chain.invoke(user_input)
+    return response.content
+
+
+# -----------------------------
+# 保留原来的调用方式（演示）
+# -----------------------------
+if __name__ == "__main__":
+    explanation = explain_shap(
+        shap_json_path="Vuori_Final_Approval_2024_09_24.json",
+        system_prompt_path="system.prompt"
+    )
+    print(explanation)

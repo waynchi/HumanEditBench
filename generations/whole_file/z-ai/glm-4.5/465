@@ -1,0 +1,22 @@
+def gradient_descent(f, grad_f, x0, learning_rate=0.01, max_iter=1000, tol=1e-6):
+    """
+    Función para el método de gradientes conjugados.
+    
+    Parámetros:
+    f (function): Función objetivo a minimizar.
+    grad_f (function): Gradiente de la función objetivo.
+    x0 (numpy.ndarray): Punto inicial.
+    learning_rate (float): Tasa de aprendizaje.
+    max_iter (int): Número máximo de iteraciones.
+    tol (float): Tolerancia para la convergencia.
+    
+    Retorna:
+    numpy.ndarray: Punto que minimiza la función.
+    """
+    x = x0
+    for i in range(max_iter):
+        grad = grad_f(x)
+        if np.linalg.norm(grad) < tol:
+            break
+        x = x - learning_rate * grad
+    return x

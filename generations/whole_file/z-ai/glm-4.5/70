@@ -1,0 +1,44 @@
+python
+from main13 import knn, mlp
+import pandas as pd
+
+# Initialize DataFrames for storing average predictions
+fares_index = range(10, 200, 10)
+pclass_columns = [1, 2, 3]
+knn_df = pd.DataFrame(index=fares_index, columns=pclass_columns)
+mlp_df = pd.DataFrame(index=fares_index, columns=pclass_columns)
+
+for pclass in [1, 2, 3]:
+    for fare in fares_index:
+        # Create the DataFrame for the current pclass and fare
+        my_df = pd.DataFrame({
+            "Pclass": [pclass]*3,
+            "Name": [24]*3,
+            "Sex": [0]*3, 
+            "Age": [19]*3,
+            "SibSp": [0]*3,
+            "Parch": [0]*3,
+            "Fare": [fare]*3,
+            "Embarked": ["S", "Q", "C"]
+        })
+        my_df = pd.get_dummies(my_df, columns=["Embarked"], prefix="Embarked")
+        my_df["Embarked_S"] = my_df["Embarked_S"].map({True: 1, False: 0})
+        my_df["Embarked_C"] = my_df["Embarked_C"].map({True: 1, False: 0})
+        my_df["Embarked_Q"] = my_df["Embarked_Q"].map({True: 1, False: 0})
+
+        # Get predictions
+        knn_preds = knn.predict(my_df)
+        mlp_preds = mlp.predict(my_df)
+
+        # Compute the average prediction for the three embarked ports
+        knn_avg = knn_preds.mean()
+        mlp_avg = mlp_preds.mean()
+
+        # Assign to the respective DataFrames
+        knn_df.loc[fare, pclass] = knn_avg
+        mlp_df.loc[fare, pclass] = mlp_avg
+
+# Combine the two DataFrames into one with MultiIndex columns
+np_df = pd.concat({'knn': knn_df, 'mlp': mlp_df}, axis=1)
+
+print(np_df)

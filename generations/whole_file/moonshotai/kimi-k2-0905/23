@@ -1,0 +1,25 @@
+import requests
+import random
+
+def get_words_with_n_chars(n):
+    # Use the Datamuse API to get words of length n
+    url = f"https://api.datamuse.com/words?sp={'?' * n}&max=1000"
+    response = requests.get(url)
+    if response.status_code == 200:
+        words = [item['word'] for item in response.json() if item['word'].isalpha()]
+        return random.sample(words, min(10, len(words)))
+    else:
+        return []
+
+if __name__ == "__main__":
+    try:
+        n = int(input("Enter the number of characters: "))
+        words = get_words_with_n_chars(n)
+        if words:
+            print("10 words with", n, "characters:")
+            for w in words:
+                print(w)
+        else:
+            print("No words found with", n, "characters.")
+    except ValueError:
+        print("Please enter a valid integer.")

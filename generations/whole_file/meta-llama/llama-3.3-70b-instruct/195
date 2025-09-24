@@ -1,0 +1,41 @@
+import numpy as np
+
+from manim import *
+
+class MaroAnimation(Scene):
+    def construct(self):
+        # 创建文本
+        text = Text("Maro", font_size=120)
+        
+        # 添加一个漂亮的颜色渐变
+        text.set_color_by_gradient(BLUE, PURPLE, PINK)
+        
+        # 创建动画序列
+        self.play(
+            Write(text, run_time=2),
+            rate_func=smooth
+        )
+        
+        # 添加一个轻微的脉冲动画
+        self.play(
+            text.animate.scale(1.2),
+            rate_func=there_and_back,
+            run_time=1.5
+        )
+        
+        # 添加轻微旋转以增加风格
+        self.play(
+            text.animate.rotate(PI/12),
+            text.animate.shift(UP * 0.5),
+            rate_func=ease_in_out_sine,
+            run_time=1
+        )
+        
+        # 保持最后一帧
+        self.wait(2)
+
+# 修复numpy导入错误
+# 因为 numpy 没有被使用，可以直接移除
+# 修复 rate_func 使用错误
+# manim 中的 rate_func 应该应用于单个动画，而不是动画组
+# 这里将 rate_func 应用于每个动画

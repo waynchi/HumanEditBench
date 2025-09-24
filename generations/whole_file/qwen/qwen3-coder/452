@@ -1,0 +1,54 @@
+Looking at the error message "Datos extra: línea 2 columna 1 (carácter 101)" (Extra data: line 2 column 1), this indicates that the JSON response from the Ollama API contains additional data that can't be parsed properly. The Ollama `/api/generate` endpoint returns a streaming response with multiple JSON lines, not a single JSON object.
+
+Here's the corrected implementation:
+python
+import requests
+
+def interact_with_local_llm(prompt, base_url="http://localhost:11434"):
+    """Interactuar con un LLM local usando la API de Ollama.
+
+:param prompt: El mensaje de entrada para el LLM.
+:param base_url: La URL base de la API de Ollama.
+:return: La respuesta del LLM."""
+    endpoint = f"{base_url}/api/generate"
+    payload = {
+        "model": "llama3.2:latest",  # Reemplaza con el nombre de tu modelo
+        "prompt": prompt,
+        "max_tokens": 2048  # Ajustar según sea necesario
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers, stream=True)
+        response.raise_for_status()
+        
+        # Handle streaming response from Ollama
+        full_response = ""
+        for line in response.iter_lines():
+            if line:
+                json_line = line.decode('utf-8')
+                data = json.loads(json_line)
+                if 'response' in data:
+                    full_response += data['response']
+        
+        return full_response
+    except requests.exceptions.RequestException as e:
+
+        return None
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    prompt = "Hello, how are you?"
+    response = interact_with_local_llm(prompt)
+    if response:
+        print(f"LLM Response: {response}")
+
+The key changes made:
+1. Added `stream=True` parameter to the requests.post() call
+2. Used `response.iter_lines()` to process the streaming response line by line
+3. Added `import json` (implicitly needed for json.loads)
+4. Accumulated the response chunks to build the complete response text
+
+This handles the Ollama API's streaming response format properly, where each line contains a JSON object with a 'response' field.

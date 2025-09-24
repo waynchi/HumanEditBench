@@ -1,0 +1,50 @@
+
+
+To solve this problem, we need to find the minimum number of operations required to repaint white blocks ('W') to black blocks ('B') such that there exists at least one segment of `k` consecutive black blocks in the given string. 
+
+### Approach
+1. **Problem Analysis**: The problem requires us to find a contiguous segment of length `k` in the string `blocks` where the number of 'W' characters is minimized. Each 'W' in this segment represents a block that needs to be repainted to 'B' in one operation. The solution involves efficiently checking all possible contiguous segments of length `k` in the string to determine the segment with the least number of 'W' characters.
+
+2. **Sliding Window Technique**: We use a sliding window approach to efficiently traverse the string. The window starts at the beginning of the string and slides one character at a time. For each window, we count the number of 'W' characters. The key insight is that when the window slides, we can adjust the count of 'W' characters by removing the leftmost character of the previous window and adding the new rightmost character of the current window. This adjustment allows us to compute the count in constant time for each subsequent window after the initial count.
+
+3. **Algorithm Selection**: 
+   - **Initial Window Count**: First, we count the number of 'W' characters in the initial window of size `k` (from index 0 to `k-1`).
+   - **Sliding the Window**: For each subsequent window (from index `k` to `n-1`), we adjust the count of 'W' characters:
+     - If the character exiting the window (leftmost character of the previous window) is 'W', we decrement the count.
+     - If the new character entering the window (current rightmost character) is 'W', we increment the count.
+   - **Tracking Minimum Operations**: After each adjustment, we update the minimum number of operations (i.e., the minimum count of 'W' characters encountered in any window).
+
+4. **Complexity Analysis**: 
+   - **Time Complexity**: The algorithm runs in O(n) time, where `n` is the length of the string. This is because each character is processed exactly twice (once when entering the window and once when exiting).
+   - **Space Complexity**: The space complexity is O(1) as we only use a few extra variables for counting and tracking the minimum.
+
+### Solution Codepython
+class Solution:
+    def minimumRecolors(self, blocks: str, k: int) -> int:
+        n = len(blocks)
+        count_w = 0
+        for i in range(k):
+            if blocks[i] == 'W':
+                count_w += 1
+        min_ops = count_w
+        
+        for right in range(k, n):
+            if blocks[right - k] == 'W':
+                count_w -= 1
+            if blocks[right] == 'W':
+                count_w += 1
+            if count_w < min_ops:
+                min_ops = count_w
+                
+        return min_ops
+
+### Explanation
+1. **Initial Setup**: The function starts by determining the length of the string `blocks` and initializing `count_w` to zero. This variable will keep track of the number of 'W' characters in the current window.
+2. **Initial Window Processing**: The first loop processes the initial window (from index 0 to `k-1`). For each 'W' encountered in this window, `count_w` is incremented.
+3. **Sliding Window Processing**: The second loop slides the window one character at a time from index `k` to the end of the string. For each new position:
+   - The leftmost character of the previous window (at index `right - k`) is checked. If it is 'W', `count_w` is decremented.
+   - The new character entering the window (at index `right`) is checked. If it is 'W', `count_w` is incremented.
+   - After adjusting `count_w`, the minimum number of operations (`min_ops`) is updated if the current `count_w` is smaller.
+4. **Result**: After processing all possible windows, the function returns `min_ops`, which holds the minimum number of repaints needed to achieve `k` consecutive black blocks.
+
+This approach efficiently checks all possible segments of length `k` using a sliding window technique, ensuring optimal performance with linear time complexity.

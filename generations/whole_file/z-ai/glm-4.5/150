@@ -1,0 +1,101 @@
+plik = open("dane_obrazki.txt")
+maxbitybledne = 0
+bityBledne = list()
+def czyPoprawny(obrazek): # 图像包含字符串列表，可以使用位运算符
+                            # 图像[i][j]
+    for wiersz in obrazek[:-1]: # 不计算最后一行，那是奇偶校验位
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            return False
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+            return False
+    return True
+
+def czyNaprawialny(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: # 不计算最后一行，那是校验位
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+    global maxbitybledne
+    if maxbitybledne<(bityKolBleden+bityWierBledne):
+        maxbitybledne = bityKolBleden+bityWierBledne
+    bityBledne.append(bityKolBleden+bityWierBledne)
+
+    if bityWierBledne >1 :
+        return False
+    if bityKolBleden > 1:
+        return False
+
+    return True
+
+def napraw(obrazek):
+    """输入是一个文本文件，其中包含编码为像素的黑白图像数据。0 - 白色像素 1 - 黑色像素。每行和每列的末尾都有一个奇偶校验位。如果行（或列）的1的数量是偶数，则奇偶校验位为0；如果是奇数，则为1。例如：0 1 1 0 1 1 错误的位需要更改为相反的1 1 1 0 1 0 1 1 1 1 1 1 0 1 1 0 0 0 1 1 0 1 1 0 1 1 0 0 0 - 列的奇偶校验位 ^ |- 行的奇偶校验位编写一个函数来查找损坏的图像并修复它们。即这是一个可修复的图像（最多只有一个行的奇偶校验位和一个列的奇偶校验位不正确），然后修复这些图像结果应包含错误的（可修复的）图像和修复后的图像。"""
+    wynik = list()
+    # 创建图像的深拷贝，以便在不修改原始图像的情况下进行修复
+    naprawiony_obrazek = [list(wiersz) for wiersz in obrazek]
+
+    # 找出奇偶校验错误的行和列
+    bledne_wiersze = []
+    for i in range(20): # 不检查最后一行（校验行）
+        wiersz = obrazek[i]
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bledne_wiersze.append(i)
+    
+    bledne_kolumny = []
+    for i in range(20): # 不检查最后一列（校验列）
+        kolumna = ""
+        for j in range(21): # 包含校验行
+            kolumna += obrazek[j][i]
+        if kolumna[:-1].count('1') % 2 != int(kolumna[-1]):
+            bledne_kolumny.append(i)
+
+    # 如果存在一个错误的行和一个错误的列，则交点处的位是错误的
+    if len(bledne_wiersze) == 1 and len(bledne_kolumny) == 1:
+        wiersz_bledu = bledne_wiersze[0]
+        kolumna_bledu = bledne_kolumny[0]
+        
+        # 翻转有错误的位
+        if naprawiony_obrazek[wiersz_bledu][kolumna_bledu] == '1':
+            naprawiony_obrazek[wiersz_bledu][kolumna_bledu] = '0'
+        else:
+            naprawiony_obrazek[wiersz_bledu][kolumna_bledu] = '1'
+        
+        # 将修复后的图像列表的列表转换回字符串列表
+        naprawiony_obrazek_str = ["".join(wiersz) for wiersz in naprawiony_obrazek]
+        
+        # 将原始（损坏的）图像和修复后的图像添加到结果列表中
+        wynik.append(obrazek)
+        wynik.append(naprawiony_obrazek_str)
+
+    return wynik
+
+poprawne = 0
+naprawialne = 0
+obrazek = list()
+for linia in plik:
+    wiersz = linia.strip() # 去掉空白字符，例如回车
+   # wiersz = wiersz[:-1]  # 仅包含图像数据，不包括奇偶校验位，现在读取整行数据
+    obrazek.append(wiersz)
+    if len(obrazek) == 21: # 我们有21行，即整个图像连同奇偶校验位行一起
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+
+    if len(obrazek) == 22:  # 在第22行之后清理图像以读取下一个图像的行
+        obrazek = list()
+
+print(poprawne,naprawialne,200-poprawne-naprawialne)
+print(maxbitybledne,max(bityBledne))

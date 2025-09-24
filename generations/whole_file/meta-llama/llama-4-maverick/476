@@ -1,0 +1,160 @@
+import pandas as pd
+import os
+import random
+import torch
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics import precision_score, recall_score
+from torch.nn import functional as F
+from PIL import Image, ImageDraw, ImageFont
+import matplotlib.pyplot as plt
+import seaborn as sns
+from colpali_engine.interpretability import (
+    get_similarity_maps_from_embeddings,
+    plot_all_similarity_maps,
+)
+
+
+# Ruta al conjunto de datos Flickr8k extraído
+FLICKR8K_IMAGES_PATH = "flickr8k/Images"
+FLICKR8K_CAPTIONS_PATH = "flickr8k/captions.txt"
+
+# Función para cargar pares de imagen-texto de Flickr8k
+
+
+def load_flickr8k_data(images_path, captions_path, fraction=0.1):
+    # Leer archivo de subtítulos
+    with open(captions_path, "r") as f:
+        captions_data = f.readlines()[1:]  # Omitir encabezado
+
+    # Analizar subtítulos
+    image_text_pairs = {}
+    for line in captions_data:
+        image_name, caption = line.strip().split(",", 1)
+        if image_name not in image_text_pairs:
+            image_text_pairs[image_name] = []
+        image_text_pairs[image_name].append(caption)
+
+    # Cargar solo una fracción del conjunto de datos
+    selected_images = random.sample(
+        list(image_text_pairs.keys()), int(len(image_text_pairs) * fraction)
+    )
+    image_text_pairs = {k: image_text_pairs[k] for k in selected_images}
+
+    # Crear pares de imágenes y subtítulos
+    pairs = []
+    for image_name, captions in image_text_pairs.items():
+        image_path = os.path.join(images_path, image_name)
+        if os.path.exists(image_path):
+            pairs.append((Image.open(image_path), random.choice(captions)))
+    return pairs
+
+
+# Función para crear pares no relacionados
+
+
+def create_unrelated_pairs(image_text_pairs):
+    """Crea pares no relacionados de imágenes y textos al mezclar aleatoriamente los textos.
+
+Args:
+    image_text_pairs (list): Una lista de tuplas que contiene imágenes y sus textos correspondientes.
+
+Returns:
+    list: Una lista de tuplas que contiene imágenes y textos no relacionados."""
+    images, texts = zip(*image_text_pairs)
+    unrelated_texts = random.sample(texts, len(texts))
+    return list(zip(images, unrelated_texts))
+
+
+def create_visual_pairs(image_text_pairs):
+    """Crea pares de imágenes originales y aumentadas a partir de pares de imagen-texto.
+
+Esta función toma una lista de pares de imagen-texto y crea nuevos pares que consisten
+en las imágenes originales y sus versiones aumentadas. La augmentación utilizada
+en esta implementación es un volteo horizontal.
+
+Argumentos:
+    image_text_pairs (list): Una lista de tuplas que contienen pares (imagen, texto),
+        donde las imágenes son objetos PIL Image y los textos son cadenas de caracteres.
+
+Devuelve:
+    list: Una lista de tuplas que contienen pares (imagen_original, imagen_aumentada),
+        donde ambos elementos son objetos PIL Image."""
+    from torchvision.transforms import ToTensor
+
+    images, _ = zip(*image_text_pairs)
+    # Ejemplo de aumento: volteo horizontal
+    augmented_images = [ToTensor()(image).flip(-1) for image in images]
+    return list(zip(images, augmented_images))
+
+
+def get_embeddings(image...ne")
+        ax.set_title(title)
+        ax.set_xticks(range(grid_size))
+        ax.set_yticks(range(grid_size))
+        fig.colorbar(im, ax=ax)
+
+    # Mostrar el gráfico
+    plt.tight_layout()
+    plt.show()
+
+
+
+def run_expe_word_square(
+    word_to_write,
+    token,
+    n_patches_x,
+    n_patches_y,
+    patch_size,
+    model,
+    processor,
+    device,
+    use_qwen,
+    main_color=[255, 255, 255],
+    special_color=(0, 0, 0),
+):
+
+    all_images_text = [
+        create_single_patch_image_with_text(
+            n_patches_x=n_patches_x,
+            n_patches_y=n_patches_y,
+            patch_size=patch_size,
+            main_color=main_color,
+            special_color=main_color,
+            special_patch=(row, col),
+            text=word_to_write,
+            text_color=(0,0,0),  # color_texto,
+            font_size=9,
+        )
+        for row in range(0, n_patches_y, 2)
+        for col in range(0, n_patches_x, 2)
+    ]
+
+    all_maps = []
+    for image in all_images_text:
+        batch_images = processor.process_images([image]).to(device)
+        batch_queries = processor.process_queries([token]).to(device)
+        original_maps, original_image_embeddings, original_query_embeddings = (
+            get_maps_and_embeds(
+                batch_images, batch_queries, model, processor, image, use_qwen=use_qwen
+            )
+        )
+        original_maps = original_maps.to(dtype=torch.float32).cpu().numpy()
+        all_maps.append(original_maps)
+
+    input_ids = batch_queries["input_ids"][0]  # forma: (num_subtokens,)
+    token_list = [processor.tokenizer.decode([token_id]) for token_id in input_ids]
+    # imprimir(token_list)
+    indexes = [i for i, x in enumerate(token_list) if "<" not in x and ">" not in x][2:]
+    # imprimir(indexes)
+    # imprimir(np.array(token_list)[[indexes]])
+
+    results_df = pd.DataFrame(columns=["accuracy", "score", "rank"])
+    for i, (this_map, image) in enumerate(zip(all_maps, all_images_text)):
+        visual_map = this_map[token_index]
+        metrics = evaluate_image_maps(visual_map, image)
+        patch_mask_flat = patch_mask.flatten()
+        sim_map_flat = torch.flatten(visual_map)
+        correlation = np.corrcoef(sim_map_flat.cpu().numpy().astype(np.float32), patch_mask_flat)[0, 1]
+        results_df.loc[i] = metrics.values()
+    return results_df

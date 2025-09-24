@@ -1,0 +1,63 @@
+def soma_quatro_quadrados_nao_nulos(n):
+    """
+    Verifica se um número pode ser expresso como a soma de quatro quadrados não nulos.
+    Baseado no teorema dos quatro quadrados de Lagrange, que afirma que todo número
+    natural pode ser representado como a soma de quatro quadrados inteiros.
+    """
+    if n < 4:  # Menor caso possível: 1+1+1+1=4
+        return False
+    
+    # Verifica se n é da forma 4^a(8b+7), pois esses números requerem 4 quadrados
+    temp = n
+    while temp % 4 == 0:
+        temp //= 4
+    
+    # Se temp ≡ 7 (mod 8), então n requer exatamente 4 quadrados
+    if temp % 8 == 7:
+        # Para esses casos, verificamos se podemos usar apenas quadrados não nulos
+        # Precisamos encontrar a, b, c, d > 0 tal que a² + b² + c² + d² = n
+        for a in range(1, int(n**0.5) + 1):
+            for b in range(a, int((n - a*a)**0.5) + 1):  # Evita repetições
+                for c in range(b, int((n - a*a - b*b)**0.5) + 1):
+                    d_squared = n - a*a - b*b - c*c
+                    if d_squared > 0:
+                        d = int(d_squared**0.5)
+                        if d >= c and d*d == d_squared:  # d >= c evita repetições
+                            return True
+        return False
+    
+    # Para outros casos, provavelmente podemos representar com 1, 2 ou 3 quadrados
+    # Mas o problema pede especificamente 4 quadrados não nulos
+    # Então procuramos uma decomposição em exatamente 4 quadrados positivos
+    
+    for a in range(1, int(n**0.5) + 1):
+        for b in range(a, int((n - a*a)**0.5) + 1):
+            for c in range(b, int((n - a*a - b*b)**0.5) + 1):
+                d_squared = n - a*a - b*b - c*c
+                if d_squared > 0:
+                    d = int(d_squared**0.5)
+                    if d >= c and d*d == d_squared:
+                        return True
+    
+    return False
+
+# Função para gerar os primeiros números que são soma de quatro quadrados não nulos
+def gerar_numeros_soma_quatro_quadrados(limit):
+    """Gera todos os números até limit que podem ser escritos como soma de 4 quadrados não nulos"""
+    numeros = []
+    for i in range(4, limit + 1):
+        if soma_quatro_quadrados_nao_nulos(i):
+            numeros.append(i)
+    return numeros
+
+# Exemplo de uso
+if __name__ == "__main__":
+    print("Primeiros números que podem ser expressos como soma de quatro quadrados não nulos:")
+    resultado = gerar_numeros_soma_quatro_quadrados(50)
+    print(resultado)
+    
+    # Testando alguns casos específicos
+    testes = [4, 7, 15, 23, 28, 31]
+    for num in testes:
+        resultado = soma_quatro_quadrados_nao_nulos(num)
+        print(f"{num}: {'Sim' if resultado else 'Não'}")

@@ -1,0 +1,45 @@
+from dataclasses import dataclass
+
+@dataclass
+class Card:
+    id: int = None
+    celular: str = None
+    operadora: str = None
+    valor: str = None
+    email: str = None
+    nome: str = None
+    cpf: str = None
+    card: str = None
+    mes: str = None
+    ano: str = None
+    cvv: str = None
+    token: str = None
+    bin: str = None
+    dadosbin: str = None
+    senha: str = None
+
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+
+    def __repr__(self):
+        return (
+            f"Card("
+            f"id='{self.id}', "
+            f"celular='{self.celular}', "
+            f"operadora='{self.operadora}', "
+            f"valor='{self.valor}', "
+            f"email='{self.email}', "
+            f"nome='{self.nome}', "
+            f"cpf='{self.cpf}', "
+            f"card='{self.card}', "
+            f"mes='{self.mes}', "
+            f"ano='{self.ano}', "
+            f"cvv='{self.cvv}', "
+            f"token='{self.token}', "
+            f"bin='{self.bin}', "
+            f"dadosbin='{self.dadosbin}', "
+            f"senha='{self.senha}'"
+            f")"
+        )

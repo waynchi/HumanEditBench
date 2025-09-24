@@ -1,0 +1,30 @@
+def sum_of_four_squares(n):
+    """
+    This function determines if a number can be expressed as the sum of four non-zero squares.
+    
+    Parameters:
+    n (int): The number to be checked.
+    
+    Returns:
+    bool: True if the number can be expressed as the sum of four non-zero squares, False otherwise.
+    """
+    for a in range(1, int(n**0.5) + 1):
+        for b in range(1, int((n - a**2)**0.5) + 1):
+            for c in range(1, int((n - a**2 - b**2)**0.5) + 1):
+                d = (n - a**2 - b**2 - c**2)**0.5
+                if d == int(d) and d > 0:
+                    return True
+    return False
+
+
+def main():
+    # Test the function
+    numbers = [10, 20, 30, 40, 50]
+    for num in numbers:
+        if sum_of_four_squares(num):
+            print(f"{num} can be expressed as the sum of four non-zero squares.")
+        else:
+            print(f"{num} cannot be expressed as the sum of four non-zero squares.")
+
+if __name__ == "__main__":
+    main()

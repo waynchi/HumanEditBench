@@ -1,0 +1,37 @@
+# Liczby, które można wyrazić jako sumę czterech niezerowych kwadratów:
+
+def can_be_expressed_as_sum_of_four_nonzero_squares(n):
+    """Sprawdza czy liczba może być wyrażona jako suma czterech niezerowych kwadratów"""
+    # Z twierdzenia Lagrange'a każda liczba naturalna może być przedstawiona
+    # jako suma czterech kwadratów, ale tutaj sprawdzamy specyficznie
+    # dla niezerowych kwadratów (czyli 1², 2², 3², ...)
+    
+    # Przeglądamy wszystkie możliwe kombinacje czterech niezerowych kwadratów
+    # ograniczone do rozsądnej granicy
+    max_val = int(n**0.5) + 1
+    
+    for a in range(1, min(max_val, 100)):
+        for b in range(a, min(max_val, 100)):
+            for c in range(b, min(max_val, 100)):
+                for d in range(c, min(max_val, 100)):
+                    if a*a + b*b + c*c + d*d == n:
+                        return True
+                    elif a*a + b*b + c*c + d*d > n:
+                        break
+    return False
+
+def find_numbers_up_to_limit(limit):
+    """Znajduje wszystkie liczby do danej granicy, które można wyrazić 
+    jako sumę czterech niezerowych kwadratów"""
+    result = []
+    for i in range(1, limit + 1):
+        if can_be_expressed_as_sum_of_four_nonzero_squares(i):
+            result.append(i)
+    return result
+
+# Przykład użycia
+if __name__ == "__main__":
+    limit = 100
+    numbers = find_numbers_up_to_limit(limit)
+    print(f"Liczby do {limit}, które można wyrazić jako suma czterech niezerowych kwadratów:")
+    print(numbers)

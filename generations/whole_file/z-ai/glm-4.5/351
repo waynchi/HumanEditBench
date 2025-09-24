@@ -1,0 +1,33 @@
+python
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # Process lines into two lists of integers
+    list1 = []
+    list2 = []
+    for line in lines:
+        if line.strip():  # Skip empty lines
+            parts = line.split()
+            list1.append(int(parts[0]))
+            list2.append(int(parts[1]))
+    
+    # Sort both lists
+    list1.sort()
+    list2.sort()
+    
+    # Calculate total distance
+    total = 0
+    for a, b in zip(list1, list2):
+        total += abs(a - b)
+    
+    print(total)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

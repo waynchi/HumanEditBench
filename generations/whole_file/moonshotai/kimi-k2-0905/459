@@ -1,0 +1,24 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+# INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # print(lines)  # removed debug print
+    cols = [l.split() for l in lines if l.strip()]  # split on any whitespace, skip empty lines
+    cols = np.array(cols, dtype=int).T
+    list_1 = cols[0]
+    list_2 = cols[1]
+
+    # vectorized sort and distance computation
+    total_distance = np.abs(np.sort(list_1) - np.sort(list_2)).sum()
+    print(total_distance)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().splitlines()  # splitlines avoids trailing ''
+    return lines
+
+if __name__ == "__main__":
+    main()

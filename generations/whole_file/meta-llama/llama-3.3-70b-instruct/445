@@ -1,0 +1,38 @@
+def binary_search(lista, objetivo):
+    """
+    Realiza una búsqueda binaria en una lista ordenada.
+
+    Precondición: La lista debe estar ordenada.
+
+    Args:
+        lista (list): La lista en la que se realizará la búsqueda.
+        objetivo: El elemento que se está buscando.
+
+    Returns:
+        int: El índice del elemento encontrado, -1 si no se encuentra.
+    """
+    inicio = 0
+    fin = len(lista) - 1
+
+    while inicio <= fin:
+        medio = (inicio + fin) // 2
+        if lista[medio] == objetivo:
+            return medio
+        elif lista[medio] < objetivo:
+            inicio = medio + 1
+        else:
+            fin = medio - 1
+
+    return -1
+
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    lista = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    objetivo = 5
+    resultado = binary_search(lista, objetivo)
+
+    if resultado != -1:
+        print(f"El elemento {objetivo} se encuentra en el índice {resultado}.")
+    else:
+        print(f"El elemento {objetivo} no se encuentra en la lista.")

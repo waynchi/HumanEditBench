@@ -1,0 +1,27 @@
+def binary_search(arr, target):
+    """
+    Wyszukiwanie binarne w liście posortowanej.
+
+    :param arr: Posortowana lista elementów.
+    :param target: Element do znalezienia.
+    :return: Indeks elementu w liście, jeśli element istnieje, -1 w pp.
+    """
+    left, right = 0, len(arr) - 1
+    while left <= right:
+        mid = (left + right) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+# Przykład użycia
+arr = [2, 5, 8, 12, 16, 23, 38, 56, 72, 91]
+target = 23
+result = binary_search(arr, target)
+if result != -1:
+    print(f"Element {target} gefunden przy indeksie {result}")
+else:
+    print(f"Element {target} nie znaleziony")

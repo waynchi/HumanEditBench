@@ -1,0 +1,49 @@
+# Tarea 1: Creación y visualización de una matriz
+def create_matrix(rows: int, cols: int, fill_value=0) -> list:
+    """Crea una matriz de tamaño rows x cols, llena con el valor fill_value."""
+    return [[fill_value for _ in range(cols)] for _ in range(rows)]
+
+
+# Tarea 2: Suma de matrices
+def add_matrices(matrix_a: list, matrix_b: list) -> list:
+    """Suma dos matrices del mismo tamaño elemento a elemento."""
+    return [[matrix_a[i][j] + matrix_b[i][j]
+             for j in range(len(matrix_a[0]))]
+            for i in range(len(matrix_a))]
+
+
+# Tarea 3: Multiplicación de una matriz por un número
+def scalar_multiply(matrix: list, scalar: float) -> list:
+    """Multiplica todos los elementos de la matriz por un escalar."""
+    return [[element * scalar for element in row] for row in matrix]
+
+
+# Tarea 4: Multiplicación de matrices
+def multiply_matrices(matrix_a: list, matrix_b: list) -> list:
+    """Multiplica dos matrices si son compatibles."""
+    rows_a, cols_a = len(matrix_a), len(matrix_a[0])
+    rows_b, cols_b = len(matrix_b), len(matrix_b[0])
+    result = create_matrix(rows_a, cols_b)
+    for i in range(rows_a):
+        for j in range(cols_b):
+            acc = 0
+            for k in range(cols_a):
+                acc += matrix_a[i][k] * matrix_b[k][j]
+            result[i][j] = acc
+    return result
+
+
+# Tarea 5: Transposición de una matriz
+def transpose_matrix(matrix: list) -> list:
+    """Transpone una matriz: filas se convierten en columnas."""
+    rows, cols = len(matrix), len(matrix[0])
+    return [[matrix[i][j] for i in range(rows)] for j in range(cols)]
+
+
+# Tarea 6: Determinante de una matriz 3x3
+def determinant_3x3(matrix: list) -> float:
+    """Calcula el determinante de una matriz 3x3."""
+    a, b, c = matrix[0]
+    d, e, f = matrix[1]
+    g, h, i = matrix[2]
+    return a * (e * i - f * h) - b * (d * i - f * g) + c * (d * h - e * g)

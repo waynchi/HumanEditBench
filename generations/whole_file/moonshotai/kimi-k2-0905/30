@@ -1,0 +1,24 @@
+# Verificação: n pode ser escrito como soma de 4 quadrados não-nulos
+def pode_ser_soma_de_4_quadrados_nao_nulos(n):
+    # Pelo teorema de Lagrange, todo inteiro positivo é soma de 4 quadrados,
+    # mas aqui exigimos que sejam todos diferentes de zero.
+    # Um número não pode ser escrito como soma de 4 quadrados estritamente positivos
+    # se, e somente se, for da forma 4^k*(8*m + 7) para inteiros k ≥ 0, m ≥ 0.
+    while n % 4 == 0:
+        n //= 4
+    return n % 8 != 7
+
+# Gera números que podem ser expressos como a soma de quatro quadrados não nulos
+def numeros_soma_4_quadrados_nao_nulos(quantidade=50):
+    lista = []
+    candidato = 1
+    while len(lista) < quantidade:
+        if pode_ser_soma_de_4_quadrados_nao_nulos(candidato):
+            lista.append(candidato)
+        candidato += 1
+    return lista
+
+# Exibição
+if __name__ == "__main__":
+    print("Números que podem ser expressos como a soma de quatro quadrados não nulos:")
+    print(numeros_soma_4_quadrados_nao_nulos(30))

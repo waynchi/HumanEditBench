@@ -1,0 +1,94 @@
+    def emulate_experiment(self, instruction):
+        self.experiment_log.append(f"Instruction: {instruction}")
+        
+        # Początkowe sprawdzenia
+        clarity_check = self.check_instruction_clarity(instruction)
+        if clarity_check["decision"] == "False":
+            self.experiment_log.append(f"Instruction not clear: {clarity_check['why']}")
+            return f"Instruction not clear. Please clarify. Here is why: {clarity_check['why']}"
+
+        possibility_check = self.check_instruction_possibility(instruction)
+        if possibility_check["decision"] == "False":
+            self.experiment_log.append(f"Instruction impossible: {possibility_check['why']}")
+            return f"Instruction impossible. Please provide a possible instruction. Here is why: {possibility_check['why']}"
+
+        willingness_check = self.check_d_willingness(instruction)
+        if willingness_check["decision"] == "False":
+            self.experiment_log.append(f"D-personnel refused: {willingness_check['why']}")
+            return f"D-personnel refused. Reason: {willingness_check['why']}"
+
+        self.experiment_log.append("All checks passed. Starting emulation.")
+        
+        # Pętla emulacji
+        current_actor = "d_personnel"
+        count_of_iterations = 0
+        action_history = [instruction]  # Zacznij od początkowej instrukcji
+        
+        while True and count_of_iterations < 5:
+            count_of_iterations += 1
+            if current_actor == "d_personnel":
+                actions = self.generate_possible_actions(action_history, self.d_personnel)
+                if not actions:
+                    self.experiment_log.append("No possible actions for D-personnel.")
+                    break
+                
+                chosen_action = self.choose_action(actions)
+                self.experiment_log.append(f"D-personnel action: {chosen_action}")
+                
+                outcomes = self.generate_outcomes(chosen_action, self.d_personnel, self.current_scp, self.room)
+                self.experiment_log.append(f"Outcomes: {outcomes}")
+                
+                self.apply_outcomes(outcomes)
+                action_history.append({"d_personnel": {"action": chosen_action, "outcomes": outcomes}})
+                
+                current_actor = "scp"
+            elif current_actor == "scp":
+                scp_actions = self.generate_possible_actions(action_history, self.current_scp)
+                if not scp_actions:
+                    self.experiment_log.append("No possible actions for SCP.")
+                    break
+                
+                chosen_scp_action = self.choose_action(scp_actions)
+                self.experiment_log.append(f"SCP action: {chosen_scp_action}")
+                
+                scp_outcomes = self.generate_outcomes(chosen_scp_action, self.d_personnel, self.current_scp, self.room)
+                self.experiment_log.append(f"SCP Outcomes: {scp_outcomes}")
+                
+                self.apply_outcomes(scp_outcomes)
+                action_history.append({"scp": {"action": chosen_scp_action, "outcomes": scp_outcomes}})
+                
+                current_actor = "d_personnel"
+
+    def generate_possible_actions(self, action_history, actor):
+        if isinstance(actor, D_Personnel):
+            system_prompt = """You are a helpful assistant that generates possible actions for D-class personnel. 
+            Answer in json format in format: {actions: ["action1", "action2", ... ]}. 
+            Generate 3-5 possible actions based on the instruction and action history."""
+            
+            user_prompt = f"""Generate possible actions for D-class personnel based on this history:
+            Initial instruction: {action_history[0]}
+            Action history: {action_history[1:]}
+            Current state: {actor.state}
+            Current knowledge about SCP: {actor.memory}"""
+            response = self.llm_request(system_prompt, user_prompt)
+            if "actions" in response:
+                return response["actions"]
+            else:
+                return []
+        elif isinstance(actor, SCP_Object):
+            system_prompt = """You are a helpful assistant that generates possible actions for a dangerous SCP entity. 
+            Answer in json format in format: {actions: ["action1", "action2", ... ]}. 
+            Generate 3-5 possible actions based on the D-personnel actions and the current scene state. 
+            Respect SCP rules, triggers and nature of the entity."""
+            
+            user_prompt = f"""Generate possible actions for SCP {actor.name} based on this history:
+            Initial instruction: {action_history[0]}
+            Action history: {action_history[1:]}
+            SCP description: {actor.description}
+            SCP triggers: {actor.triggers}
+            SCP state: {actor.state}"""
+            response = self.llm_request(system_prompt, user_prompt)
+            if "actions" in response:
+                return response["actions"]
+            else:
+                return []

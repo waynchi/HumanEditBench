@@ -1,0 +1,31 @@
+import random
+import requests
+
+def get_words_with_length(n):
+    # Using the Datamuse API to fetch words of a specific length
+    url = f"https://api.datamuse.com/words?sp={'?' * n}&max=100"
+    response = requests.get(url)
+    if response.status_code == 200:
+        words = [item['word'] for item in response.json()]
+        return random.sample(words, min(10, len(words)))
+    else:
+        return []
+
+def main():
+    try:
+        n = int(input("Ingresa el número de caracteres de la palabra que deseas: "))
+        if n <= 0:
+            print("Por favor, ingresa un número positivo.")
+            return
+        words = get_words_with_length(n)
+        if words:
+            print(f"10 palabras con {n} caracteres:")
+            for word in words:
+                print(f"- {word}")
+        else:
+            print(f"No se encontraron palabras con {n} caracteres.")
+    except ValueError:
+        print("Entrada inválida. Por favor, ingresa un número entero.")
+
+if __name__ == "__main__":
+    main()

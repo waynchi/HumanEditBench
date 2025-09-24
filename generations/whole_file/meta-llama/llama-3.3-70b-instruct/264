@@ -1,0 +1,31 @@
+def sum_of_four_squares(n):
+    """
+    Returns a list of all possible combinations of four non-zero squares that sum up to n.
+    
+    Args:
+        n (int): The target sum.
+    
+    Returns:
+        list: A list of tuples, where each tuple contains four integers representing the squares.
+    """
+    result = []
+    for a in range(1, int(n**0.5) + 1):
+        for b in range(a, int((n - a**2)**0.5) + 1):
+            for c in range(b, int((n - a**2 - b**2)**0.5) + 1):
+                for d in range(c, int((n - a**2 - b**2 - c**2)**0.5) + 1):
+                    if a**2 + b**2 + c**2 + d**2 == n:
+                        result.append((a, b, c, d))
+    return result
+
+def main():
+    n = int(input("Enter a number: "))
+    combinations = sum_of_four_squares(n)
+    if combinations:
+        print("The number {} can be expressed as a sum of four non-zero squares in the following ways:".format(n))
+        for combination in combinations:
+            print("{}^2 + {}^2 + {}^2 + {}^2 = {}".format(*combination, n))
+    else:
+        print("The number {} cannot be expressed as a sum of four non-zero squares.".format(n))
+
+if __name__ == "__main__":
+    main()

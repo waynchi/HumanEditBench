@@ -1,0 +1,8 @@
+# 记录当前路径为cwd
+# 创建向量数据库路径
+cwd = os.getcwd()
+# 跳过创建数据库文件，直接使用pymilvus创建链接
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+# 使用pymilvus创建数据库链接
+client = Milvus(dir=cwd)

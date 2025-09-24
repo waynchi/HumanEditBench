@@ -1,0 +1,15 @@
+def cztery_kwadraty(n):
+    """Zwraca True jeżeli n da się zapisać jako suma 4 niezerowych kwadratów."""
+    # wystarczy sprawdzić czy n ≥ 4 i nie jest postaci 4^a(8k+7)
+    if n < 4:
+        return False
+    # usuwamy wszystkie czynniki 4
+    while n % 4 == 0:
+        n //= 4
+    # jeżeli po usunięciu 4-ek zostało 7 (mod 8) to musi być sumą 4 kwadratów
+    # ale przynajmniej jeden z nich musi być zerem – my chcemy niezerowych
+    return n % 8 != 7
+
+
+# --- przykład użycia ---
+print([x for x in range(1, 51) if cztery_kwadraty(x)])

@@ -1,0 +1,44 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def generar_respuesta_explicabilidad(
+    modelo="llama3.2",
+    base_url="http://localhost:11434",
+    shap_json_path="Vuori_Final_Approval_2024_09_24.json",
+    system_prompt_path="system.prompt"
+):
+    """
+    Genera una explicabilidad a partir de valores SHAP utilizando ChatOllama.
+    """
+    # Inicializar el modelo ChatOllama
+    chat_model = ChatOllama(model=modelo, base_url=base_url)
+
+    # Cargar valores SHAP desde archivo JSON
+    with open(shap_json_path, "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+
+    # Cargar el mensaje del sistema desde el archivo
+    with open(system_prompt_path, "r") as file:
+        sys_prompt = file.read().strip()
+
+    # Preparar los mensajes
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+
+    # Preparar la entrada del usuario
+    user_input = json.dumps(shap_values_json)
+
+    # Crear cadena y generar respuesta
+    chain = prompt | chat_model
+    response = chain.invoke(user_input)
+
+    return response.content
+
+
+# Imprimir la respuesta
+print(response.content)

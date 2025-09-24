@@ -1,0 +1,47 @@
+# Program, który przeszukuje angielski słownik, a użytkownik może poprosić o słowo z N znakami. Program wyświetli 10 słów z tą liczbą znaków.
+
+def load_dictionary():
+    """Load English dictionary words"""
+    # This is a simplified version - in reality you might load from a file
+    # or use a dictionary API
+    return [
+        "apple", "banana", "computer", "python", "programming", 
+        "language", "keyboard", "monitor", "software", "hardware",
+        "internet", "website", "application", "database", "algorithm",
+        "function", "variable", "library", "framework", "development",
+        "testing", "debugging", "compiler", "interpreter", "syntax",
+        "semantic", "structure", "object", "class", "method",
+        "inheritance", "polymorphism", "encapsulation", "abstraction",
+        "module", "package", "import", "export", "command",
+        "interface", "implementation", "documentation", "tutorial",
+        "example", "exercise", "practice", "challenge", "solution"
+    ]
+
+def find_words_with_n_characters(dictionary, n):
+    """Find words with exactly n characters"""
+    return [word for word in dictionary if len(word) == n]
+
+def main():
+    # Load dictionary
+    english_dict = load_dictionary()
+    
+    # Get user input
+    try:
+        n = int(input("Podaj liczbę znaków (N): "))
+        
+        # Find words with N characters
+        matching_words = find_words_with_n_characters(english_dict, n)
+        
+        # Display up to 10 words
+        if matching_words:
+            print(f"\nZnalazłem następujące słowa z {n} znakami:")
+            for i, word in enumerate(matching_words[:10], 1):
+                print(f"{i}. {word}")
+        else:
+            print(f"Nie znalazłem słów z {n} znakami.")
+            
+    except ValueError:
+        print("Proszę podać prawidłową liczbę.")
+
+if __name__ == "__main__":
+    main()

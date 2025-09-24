@@ -1,0 +1,69 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, max_iter=None, tol=1e-6):
+    """
+    共轭梯度法求解线性方程组 Ax = b
+    
+    参数:
+    A : array_like
+        系数矩阵 (必须是对称正定的)
+    b : array_like
+        右侧向量
+    x0 : array_like, optional
+        初始猜测值，默认为零向量
+    max_iter : int, optional
+        最大迭代次数，默认为矩阵的维度
+    tol : float, optional
+        收敛容差
+    
+    返回:
+    x : numpy.ndarray
+        方程组的解
+    """
+    A = np.asarray(A)
+    b = np.asarray(b)
+    n = len(b)
+    
+    if x0 is None:
+        x = np.zeros(n)
+    else:
+        x = np.asarray(x0)
+    
+    if max_iter is None:
+        max_iter = n
+    
+    r = b - np.dot(A, x)  # 残差
+    p = r.copy()  # 搜索方向
+    
+    rsold = np.dot(r, r)
+    
+    for i in range(max_iter):
+        Ap = np.dot(A, p)
+        alpha = rsold / np.dot(p, Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        
+        rsnew = np.dot(r, r)
+        
+        if np.sqrt(rsnew) < tol:
+            break
+            
+        beta = rsnew / rsold
+        p = r + beta * p
+        rsold = rsnew
+    
+    return x
+
+# 示例使用
+if __name__ == "__main__":
+    # 测试矩阵 (对称正定)
+    A = np.array([[4, 1], [1, 3]], dtype=float)
+    b = np.array([1, 2], dtype=float)
+    
+    # 求解
+    x = conjugate_gradient(A, b)
+    print("解:", x)
+    
+    # 验证结果
+    print("验证 Ax =", np.dot(A, x))
+    print("目标 b =", b)

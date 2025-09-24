@@ -1,0 +1,30 @@
+import numpy as np
+from pathlib import Path
+
+# Domyślnie plik wejściowy – można nadpisać z linii poleceń
+INPUT_FILE_PATH = Path('./input.txt')        # preferowany
+ALT_INPUT_FILE_PATH = Path('./example_in.txt')  # zapasowy
+
+
+def main():
+    """Oblicza sumę odległości między uporządkowanymi listami liczb."""
+    left, right = load_columns()
+    left_sorted = np.sort(left)
+    right_sorted = np.sort(right)
+
+    total = int(np.sum(np.abs(left_sorted - right_sorted)))
+    print(total)
+
+
+def load_columns():
+    """Wczytuje dwie kolumny liczb z pliku wejściowego."""
+    file_path = INPUT_FILE_PATH if INPUT_FILE_PATH.exists() else ALT_INPUT_FILE_PATH
+    try:
+        data = np.loadtxt(file_path, dtype=int)
+        return data[:, 0], data[:, 1]
+    except FileNotFoundError as e:
+        raise SystemExit(f"Błąd: nie znaleziono pliku {file_path}") from e
+
+
+if __name__ == "__main__":
+    main()

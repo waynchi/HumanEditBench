@@ -1,0 +1,27 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+# INPUT_FILE_PATH = './example_in.txt'   # использовать при необходимости
+
+def main():
+    lines = parse_input_file()
+    # print(lines)  # отладочный вывод можно убрать или сделать опциональным
+
+    cols = [l.split("   ") for l in lines]
+    cols = np.array(cols).T.astype(int)
+    
+    # Сортировка векторов целиком — O(n log n) вместо O(n²) с pop-ами
+    list_1 = np.sort(cols[0])
+    list_2 = np.sort(cols[1])
+
+    # Улучшенный вариант с NumPy-векторизацией:
+    all_dists = np.abs(list_1 - list_2)
+    print(int(all_dists.sum()))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().strip().splitlines()
+    return lines
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,12 @@
+from flask import Flask
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route('/')
+def show_date_time():
+    current_datetime = datetime.now()
+    return f'当前日期和时间： {current_datetime.strftime("%Y-%m-%d %H:%M:%S")}'
+
+if __name__ == '__main__':
+    app.run()

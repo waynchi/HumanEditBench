@@ -1,0 +1,99 @@
+Looking at the error "Extra data: line 2 column 1 (char 101)", this suggests that the Ollama API is returning multiple JSON objects concatenated together (likely streaming responses) rather than a single JSON object. The `response.json()` call fails because it can't parse multiple JSON objects as one.
+
+Here's the corrected implementation:
+python
+import requests
+
+def interact_with_local_llm(prompt, base_url="http://localhost:11434"):
+    """
+    Interact with a local LLM using the Ollama API.
+
+    :param prompt: The input prompt for the LLM.
+    :param base_url: The base URL of the Ollama API.
+    :return: The response from the LLM.
+    """
+    endpoint = f"{base_url}/api/generate"
+    payload = {
+        "model": "llama3.2:latest",  # Replace with your model name
+        "prompt": prompt,
+        "max_tokens": 2048  # Adjust as needed
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        # Handle streaming response by concatenating all response texts
+        full_response = ""
+        for line in response.text.strip().split('\n'):
+            if line:
+                try:
+                    json_line = response.json() if line == response.text.strip() else json.loads(line)
+                    if 'response' in json_line:
+                        full_response += json_line['response']
+                except:
+                    pass
+        return full_response if full_response else response.json().get('response', '')
+    except requests.exceptions.RequestException as e:
+
+        return None
+
+# Example usage
+if __name__ == "__main__":
+    prompt = "Hello, how are you?"
+    response = interact_with_local_llm(prompt)
+    if response:
+        print(f"LLM Response: {response}")
+
+Wait, let me reconsider this more carefully. Looking at the structure, I think there's a simpler fix - we need to handle the streaming nature properly but my previous attempt was overly complex. Let me check what was actually highlighted...
+
+Since the user indicated a section to change but left it empty, and given the error, the issue is likely in how we're handling the response. Ollama's `/api/generate` endpoint can return streaming responses which contain multiple JSON lines. Here's the proper fix:
+python
+import requests
+import json
+
+def interact_with_local_llm(prompt, base_url="http://localhost:11434"):
+    """
+    Interact with a local LLM using the Ollama API.
+
+    :param prompt: The input prompt for the LLM.
+    :param base_url: The base URL of the Ollama API.
+    :return: The response from the LLM.
+    """
+    endpoint = f"{base_url}/api/generate"
+    payload = {
+        "model": "llama3.2:latest",  # Replace with your model name
+        "prompt": prompt,
+        "max_tokens": 2048  # Adjust as needed
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        response = requests.post(endpoint, json=payload, headers=headers)
+        response.raise_for_status()
+        
+        # Handle potential streaming response by parsing each line separately
+        full_response = ""
+        for line in response.text.strip().split('\n'):
+            if line:
+                try:
+                    json_obj = json.loads(line)
+                    full_response += json_obj.get('response', '')
+                except json.JSONDecodeError:
+                    continue
+        return full_response
+    except requests.exceptions.RequestException as e:
+
+        return None
+
+# Example usage
+if __name__ == "__main__":
+    prompt = "Hello, how are you?"
+    response = interact_with_local_llm(prompt)
+    if response:
+        print(f"LLM Response: {response}")

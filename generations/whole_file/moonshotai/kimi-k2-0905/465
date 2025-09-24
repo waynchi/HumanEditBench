@@ -1,0 +1,61 @@
+import numpy as np
+
+def gradientes_conjugados(A, b, x0=None, tol=1e-10, max_iter=None):
+    """
+    Resuelve el sistema lineal Ax = b mediante el método de gradientes conjugados.
+
+    Parameters
+    ----------
+    A : array_like
+        Matriz simétrica definida positiva de tamaño (n, n).
+    b : array_like
+        Vector del lado derecho de tamaño (n,).
+    x0 : array_like, optional
+        Aproximación inicial. Si no se proporciona, se usa el vector cero.
+    tol : float, optional
+        Tolerancia para el criterio de convergencia.
+    max_iter : int, optional
+        Número máximo de iteraciones. Por defecto es la dimensión de A.
+
+    Returns
+    -------
+    x : ndarray
+        Solución aproximada del sistema.
+    """
+    A = np.asarray(A, dtype=float)
+    b = np.asarray(b, dtype=float)
+    n = b.size
+
+    if max_iter is None:
+        max_iter = n
+
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = np.asarray(x0, dtype=float).copy()
+
+    r = b - A @ x
+    p = r.copy()
+    rsold = np.dot(r, r)
+
+    for i in range(max_iter):
+        Ap = A @ p
+        alpha = rsold / np.dot(p, Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rsnew = np.dot(r, r)
+        if np.sqrt(rsnew) < tol:
+            break
+        beta = rsnew / rsold
+        p = r + beta * p
+        rsold = rsnew
+
+    return x
+
+
+# Ejemplo de uso
+if __name__ == "__main__":
+    A = np.array([[4, 1], [1, 3]], dtype=float)
+    b = np.array([1, 2], dtype=float)
+    x_sol = gradientes_conjugados(A, b)
+    print("Solución:", x_sol)

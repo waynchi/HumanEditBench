@@ -1,0 +1,1016 @@
+import xml.etree.ElementTree # para procesar la respuesta xml de la API
+import matplotlib.pyplot as plt # para la construcción de gráficos
+import pandas as pd # para crear un dataframe y dividir todas las velas en dos tipos: close y open
+import datetime # para las fechas en el eje x
+import pickle # para almacenar variables en un archivo
+import json # para trabajar con la base de datos
+import aiofiles # trabajo asincrónico con archivos
+import aiohttp # solicitudes http asíncronas
+import requests # para hacer solicitudes http sincronas
+from typing import List
+from matplotlib.axes import Axes # para facilitar la visualización
+
+
+# estableceremos el diccionario estándar de análisis técnico. Lo usaremos para analizar las solicitudes de callback en el enrutador de construcción de gráficos (ya que allí es incómodo obtener tick_inp)
+standart_tech_dict = {"value" : {"use" : False, "has_periods" : False, "need_graph_space" : True}, 
+                          "sma" : {"use" : False, "has_periods" : True, "periods" : [], "need_graph_space" : False},
+                          "ema" : {"use" : False, "has_periods" : True, "periods" : [],"need_graph_space" : False}
+                        }
+
+# no hay problemas con las herramientas de análisis técnico y los días vacíos (sin operaciones), ya que los días sin operaciones en el dataframe no son ceros, simplemente no existen. Por lo tanto, no afectan los valores de los indicadores
+# clase ticker, métodos gráfico y precio actual
+class ticker():
+    """Ticker de acciones y todo lo relacionado con él, a través de MoexApi"""
+    def __init__(self, name: str):
+        """self.name - nombre del ticker self.tech_dict - diccionario de análisis técnico"""
+        self.name = name 
+        """Имя тикера, то есть сам по себе тикер"""
+        # en principio aquí se pueden cambiar las configuraciones predeterminadas comunes para todos los usuarios. Potencialmente se necesita implementar herramientas de análisis técnico personalizadas a través de esto
+        self.tech_dict = standart_tech_dict
+        """Словарь реализованных опций теханализа. Имеет вид \n
+        {"sma": {"use": True, "periods": [20, 50], "need_graph_space": False}, "rsi": {"use": True, "periods": [10], "need_graph_space": True}} \n
+        Где use отвечает за использование, period - список периодов, по которым будут считаться значения, need_graph_space за то, требует ли осциллятор доп места на графике \n
+        Изначально все use имеют значение False, а списки периодов пусты \n \n
+        При реализации нового инструмента теханализа достаточно дописать его в self.tech_dict \n
+        При этом функцию, соответствующую этому инструменту важно назвать также, как и сам инструмент в словаре. А её аргументы - self и ax (редактируемый/заполняемый график) \n
+        Доп графики инструментов теханализа, которые их требуют, будут отображаться в таком же порядке, в котором инструменты располагаются в словаре. Также в этом порядке будут высвечиваться кнопки в боте и уже выбранные инструменты теханализа"""
+    async def correct_name(self):
+        """Verificación del nombre del ticker en el conjunto de tickers. El conjunto se actualiza no más de una vez al día"""
+        async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "r", encoding="utf-8") as info_opened_file:
+            info = json.loads(await info_opened_file.read())
+        if datetime.datetime.now() - datetime.timedelta(days=1) > datetime.datetime.strptime(info["last_day_check"]["ticker"], "%Y-%m-%d %H:%M:%S.%f"): # comprobamos la condición de que la fecha de reescritura de la lista de tickers sea al menos de hace 1 día
+            # si difiere en más de 1 día, entonces reescribimos la lista (conjunto) de tickers:
+            set_tickers = set() # creamos un conjunto vacío, en él vamos a verter los tickers
+            s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities.xml?iss.meta=off"
+            response = requests.get(s)
+            root = xml.etree.ElementTree.fromstring(response.text)
+            for data in root.findall("data"):
+                if data.get("id") == "securities":
+                    rows = data.find("rows")
+                    for row in rows.findall("row"):
+                        set_tickers.add(row.get("SECID")) # llenamos los tickers en nuestro conjunto
+            async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "wb") as set_tickers_file_opened: # abrimos el archivo para escritura binaria del conjunto de tickers en él
+                await set_tickers_file_opened.write(pickle.dumps(set_tickers)) # guardamos el conjunto creado en el archivo. Si acaso, se sobrescribirá cada vez (comprobado)
+            # cambiamos el tiempo de la última actualización
+            info["last_day_check"]["ticker"] = str(datetime.datetime.now())
+            async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\Info.json", "w", encoding="utf-8") as info_opened_file:
+                await info_opened_file.write(json.dumps(info, indent = 3, ensure_ascii = False)) # escribiremos un nuevo archivo
+        # ahora simplemente verificamos si el ticker está en la lista de tickers
+        async with aiofiles.open(r"D:\MoexAPI_bot_aiogram3\data_files\set_tickers.bin", "rb") as set_tickers_file_opened: # abrimos el archivo con múltiples tickers para obtenerlo de allí
+            set_tickers = pickle.loads(await set_tickers_file_opened.read()) # del archivo abierto descargamos el valor del conjunto de tickers en una variable. Si por alguna razón se escriben varios conjuntos (lo cual no debería suceder), solo se abrirá el primero de ellos
+        if self.name in set_tickers: # simplemente verificamos si el ticker está en el conjunto de tickers
+            return True
+        else:
+            return False
+    async def CurrentPrice(self):
+        """Precio actual para este ticker"""
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/" + self.name + ".xml?iss.meta=off"
+        response = requests.get(s)
+        root = xml.etree.ElementTree.fromstring(response.text)
+        for data in root.findall("data"): # dentro de root encontramos todos los contenedores data y los recorremos
+            if data.get("id") == "marketdata": # Dentro de data por el que pasamos, miramos el atributo id y queremos que sea marketdata
+                rows = data.find("rows") # dentro de rows encontramos el primer contenedor con la etiqueta row
+                row = rows.find("row") # dentro de rows hay varios row
+                return(row.get("LAST")) # return romperá los ciclos, por lo tanto, aquí no se necesitan verificaciones de si se encontró la información
+    async def candles(self, candles_name: str, timeframe: str, start: str, end: str):
+        """Lista de velas para este ticker
+
+candles_name - componente necesario de las velas
+
+candles_name: open, close, high, low, value, volume, begin, end
+
+timeframe - marco de tiempo: 1 - 1 min, 10 - 10 min, 60 - 1h, 24 - 1d, 7 - 1s, 31 - 1mes, 4 - 4meses
+
+start, end - inicio y fin del período, formato AAAA-MM-DD HH:MM:SS"""
+        s = "https://iss.moex.com/iss/engines/stock/markets/shares/boards/TQBR/securities/" + self.name + f"/candles.xml?iss.meta=off&interval={timeframe}&till={end}&from={start}"
+        response = requests.get(s)
+        root = xml.etree.ElementTree.fromstring(response.text)
+        candles = root.find("data")
+        rows = candles.find("rows")
+        listcandles = []
+        if candles_name == "begin" or candles_name == "end": # para estos tomaremos valores de iss en formato datetime del módulo conectado (fecha y hora)
+            for row in rows.findall("row"):
+                datetime_str = row.get(candles_name) # datetime_name ahora es una cadena en formato api
+                # se podría usar datetime.datetime.strptime(), pero no es genial con los años, no es universal. Por eso así
+                datetime_datetime = datetime.datetime(int(datetime_str[0:4]), int(datetime_str[5:7]), int(datetime_str[8:10]), int(datetime_str[11:13]), int(datetime_str[14:16]), int(datetime_str[17:])) # dividimos la cadena con la fecha y hora en partes de fecha y partes de tiempo necesarias para el módulo datetime (año, mes, día, hora, minuto, segundo). No olvidamos convertir todo a int
+                listcandles.append(datetime_datetime)
+        else:
+            for row in rows.findall("row"):
+                listcandles.append(float(row.get(candles_name)))# ES IMPORTANTE FLOAT, ya que de lo contrario se importa como cadena,
+                # y el gráfico construye las cadenas simplemente una tras otra, sin una disposición adecuada de los valores según sus valores
+        return(listcandles)
+    def setattr_candles_dataframe(self, timeframe = str("24"), start = str(""), end = str("")):
+        # crear un dataframe de velas como atributo al menos permite no pasarlo cada vez como argumento de la función que aplica la herramienta de análisis técnico (ya que se pasa en self)
+        """Crea un dataframe de velas con el timeframe, start y end correspondientes y lo coloca en self.candles_dataframe
+
+No al iniciar, ya que si el ticker se inicia para obtener el precio actual, no hay razones para realizar operaciones innecesarias."""
+        # Creamos un dataframe con toda la información de las velas y lo llenamos usando el método previamente escrito para obtener información de las velas.
+        candles_dataframe = pd.DataFrame({"open" :  self.candles("open", timeframe, start, end),
+                                          "close" : self.candles("close", timeframe, start, end),
+                                          "high" : self.candles("high", timeframe, start, end),
+                                          "low" : self.candles("low", timeframe, start, end),
+                                          "value" : self.candles("value", timeframe, start, end),
+                                          "begin" : self.candles("begin", timeframe, start, end)
+                                          # end" parece no ser necesario, begin es suficiente
+                                        })
+        setattr(self, "candles_dataframe", candles_dataframe)
+    def graphic(self, timeframe = str("24"), start = str(""), end = str(""), user_id = int(1124123332)):
+        """Devuelve el gráfico de velas de precios abierto desde el tiempo
+
+timeframe - marco de tiempo: 1 - 1 min, 10 - 10 min, 60 - 1h, 24 - 1d, 7 - 1s, 31 - 1mes, 4 - 4meses | None = 24
+
+start, end - inicio y fin del período, formato AAAA-MM-DD HH:MM:SS | None = ""
+
+user_id - id del usuario para el cual es este archivo. Será parte del nombre del archivo
+
+Agrega todas las herramientas necesarias de análisis técnico, basándose en self.tech_dict"""
+        # crearemos el dataframe necesario
+        self.setattr_candles_dataframe(timeframe, start, end)
+        # hacemos up y down - nuevos dataframes, partes del antiguo, pero que satisfacen ciertas condiciones
+        up = self.candles_dataframe[self.candles_dataframe.close >= self.candles_dataframe.open]
+        down = self.candles_dataframe[self.candles_dataframe.close < self.candles_dataframe.open]
+        # Guardamos esto como atributos, ya que para algunos instrumentos de análisis técnico es importante cuáles velas suben y cuáles bajan.
+        setattr(self, "up", up)
+        setattr(self, "down", down)
+        # crearemos width_big y width_small - anchos de velas que dependen del marco de tiempo
+        # al parecer 1 día en el eje x corresponde a 1 unidad de grosor de la barra en el diagrama (probablemente Python es inteligente)
+        # aunque en 4 meses ya no funciona, aunque es extraño, porque para todos los demás funciona
+        # pero en cualquier caso, al aumentar o disminuir el rango, las velas no comienzan a superponerse/tener grandes espacios. Así que el ancho está relacionado precisamente con las fechas
+        if timeframe == "1": # minuto
+            width_big = 1/24/60
+        elif timeframe == "10": # 10 minutos
+            width_big = 1/24/6
+        elif timeframe == "60": # hora
+            width_big = 1/24
+        elif timeframe == "24": # día
+            width_big = 1
+        elif timeframe == "7": # semana
+            width_big = 7
+        elif timeframe == "31": # mes
+            width_big = 30
+        elif timeframe == "4": # 4 meses
+            width_big = 90
+        else:
+            width_big = 0 # en teoría esto no puede suceder
+        width_small = width_big/10
+        setattr(self, "width_big", width_big) # colocaremos width_big en self, para luego usarlo en herramientas de análisis técnico que se representan como gráfico de barras
+        setattr(self, "width_small", width_small) # Insertamos width_big en self para luego usarlo en herramientas de análisis técnico que se representan como gráficos de barras.
+        # nos ocuparemos del análisis técnico. Para empezar, entenderemos cuántos gráficos adicionales se necesitan para ellos
+        number_of_additional_graphics = int(0)
+        for tech in self.tech_dict:
+            if self.tech_dict[tech]["use"] and self.tech_dict[tech]["need_graph_space"]: # si se utiliza la herramienta de análisis técnico Y si esta herramienta de análisis técnico necesita espacio para un gráfico adicional, lo contamos
+                number_of_additional_graphics += 1
+        # si 1 o más herramientas de análisis técnico quieren un gráfico adicional
+        if number_of_additional_graphics != 0:
+            height_rations_list = [10 - number_of_additional_graphics] + [1] * number_of_additional_graphics # array de relaciones de alturas de gráficos, dependiendo del número de gráficos. Luego lo pasaremos a subplots. Tiene la forma [8, 1, 1]
+            fig, axs = plt.subplots(nrows = 1 + number_of_additional_graphics, ncols = 1, sharex = True, height_ratios = height_rations_list) # creamos subplots. fig - contenedor de gráficos, axs[i] - i-ésimo gráfico
+            axs: List[Axes] # para sugerencias en PyCharm
+            plt.suptitle(self.name, fontsize = 15) # título - nombre del ticker
+            axs[0].grid(True) # rejilla para simplificar la percepción del gráfico
+            # llenamos con velas up
+            # es un diagrama de barras; plt.bar(x = eje x, height = altura de la barra, width = ancho de la barra, bottom = coordenada inferior de la barra, no sé más, extraño * y luego algo más incomprensible)
+            # también hay un argumento color, pero en la documentación oficial no lo encontré. Posiblemente esto esté incluido en la extraña *
+            axs[0].bar(x = up.begin, height = up.close - up.open,  width = width_big, bottom = up.open, color = "green") # para especificar qué argumento de función estamos escribiendo, se puede escribir nombre_argumento = valor_que_damos
+            axs[0].bar(x = up.begin, height = up.high - up.close,  width = width_small, bottom = up.close, color = "green")
+            axs[0].bar(x = up.begin, height = up.open - up.low,  width = width_small, bottom = up.low, color = "green")
+            # rellenamos con velas down
+            axs[0].bar(x = down.begin, height = down.open - down.close,  width = width_big, bottom = down.close, color = "red")
+            axs[0].bar(x = down.begin, height = down.high - down.open,  width = width_small, bottom = down.open, color = "red")
+            axs[0].bar(x = down.begin, height = down.close - down.low,  width = width_small, bottom = down.low, color = "red")
+            # agregamos herramientas de análisis técnico al gráfico
+            for tech in self.tech_dict:
+                if self.tech_dict[tech]["use"]: # si se utiliza la herramienta de análisis técnico
+                    if self.tech_dict[tech]["use"] and not self.tech_dict[tech]["need_graph_space"]: # si no requiere un gráfico adicional, llamaremos a la función correspondiente
+                        tech_func = getattr(self, tech) 
+                        tech_func(axs[0])
+                    else : # si requiere gráfico adicional, entonces                        for i in range(number_of_additional_graphics): # se utiliza getattr y tech
+                        tech_func = getattr(self, tech) 
+                        axs[i +1].grid(True)
+                        tech_func(axs[i +1]
+        # si0 herramientas de análisis técnico requieren un gráfico adicional
+        else: 
+            fig = plt.figure()
+            plt.title(self.name, fontsize =15) # título - nombre del ticker
+            ax = fig.add_subplot() # ax - el propio gráfico 
+            ax.grid(True) # la dimensionalidad del gráfico y trazado arriba
+            # rellenamos con velas]
+            # lo rellenamos con "" # también es importante
+            ax.bar(x = up.begin, height = up.close - up.open, width = width_big, bottom = up.open, color = up.value "green")
+            ax = up.begin, height = up.high, width = width_small, color = up.close # gráfico
+            ax = 
+            # título en un gráfico adicional
+            ax.grid(True) 
+            ax = down.begin, height = down.open - down.close,  width = down - para construir gráfico
+            ax.bar(x = down.begin, height = down.open, width = down.close # con down.begin, height = down.high, width = width_small, bottom = down.open, color = down.low para así
+3, width = down.begin, height = begin, width = down.close - down.close
+ Candles001() # necesario para el gráfico para gráfico. Se usa la función 
+# algo así : root.findall
+# necesitamos colocar dentro de análisis técnico
+Conjunto con las propiedades con una variable
+            ax = close del eje x
+            ax = width_small, bottom # texto en axis 
+            ax.bar = down.end 
+ax.set_title("Value")
+# el ticker del final 
+        #  para su # texto.
+        ax # agregar y métodos de gráfico 
+  # en el dataframe de dataframecs # gráfico los # solicitar = down.begin # variableos
+# df - pandas.DataFrame para construir gráfico import requests 
+            "s -
+            # dataframe import xml.etree ElementTree 
+# gráfico 基本的.Get # más tarde.)
+# acciones.
+from_string #ivel método de rename y dataframe
+        tech_dict 
+: 
+# uso        
+# para facilitar la visualización para identificar el componente necesario
+AXSMA y openr"D:\Moex.html"
+graph
+# asincrронныеассылка, асинхрон_oup, color = down
+# 
+begin 
+    def graphic="""
+        
+# utiliza los datos históricos
+# simplemente recibimos dataframe.columns = [up.to_html.items
+retirar(len(dataframe = up:
+    | down o" 
+# gráfico = datetime._base_necessary 
+candles y luego sus métodos
+ async def graphic # dataframe = dataframe sus métodos = other
+# ponerlos ticks y construir """
+    
+self.name
+"""
+        """       
+        setattr_cand stem_json
+def candlesrequest.method        
+    #ax barh # los fallback
+    async def EMA (auto. Assert"""
+        
+"""
+
+# desde una llamada al objeto
+        tech_dict llamado  def graphic:     
+            height = ema datos históricos
+         
+y ,período, num_mo sólo
+        height = 1 # métodos# abrir el objeto y conel uso
+settattr =10]
+                #datos.High price: List[float],
+                   """ 
+    lista: Dict # no es_important listax.legend()          x = List[datetime
+"""    
+                sma"""
+                # valor de.items del gráfico empezar-up, height # matplotlib
+                datetime" para
+         number_of adicional
+períodos     _ dataframe        
+            def   height_ratios_list
+    width_big
+"""
+                     setattr_cand.add_subplot"""
+# Límite" 
+            width_big incrTrue
+    for["sma          
+para cada uno (datetime del gráfico        
+{
+                width_small = 1/10
+                 width
+        ema version.асинхронное взаимодействие HTTP )
+                width_big"""
+class_1/24
+timeframe = width_big = "/usar		
+            width_small
+response =1 # área x = aio                 width_small
+                    height =1/24 + iframe y no    width_small enviro @property nombre
+import xml.etreeplace fromstring
+el ticker        
+# gráfica 
+# end: dictdatetime
+import
+from preprocessing
+"""
+class 
+# indicad 
+import request que #period =1/column "24"""
+class
+class ticker """
+            datetime
+classMetaDataFrame width_big
+import xml.etree_tree        
+tickerser Tool de los algoritmos = 1 valuevalue 
+            import 
+
+Y
+import 24
+"""  
+        
+async def candles
+import
+										    
+import aio
+import matplotlib         aio:        
+from_bytes 
+class 
+  #para manip
+import asyncio 
+import list
+from elementree 
+#datetime
+async with 
+name
+""" {
+"""
+" para el ticker
+def:
+# tomar las fechas
+" para divisas
+from
+"""
+from typing
+import aio        
+                     #crear 
+class="D:\n # clase
+from
+from typing
+        "s :r"dataframe
+métree nombresys               #PFEma del  ax.plot
+            def graphic
+async def graphic
+#PFetch(await 
+                            =1"""
+
+def
+async def candles
+class
+timeframe 
+                setattr 
+            =width para obtener_historyend 
+                def graphic
+dict 
+import 
+# Con REST 
+                    width_big
+self.name 
+def setattr
+try:
+        import matplotlib
+    def graphic
+ 24
+async with depth = list
+import aio
+    #seattr:             dataframe
+    graphics
+
+"""
+import requests.get  
+    def     
+self.name = requests
+from collections #archivo
+    def graphic
+import status
+1
+class
+df
+                  begin
+async def status
+self.cand 
+self para_correct_name
+from matplotlib
+from_tree
+        graphic
+from espacio
+self.cand 
+        end
+def candles
+        """
+self
+avg
+class
+# нестандартолько   
+"""
+self.name
+# sólo 
+    end 
+def.clean
+def graphic
+from xml.etree    
+   async 
+    dataframe
+    import status"""
+Self
+{elemento `ticker
+value: pd.DataFrom
+    """
+La respuesta xml: element # 
+self.name
+bytes
+# objeto textobtenemos                      
+{"use": True
+self.name del DataFrame
+                        }
+        """ 
+async def (self."""
+                matplotlib # para pretérito""" #histó en la utilización
+def - fecha"""
+class
+                    """
+Output aio return
+    def candles:
+"strings    
+                    .text para
+from        
+        type        
+        def candles
+import para la api de análisis técnico
+self.qet """
+        
+import datetime
+set_t 
+def
+import (Archive t env = dict
+        """
+s       self.name =borderax :dtypes:CancelAll        
+self        
+        value: PD2axis para pronto
+import xml"""
+self        
+import a_dict[0:tiempo
+self   
+            keysight:                
+                """
+async def setattr
+' + self.value"""
+#el timedelta(datetime)
+days:0
+def (self: axis """
+class # una lista
+            import matplotlib"""
+self.name
+self
+def
+            cgroupby default
+ec
+    """
+            Dict # para
+    import matplotlib """
+    #os valores
+para
+def"""
+import 
+{self.name
+ +  en gráfica"""
+   
+ listade laRest frecuencia =xml.etiquote temporal
+  #que seargs: un" para un sólo
+        #range """
+        
+                """
+"""
+#string:
+        ("D ("symbol: 
+    # sincronos.items
+# lista
+self.value #value"""
+        defreturn True"""
+def _internal        
+                List[0
+        1
+        """
+            textJSON: astring 
+self.download 
+def 
+        un novo
+reader:aync                
+                        """    : 
+        type"""
+self: """
+            DataFrame
+self.setattr_candcandle values
+                    """python:                    
+s
+async def """
+            # DICOMX
+variables """
+class ticker"""
+data    
+rParámetroo a syncimport json."""
+class _ENV = antiguo.get() y otrosindicatedataframe	
+grá requiredayuda grano
+    .json
+ # Construct:
+    internalfunction ema  
+self
+self.txt        
+class ticker"""
+class
+class "s
+#el # В 
+# para grafico
+from
+import datetime        (self.name"""
+import a los datos
+self.name 
+def 
+from collections
+class  
+                                       
+from 
+from a
+import 0x # archivo que queremos     
+def
+from xml de 
+print ("")"""
+from django
+from
+#binary
+        """
+    async                                       
+    (self - lista
+from datetime
+# mediante linea delib responses #data "s
+    :key = 's # id"""
+ xml_string: str
+self.candleta:args
+                    (datetime 
+        : list['ticker
+            #formy poner los elementos de trading #1,usage: pp     :period = 
+import numpy asint -->end
+s
+                        (datetime
+  # para - 
+def name: un
+from collectionsy_default: xml.etree 
+# Falso 
+import pandas
+import requests.get
+    """ 
+    (para 
+    # Normal 
+from
+import 
+import xml
+self.name   
+            :standartasksendianet[symponents: (s # Normalize          
+#para "grid coef returns
+import pandas
+content 
+s
+import requests
+#para los  
+                                                  para una 
+#sinfo 
+ # para guardar los precios de_request to keep zero             
+from. Por cosas de Moexml: def - paraidar 
+import requests        
+from 
+from a 
+from las velasínc # para (respuesta xml
+from collections.CSVE #RESTfulorequest**: 
+class
+    # sincronamente
+from Plotlypeo
+from BBGráct2: yyyy axi: 
+import                     import xml""" # opciónc
+from l
+from 1 # a pedir		    
+import configuration
+import matplotlib        
+# import a través de xml
+def
+import pandas
+from dict #set
+#xml
+from collections
+                -el archivo
+import
+import (eller
+import a XML parser
+from xml
+        (datetime
+class #tiempo 
+from  #params
+        # timeout
+                         multiplesendclass asyncio.gca
+from_std()
+asíinicial
+"""
+
+
+        # (self.cand //code 
+            	
+import pandas
+from
+    # hacer una requeridos
+from(precios dropnao 
+            : listadelements
+from a la forma:pd.TODOs#a href.GET
+#valor 
+        for # por POST  
+    """class 
+# Ideal_RSIl
+self}
+# ownselfclass# ключи
+
+        
+    #isinstance
+async with
+        :periodo01: personalizado
+    def sma con sus datos de matplotlib""" 
+                     #base64 + listodata:archivo
+        
+from collections 	sma(etype  # TODO:                   # la candle - name - base
+sma
+data, en dataframe
+    """
+import a 
+async con la:                
+from collectionspara (self, 
+        {'use
+class         
+    en xml-XML
+                    self para "s
+from números 
+from collections: component = self.name
+# f'{ 
+                     (c#baselines
+from 
+# для análisis        
+# const: dict (template
+from 
+
+# valor :SAX2016tporepresentarriba 
+# если с 
+# xml.etree # используется при comparasion
+text = # para datetime - actualecha
+from package
+from
+from typing #asc     # для        
+            info
+s"""
+from 
+        #v2
+standar #region":  
+                          #save - listamed 's
+dict
+    a partir de los
+              #para
+element_count
+    : 	     
+clas.get (s    
+                                                   
+                                         # LaTe
+from
+import - actualsize = "s    
+        dict        
+# by en el object
+#File para1o self.tech_dict                                                   para dates
+s
+dict:periodo de predict = список'false    # por defecto 
+ 1
+        :('%moutput: en -value 
+                  #xml
+y en #y techique text"""
+
+class 
+from
+async
+async
+s en     
+para los 'ronto valorcurrent_dayniques masas"""
+		
+        """
+# сделатьquestions:period #xml
+        """
+import element y dict
+# desde#self, scale: if True:        
+# para el xml: /candles
+# antes de elementos"""
+        # elemento (self.talla"""
+            
+        """dataframe. у
+    for        
+    """
+from lhistor_seqn # write unparser
+self -{"s = pd
+data desde
+import 
+import distancia #para #para/stats:refresh    
+# por
+info # a specific(ticker        
+        typeStr(getattr.time
+                               
+import data -
+parameters:  # para el número minimalista
+from collectionsy generar
+data
+class% ("cand/dataframe
+for rowse type: 
+# para representar datos rus
+        """
+from datetime con columnas 
+for row por 
+        #в
+            para extra
+data
+
+def (variable - name
+    :chart
+import
+        ("SEC_STATUS -s
+API
+datetime
+            # valores de 
+        - método*sqrt
+             #elementos
+def
+data" -ár
+    "an за laaa
+data 
+from dataclass: (value
+import dataframe y                        
+        #para "ticker
+from "s1
+                    (self}
+        data:                                      basis # df (para forma de              # del ani            (numbers:                                      parafilter 
+ #esto        "de 
+        filename.ext
+        #valи  #preparama_para
+        para determinadas "utcnow =1etree
+            "xml "string: string:datetime (self: .update
+# para scaler:                
+                (self, "metadata" + 's                
+        :list_pos             para todos los
+            # como:
+# нуженpara 
+        """
+return self, contenter, "s
+"""
+        
+                :para =  straw_intervalo  'se como
+        """
+# пробелы32
+            , ..., para losnames en dataframe
+        como">
+async
+#и  = type 
+REStorable (con nombre
+            
+        (func
+-datos        
+# add
+
+# para utilizar
+        # para self para escala para arientes
+column 
+# comparar
+from os, list de
+efirst reaction:864 
+        dataframe
+from 
+        para
+# используется para más
+e иn
+        """
+# dataframe desde.tem #и pagination # использу para uso
+        # tiempo +  # para
+            : usomation (self
+# добавить         
+candles        
+        from xml.etxml,elemento
+s
+            :elementos
+        x
+from reclad # datos, 	serialize
+async # para su clase, color:order (para
+        import, аsin corrientes = "s #crear histogram. Para(CODfi        
+        # personalizados
+import
+self.dataframe
+        "metadata
+                    #del 
+async (self   
+# para visualizaciones
+from en Objectivo
+from a través
+QRequest.ff配ichar={}    
+""" # params #  и dataframe 
+   /meta #и  (text """
+# para #objetos
+from collections
+from
+import asyncio
+from
+        """
+            
+        "assintype
+from module
+        """
+async
+from urllib3 :(
+from asyncio
+if __write    
+        # para tended
+from parameters
+from 
+    (self
+from requests
+import #para
+import runs
+from string
+from 
+requests
+        #аs
+para 
+el objeto        
+        #base64
+import datetime.datetime
+import
+from
+data
+para tipo
+import
+from (name = ["T0
+import
+from
+from file
+                
+from el string
+from dataframe
+        
+        _periodo
+from            = # periods
+equal
+from collections: ok
+import
+from dataframes:seriescheckSMAv: para
+from
+from dataclasss(self, dict[0name: groupby        
+# para constructo
+from — cand dataclass
+from ahora
+pardía + (cond
+                    # como
+class
+#  # y hacer        
+# este
+from async
+#4
+from
+from peticiones)
+class 
+import datetime:  para ajustar: option = 30", "el valor:di #para
+from
+    nameó
+        "df
+del dataset: - parámetro   # default:                
+#class: #periodo_paramas -call # type
+from" + "s
+from "s #Nombre
+eithf #para gráficos =application
+        #value:pendiente
+                - requester(name :numeros/save (tambiént : indiquer 
+        -> graphics
+from el serializer: with dict( time
+        :                              
+                    :
+        -right
+        datetime
+from collections en la respuesta de get_cand lyr
+en el otro archivo para
+class->_datos como:tupla
+        """
+        
+                keys :1,  object contenor data.setdefault 
+ + [i para (self,vars          para
+ # y el histórico
+self
+        #para
+                dataframe: start = idx
+ = 2
+, value 
+from#periods
+from _propery select
+list con la siguiente
+echa #value = "ref:                # desde (from : para tratarselementosba
+from (lista
+from import self= xmlo.legacy
+        (iface (if 24 hour,fill(para .informationstiture
+class """
+        
+from
+(number)
+self: desde#ficahemodffadens
+                
+                        
+                                                     """
+def,periodo: True, "value: periodo: para .json:range: # numdays, listinside, # para datetime = 0r .val#hours : "y_preseconds
+o precedence(variable, 
+        :usa días, #para --> Paraalternate:                    
+                   feature                        
+        "fecha de técnicasY =kwargs {units = ("s =list = "value = 1, {textos
+y <--el order #mye_name
+        (value: TAL 
+"""
+
+        xlabel    """
+"        
+(nombre: rota # ascii                     
+froms
+                 #list(Period en self
+from element// ese
+from    
+                          de
+b = - una nueva class (data:  # (conda        
+f"frec: 
+        """
+from import matplotlib.pyplot: matplotlib_inicparser: # addr/periods
+.from JsonFile existe value**:str: 
+from pandas y #ispecific             :aux
+from datetime
+        # "s :r
+if (datetime
+# STDOUT  entre 1 
+        #temp: data, 
+from sys: de otros
+            #axadat = #Yè(52 :
+          #para 
+        # 
+# para grid
+        #para # a
+#acha
+date.
+        """ 
+# dict
+        
+        formato :period
+from
+        """
+from el tiempo
+ "days y los elementosmatpot ttpsw =  # SiSP, para la  
+             valor
+            #    
+from.
+        # trends
+------------ +_ for df:ofi
+type
+from #https: #params para (minutes:datetime
+end whene elements
+self
+        # oscilacodex =self
+(ond,                     
+from
+#,"#H#linea =                 from    (m (archivo
+from pandas: 1分钟
+}  y dates:    
+    #return  a$TRUE :list    
+                        #dato de: (metadata.2:lista: 
+                           # para el array aramplo
+# _recentang
+# Standard:Params para                ,
+        """
+classificar,expected
+: # y(), c""" #period: paraX asdf:your"""
+class.for  
+#palette
+a
+import day #usar
+from isa
+# dataframe
+#par ...
+el ticker: 
+# guardar   
+from
+from
+# #com
+    para el objeto
+from itertools
+from pandas - para
+from     
+from a
+from pandas
+from .para JSON
+        #archivo
+from import: '          listcerto: 
+import
+from
+        y secon dist to modo
+from (datetime para usar dataframe
+        #periodo
+ keyASSOC.
+            for #aquCaptur 
+#inicio (nm
+
+def get()
+from
+# ma#   semanas
+fromprobante de diferentes:                para elparser (days emafrom =return True.
+self aperiods # Compart =  #000:etime:func
+        (metadata)
+from:period #, givingelemento su dataframe
+from
+re
+en namejson 
+self
