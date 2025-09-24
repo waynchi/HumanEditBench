@@ -1,0 +1,22 @@
+# Программа для поиска слов в английском словаре по заданному количеству символов
+
+# Загрузка словаря английских слов
+with open('words.txt', 'r') as file:
+    words = file.read().splitlines()
+
+def find_words_with_n_chars(n):
+    # Находим слова с заданным количеством символов
+    filtered_words = [word for word in words if len(word) == n]
+    return filtered_words[:10]  # Возвращаем первые 10 слов
+
+# Запрос пользователя
+n = int(input("Введите количество символов: "))
+result = find_words_with_n_chars(n)
+
+# Вывод результатов
+if result:
+    print("Найденные слова:")
+    for word in result:
+        print(word)
+else:
+    print("Слова с таким количеством символов не найдены.")

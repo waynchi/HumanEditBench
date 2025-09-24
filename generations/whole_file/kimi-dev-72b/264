@@ -1,0 +1,16 @@
+def can_be_expressed_as_sum_of_four_squares(n):
+    import math
+    
+    def is_square(i):
+        return i == math.isqrt(i) ** 2
+    
+    if n < 4:
+        return False
+    
+    for i in range(1, int(math.sqrt(n)) + 1):
+        for j in range(i, int(math.sqrt(n - i * i)) + 1):
+            for k in range(j, int(math.sqrt(n - i * i - j * j)) + 1):
+                l = n - i * i - j * j - k * k
+                if l > 0 and is_square(l):
+                    return True
+    return False

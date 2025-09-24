@@ -1,0 +1,11 @@
+# Сохранить текущий путь как cwd
+# Создать подключение к базе данных с использованием pymilvus
+import os
+from pymilvus import connections
+
+cwd = os.getcwd()
+connections.connect("default", uri="http://localhost:19530")
+db_path = cwd + '/milvus_db.db'
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+client = connections.get_connection(alias="default")

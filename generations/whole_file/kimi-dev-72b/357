@@ -1,0 +1,28 @@
+def conjugate_gradient(A, b, x0, tol=1e-10, max_iter=1000):
+    """
+    Implementacja metody sprzężonych gradientów.
+    
+    :param A: Macierz kwadratowa, dodatnio określona
+    :param b: Wektor prawych stron
+    :param x0: Punkt startowy
+    :param tol: Tolerancja zbieżności
+    :param max_iter: Maksymalna liczba iteracji
+    :return: Przybliżone rozwiązanie układu równań liniowych
+    """
+    x = x0
+    r = b - A @ x
+    p = r
+    rsold = r.T @ r
+    
+    for i in range(max_iter):
+        Ap = A @ p
+        alpha = rsold / (p.T @ Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rsnew = r.T @ r
+        if rsnew < tol:
+            break
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+    
+    return x

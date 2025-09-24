@@ -1,0 +1,13 @@
+def search_dictionary(word_length):
+    with open('english_dictionary.txt', 'r') as file:
+        words = [line.strip() for line in file if len(line.strip()) == word_length]
+    return words[:10]
+
+def main():
+    N = int(input("Podaj liczbę znaków dla słowa: "))
+    words = search_dictionary(N)
+    for word in words:
+        print(word)
+
+if __name__ == "__main__":
+    main()

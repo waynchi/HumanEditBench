@@ -1,0 +1,30 @@
+# Registrar la ruta actual como cwd
+import os
+cwd = os.getcwd()
+
+# Crear enlace de base de datos con pymilvus
+from pymilvus import connections, FieldSchema, CollectionSchema, DataType, Collection
+
+# Conectar a Milvus
+connections.connect('default', host='localhost', port='19530')
+
+# Definir el esquema de la colección
+fields = [
+    FieldSchema(name='id', dtype=DataType.INT64, is_primary=True, auto_id=True),
+    FieldSchema(name='embedding', dtype=DataType.FLOAT_VECTOR, dim=DIM_VALUE)
+]
+schema = CollectionSchema(fields, 'Test Table Description')
+
+# Crear la colección
+collection = Collection(name=TABLE_NAME, schema=schema)
+
+# Crear índice para la colección
+index_params = {"index_type": "IVF_FLAT", "metric_type": "L2", "params": {"nlist": 128}}
+collection.create_index(field_name='embedding', index_params=index_params)
+
+# Registrar la ruta actual como cwd
+# Crear ruta de base de datos de vectores
+db_path = cwd + '/milvus_db.db'
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+client = MilvusClient(url=cwd)

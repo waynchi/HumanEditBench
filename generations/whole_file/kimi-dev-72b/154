@@ -1,0 +1,18 @@
+# 词典，包含一些单词
+word_dict = ["apple", "banana", "cherry", "date", "fig", "grape", "honeydew", "kiwi", "lemon", "mango", "nutmeg", "orange", "peach", "quince", "raspberry", "strawberry", "tangerine", "ugli", "violet", "watermelon", "xigua", "yam", "zucchini"]
+
+def find_words_of_length(N):
+    # 查找词典中长度为N的单词
+    words_of_length = [word for word in word_dict if len(word) == N]
+    # 如果找到的单词少于10个，则打印所有找到的单词
+    if len(words_of_length) <= 10:
+        for word in words_of_length:
+            print(word)
+    else:
+        # 否则打印前10个单词
+        for word in words_of_length[:10]:
+            print(word)
+
+# 用户输入请求的单词长度
+N = int(input("请输入您想要查找的单词的字符数: "))
+find_words_of_length(N)

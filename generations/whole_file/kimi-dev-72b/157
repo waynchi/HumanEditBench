@@ -1,0 +1,39 @@
+def conjugate_gradient(A, b, x0, tol=1e-10, max_iter=1000):
+    """
+    用共轭梯度法求解线性方程组 Ax = b
+
+    参数:
+    A: np.ndarray
+        系数矩阵，要求是对称正定矩阵
+    b: np.ndarray
+        右端项
+    x0: np.ndarray
+        初始猜测解
+    tol: float, 可选
+        收敛容差
+    max_iter: int, 可选
+        最大迭代次数
+
+    返回:
+    x: np.ndarray
+        方程组的解
+    """
+    import numpy as np
+
+    x = x0
+    r = b - A @ x
+    p = r
+    rsold = np.dot(r, r)
+
+    for i in range(max_iter):
+        Ap = A @ p
+        alpha = rsold / np.dot(p, Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rsnew = np.dot(r, r)
+        if np.sqrt(rsnew) < tol:
+            break
+        p = r + (rsnew / rsold) * p
+        rsold = rsnew
+
+    return x

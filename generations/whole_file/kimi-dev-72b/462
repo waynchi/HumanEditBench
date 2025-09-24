@@ -1,0 +1,28 @@
+# Un PROGRAMA que consulta el diccionario en inglés y el usuario puede pedir una palabra con N caracteres.
+# El programa imprimirá 10 palabras con este número de caracteres.
+
+# Lista de palabras en inglés (ejemplo)
+english_dictionary = [
+    "apple", "banana", "cherry", "date", "elderberry", "fig", "grape", "honeydew", "kiwi", "lemon",
+    "mango", "nectarine", "orange", "papaya", "quince", "raspberry", "strawberry", "tangerine",
+    "ugli", "vanilla", "watermelon", "xigua", "yam", "zucchini"
+]
+
+def find_words_with_n_chars(n, dictionary):
+    words_with_n_chars = [word for word in dictionary if len(word) == n]
+    return words_with_n_chars
+
+def main():
+    n = int(input("Ingrese el número de caracteres: "))
+    words_with_n_chars = find_words_with_n_chars(n, english_dictionary)
+    
+    if len(words_with_n_chars) < 10:
+        print(f"Se encontraron menos de 10 palabras con {n} caracteres.")
+        print(words_with_n_chars)
+    else:
+        print(f"10 palabras con {n} caracteres:")
+        for word in words_with_n_chars[:10]:
+            print(word)
+
+if __name__ == "__main__":
+    main()

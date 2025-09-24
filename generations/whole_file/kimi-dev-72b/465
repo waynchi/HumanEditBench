@@ -1,0 +1,20 @@
+def metodo_gradientes_conjugados(A, b, x0, tol=1e-10, max_iter=1000):
+    n = len(b)
+    x = x0.copy()
+    r = b - A @ x
+    p = r.copy()
+    rs_norm = r @ r
+
+    for i in range(max_iter):
+        Ap = A @ p
+        alpha = rs_norm / (p @ Ap)
+        x = x + alpha * p
+        r = r - alpha * Ap
+        rs_norm_new = r @ r
+        if rs_norm_new < tol:
+            break
+        beta = rs_norm_new / rs_norm
+        p = r + beta * p
+        rs_norm = rs_norm_new
+
+    return x, i + 1
