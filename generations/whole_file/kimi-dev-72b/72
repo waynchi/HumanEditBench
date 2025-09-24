@@ -1,0 +1,9 @@
+
+python
+        # Use max and min to calculate normalized latencies
+        min_lat = min(self.latencies)
+        max_lat = max(self.latencies)
+        if max_lat == min_lat:
+            self.normalized_latencies = [1.0] * len(self.latencies)
+        else:
+            self.normalized_latencies = [(l - min_lat) / (max_lat - min_lat) for l in self.latencies]

@@ -1,0 +1,38 @@
+import math
+
+def main():
+    N = 100
+    result = []
+    for n in range(1, N+1):
+        found = False
+        a_max = math.isqrt(n)
+        for a in range(1, a_max+1):
+            rem1 = n - a*a
+            if rem1 <= 0:
+                continue
+            b_max = math.isqrt(rem1)
+            for b in range(1, b_max+1):
+                rem2 = rem1 - b*b
+                if rem2 <= 0:
+                    continue
+                c_max = math.isqrt(rem2)
+                for c in range(1, c_max+1):
+                    rem3 = rem2 - c*c
+                    if rem3 <= 0:
+                        continue
+                    d = math.isqrt(rem3)
+                    if d*d == rem3:
+                        found = True
+                        break
+                if found:
+                    break
+            if found:
+                break
+        if found:
+            result.append(n)
+
+    print("Numbers between 1 and 100 that are expressible as the sum of four non-zero squares:")
+    print(result)
+
+if __name__ == "__main__":
+    main()

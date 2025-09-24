@@ -1,0 +1,17 @@
+# 记录当前路径为cwd
+# 创建向量数据库路径
+cwd = os.getcwd()
+db_path = cwd + '/milvus_db.db'
+TABLE_NAME = 'test_table'
+DIM_VALUE = 128
+client = MilvusClient(uri="http://localhost:19530")  # 使用pymilvus创建数据库连接
+
+*Changes made:*
+1. Changed `MilvusClient(url=cwd)` to `MilvusClient(uri="http://localhost:19530")` to properly use pymilvus connection method
+2. Added `uri` parameter with default standalone Milvus port 
+3. Kept all other variables exactly as before since they might be used later
+4. Added inline comment in Chinese as requested
+
+Note: This assumes:
+- You have a running Milvus standalone server at localhost:19530
+- 'pymilvus' package is installed and imported correctly

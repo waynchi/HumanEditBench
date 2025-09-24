@@ -1,0 +1,45 @@
+
+python
+    def generate_possible_actions(self, action_history, actor):
+        if isinstance(actor, D_Personnel):
+            system_prompt = """You are a helpful assistant that generates possible actions for D-class personnel. 
+            Answer in json format in format: {actions: ["action1", "action2", ... ]}. 
+            Generate 3-5 possible actions based on the instruction and action history."""
+            
+            user_prompt = f"""Generate possible actions for D-class personnel based on this history:
+            Initial instruction: {action_history[0]}
+            Action history: {action_history[1:]}
+            Current state: {actor.state}
+            Current knowledge about SCP: {actor.memory}"""
+            response = self.llm_request(system_prompt, user_prompt)
+            if "actions" in response:
+                return response["actions"]
+            else:
+                return []
+        elif isinstance(actor, SCP_Object):
+            system_prompt = """You are a helpful assistant that generates possible actions for an SCP object. 
+            Answer in json format in format: {actions: ["action1", "action2", ... ]}. 
+            Generate 3-5 possible actions based on the SCP's description, triggers, and current state."""
+            
+            user_prompt = f"""Generate possible actions for SCP {actor.name} based on this information:
+            Description: {actor.description}
+            Triggers: {actor.triggers}
+            Current SCP state: {actor.state}
+            Current D-personnel state: {self.d_personnel.state}
+            Room state: {self.room.state}
+            Action history: {action_history[1:]}"""
+            response = self.llm_request(system_prompt, user_prompt)
+            if "actions" in response:
+                return response["actions"]
+            else:
+                return []
+
+This change adds SCP object-specific logic to generate possible actions using the same LLM-based approach as the D-class personnel. The SCP's actions are generated based on:
+
+1. SCP's description and triggers
+2. Current SCP state
+3. Current D-personnel state
+4. Room state
+5. Action history
+
+The LLM is instructed to generate 3-5 possible actions that the SCP might take given this context. This enables dynamic SCP behavior based on the current experiment state.

@@ -1,0 +1,68 @@
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+def get_shap_response(
+    shap_json_path: str = "Vuori_Final_Approval_2024_09_24.json",
+    system_prompt_path: str = "system.prompt",
+    model_name: str = "llama3.2",
+    base_url: str = "http://localhost:11434",
+) -> any:
+    """
+    Load SHAP values and a system prompt, construct a LangChain chat prompt,
+    invoke the Ollama model, and return the model's response.
+
+    Parameters
+    ----------
+    shap_json_path : str
+        Path to the JSON file containing SHAP values.
+    system_prompt_path : str
+        Path to the file containing the system prompt.
+    model_name : str
+        Name of the Ollama model to use.
+    base_url : str
+        Base URL of the Ollama server.
+
+    Returns
+    -------
+    any
+        The response object returned by the LangChain chain.
+    """
+    # Initialize the ChatOllama model
+    chat_model = ChatOllama(model=model_name, base_url=base_url)
+    # If you need to use a remote model with auth, uncomment and adapt the block below:
+    # chat_model = ChatOllama(
+    #     model="llama3.1:70b",
+    #     base_url="http://ada-open-webui.serveo.net/ollama",
+    #     client_kwargs={
+    #         "headers": {"authorization": "Bearer <YOUR_TOKEN>"}
+    #     },
+    # )
+
+    # Load SHAP values from JSON file
+    with open(shap_json_path, "r") as file:
+        shap_values_json = json.load(file).get("shap_values")
+
+    # Load system prompt from file
+    with open(system_prompt_path, "r") as file:
+        sys_prompt = file.read().strip()
+
+    # Prepare the messages
+    prompt = ChatPromptTemplate(
+        [
+            ("system", sys_prompt),
+            ("human", "{user_input}"),
+        ]
+    )
+
+    # Generate the response
+    user_input = json.dumps(shap_values_json)  # Prepare user input
+
+    chain = prompt | chat_model
+
+    response = chain.invoke(user_input)
+    return response
+
+# Print the response
+response = get_shap_response()
+print(response.content)

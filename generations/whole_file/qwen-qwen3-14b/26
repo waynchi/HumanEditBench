@@ -1,0 +1,33 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0, tol=1e-4, max_iter=1000):
+    """
+    Implements the Conjugate Gradient method for solving Ax = b.
+    
+    Parameters:
+    A: 2D numpy array (symmetric and positive-definite matrix)
+    b: 1D numpy array (right-hand side vector)
+    x0: 1D numpy array (initial guess for the solution)
+    tol: convergence tolerance
+    max_iter: maximum number of iterations
+    
+    Returns:
+    x: 1D numpy array (solution vector)
+    """
+    x = x0.copy()
+    r = b - A @ x
+    if np.linalg.norm(r) < tol:
+        return x
+    p = r.copy()
+    
+    for _ in range(max_iter):
+        alpha = (r @ r) / (p @ A @ p)
+        x = x + alpha * p
+        r_new = r - alpha * A @ p
+        if np.linalg.norm(r_new) < tol:
+            return x
+        beta = (r_new @ r_new) / (r @ r)
+        p = r_new + beta * p
+        r = r_new
+    
+    return x

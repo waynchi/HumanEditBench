@@ -1,0 +1,78 @@
+const cameraService = require('./camera.service');
+
+const createCamera = async (req, res) => {
+  try {
+    // First create the camera record
+    const camera = await cameraService.createCamera(req.body);
+
+    // Then retrieve the newly created camera together with the related area name
+    // using a raw SQL query that joins the cameras and areas tables.
+    const db = require('../db'); // Assumes a db module that exposes a `query` method
+    const { rows } = await db.query(
+      `SELECT c.*, a.area_name
+       FROM cameras c
+       LEFT JOIN areas a ON c.area_id = a.id
+       WHERE c.id = $1`,
+      [camera.id]
+    );
+
+    // If the query returned a result, send it; otherwise fall back to the original camera object.
+    const cameraWithArea = rows[0] || camera;
+    res.status(201).jsonWithArea);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getAllCameras = async (req, res) => {
+  try {
+    const cameras = await cameraService.getAllCameras();
+    res.status(200).json(cameras);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const getCameraById = async (req, res) => {
+  try {
+    const camera = await cameraService.getCameraById(req.params.id);
+    if (!camera) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(200).json(camera);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const updateCamera = async (req, res) => {
+  try {
+    const camera = await cameraService.updateCamera(req.params.id, req.body);
+    if (!camera) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(200).json(camera);
+  } catch (error) {
+     res.status(500).json({ error: error.message });
+  }
+};
+
+const deleteCamera = async (req, res) => {
+  try {
+    const success = await cameraService.deleteCamera(req.params.id);
+    if (!success) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(204).send();
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+module.exports = {
+  createCamera,
+  getAllCameras,
+  getCameraById,
+  updateCamera,
+  deleteCamera,
+};

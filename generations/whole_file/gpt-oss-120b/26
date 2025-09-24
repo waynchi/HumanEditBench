@@ -1,0 +1,89 @@
+import numpy as np
+
+def conjugate_gradient(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Метод сопряжённых градиентов для решения симметрично‑положительно‑определённой системы
+    линейных уравнений A·x = b.
+
+    Параметры
+    ----------
+    A : ndarray или scipy.sparse matrix
+        Симметричная положительно‑определённая матрица системы.
+    b : ndarray
+        Вектор правой части.
+    x0 : ndarray, optional
+        Начальное приближение (по умолчанию – нулевой вектор той же размерности, что и b).
+    tol : float, optional
+        Требуемая точность (норма резидуала). Итерации останавливаются,
+        когда ||r_k||_2 <= tol * ||b||_2.
+    max_iter : int, optional
+        Максимальное число итераций. По умолчанию = размерность системы.
+
+    Возврат
+    -------
+    x : ndarray
+        Приблизительное решение системы.
+    info : dict
+        Словарь с диагностической информацией:
+            'iterations' – выполнено итераций,
+            'residual_norm' – норма финального резидуала,
+            'converged' – флаг сходимости (True/False).
+
+    Пример
+    -------
+    >>> A = np.array([[4, 1], [1, 3]], dtype=float)
+    >>> b = np.array([1, 2], dtype=float)
+    >>> x, info = conjugate_gradient(A, b)
+    >>> x
+    array([0.09090909, 0.63636364])
+    """
+    # Приведение входных данных к numpy массивам
+    A = np.asarray(A)
+    b = np.asarray(b, dtype=float)
+
+    n = b.shape[0]
+    if max_iter is None:
+        max_iter = n
+
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = np.asarray(x0, dtype=float)
+
+    # Вычисление начального резидуала r0 = b - A·x0
+    r = b - A.dot(x)
+    # Начальное направление поиска
+    p = r.copy()
+    rsold = np.dot(r, r)
+
+    # Если начальный резидуал уже достаточно мал
+    if np.sqrt(rsold) <= tol * np.linalg.norm(b):
+        return x, {'iterations': 0,
+                  'residual_norm': np.sqrt(rsold),
+                  'converged': True}
+
+    for i in range(1, max_iter + 1):
+        Ap = A.dot(p)
+        alpha = rsold / np.dot(p, Ap)
+
+        # Обновление решения
+        x += alpha * p
+        # Обновление резидуала
+        r -= alpha * Ap
+        rsnew = np.dot(r, r)
+
+        # Проверка сходимости
+        if np.sqrt(rsnew) <= tol * np.linalg.norm(b):
+            return x, {'iterations': i,
+                      'residual_norm': np.sqrt(rsnew),
+                      'converged': True}
+
+        # Обновление направления
+        beta = rsnew / rsold
+        p = r + beta * p
+        rsold = rsnew
+
+    # Если достигнут максимум итераций без сходимости
+    return x, {'iterations': max_iter,
+               'residual_norm': np.sqrt(rsold),
+               'converged': False}

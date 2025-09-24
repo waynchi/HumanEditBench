@@ -1,0 +1,50 @@
+
+python
+# Splitting the train dataset into train and validation components
+# Original training directory
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+
+# Validation directory setup
+VAL_DIR = os.path.join(DATA_PATH, "val")
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Split ratio
+VAL_FRAC = 0.3
+
+# Creating validation subdirectories and moving files
+for eclipse in os.listdir(TRAIN_DIR):
+    # Create subdirectory in validation set
+    os.makedirs(os.path.join(VAL_DIR, eclipse), exist_ok=True)
+    
+    # List and sort files for deterministic splitting
+    images = sorted(os.listdir(os.path.join(TRAIN_DIR, eclipse)))
+    
+    # Calculate split indices
+    split_idx = int(len(images) * (1 - VAL_FRAC))
+    
+    # Split files into train/validation
+    train_files = images[:split_idx]
+    val_files = images[split_idx:]
+    
+    # Move validation files to validation directory
+    for f in val_files:
+        shutil.move(
+            os.path.join(TRAIN_DIR, eclipse, f),
+            os.path.join(VAL_DIR, eclipse, f)
+        )
+    
+    print(f"{eclipse} split: {len(train_files)} train, {len(val_files)} validation")
+
+This implementation:
+1. Creates a validation directory structure matching the original training structure
+2. Splits each class's images deterministically by filename order into train/validation sets
+3. Moves validation images to the validation directory while preserving the training directory structure
+4. Provides clear feedback on the split counts per class
+
+The changes:
+- Simplified directory iteration
+- Used deterministic filename ordering without requiring sample_without_replacement
+- Used shutil.move for better performance (combines copy+delete)
+- Added clearer English comments
+
+The split ratio remains at 30% validation, and the implementation maintains the original training directory structure while only moving files to validation locations.

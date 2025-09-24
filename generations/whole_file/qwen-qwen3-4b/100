@@ -1,0 +1,39 @@
+import random
+import logging
+from typing import List, Dict
+
+app = FastAPI()
+
+CHAT_URL = "https://duckduckgo.com/duckchat/v1/chat"
+STATUS_URL = "https://duckduckgo.com/duckchat/v1/status"
+MODELS = {
+    "gpt-4o-mini": {"owned_by": "openai", "is_free": True},
+    "llama-3.1-70b": {"owned_by": "Meta", "is_free": True},
+    "mixtral-8x7b": {"owned_by": "mistralai", "is_free": True},
+    "claude-3-haiku": {"owned_by": "Anthropic", "is_free": False},
+}
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+valid_user_agents = [
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.3",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.3",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.3"
+]
+
+async def fetch_vqd() -> str:
+    """Fetch the VQD token required for authentication with a random User-Agent."""
+    selected_agent = random.choice(valid_user_agents)
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            STATUS_URL,
+            headers={
+                "User-Agent": selected_agent,
+                "x-vqd-accept": "1",
+            },
+        )
+        if response.status_code != 200:
+            logger.error(f"Failed to fetch VQD: {response.status_code}")
+            raise HTTPException(status_code=500, detail="Failed to retrieve VQD token")
+        return response.headers.get("x-vqd-4", "")

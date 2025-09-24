@@ -1,0 +1,58 @@
+def plot_query_token_importance(
+    pil_image,
+    similarity_maps,
+    query_tokens,
+    alpha: float = 0.5
+) -> None:
+    """
+    Plot a separate heatmap for each query token in the similarity_maps.
+    
+    Args:
+        pil_image (PIL.Image.Image): The original image (e.g., loaded via Image.open(...)).
+        similarity_maps (torch.Tensor): 
+            Shape = (num_query_tokens, n_patches_x, n_patches_y).
+        query_tokens (List[str]): A list of strings for each token in the query.
+        alpha (float): Transparency for the heatmap overlays (0=transparent, 1=opaque).
+    """
+    # Convert PIL to numpy
+    image_np = np.array(pil_image)
+    H, W = image_np.shape[:2]
+
+    num_tokens = similarity_maps.size(0)
+    assert num_tokens == len(query_tokens), (
+        f"The number of query tokens in similarity_maps ({num_tokens}) "
+        f"doesn't match the length of query_tokens list ({len(query_tokens)})."
+    )
+
+    fig, axs = plt.subplots(1, num_tokens, figsize=(5 * num_tokens, 5))
+    if num_tokens == 1:
+        # If there's only one token, axs won't be an iterable
+        axs = [axs]
+
+    for idx in range(num_tokens):
+        # Each similarity_map for a single query token: shape = (n_patches_x, n_patches_y)
+        single_map = similarity_maps[idx]  # (n_patches_x, n_patches_y)
+
+        # Upsample to full image size
+        single_map_4d = single_map.unsqueeze(0).unsqueeze(0)  # (1,1,n_patches_x, n_patches_y)
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='linear',
+            align_corners=False
+        )
+        
+        # .to(torch.float32) fix if your map is bfloat16
+        heatmap = upsampled.squeeze().to(torch.float32).cpu().numpy()  # (H, W)
+
+        # Optionally normalize heatmap (uncomment if desired)
+        # heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min() + 1e-8)
+
+        # Plot
+        axs[idx].imshow(image_np, cmap=None if image_np.ndim == 3 else 'gray')
+        axs[idx].imshow(heatmap, cmap='jet', alpha=alpha)
+        axs[idx].set_title(f"Query: {query_tokens[idx]}")
+        axs[idx].axis('off')
+
+    plt.tight_layout()
+    plt.show()

@@ -1,0 +1,39 @@
+To address the issue of the code not running due to the dependency on `flattened_size`, we modify the network to use adaptive average pooling. This allows the network to handle inputs of arbitrary sizes without predetermining the flattened size. The changes include:
+1. Removing `flattened_size` from the constructor
+2. Adding `nn.AdaptiveAvgPool2d(1)` after convolution blocks to fix output dimensions
+3. Updating the first linear layer to use 64 input features
+
+Fixed code:
+python
+class SimpleConvNet1(nn.Module):
+    def __init__(self):  # flattened_size argument removed
+        super().__init__()
+
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        self.conv2 = nn.Sequential(
+            nn.Conv2d(32, 64, 3),
+            nn.ReLU(),
+            nn.MaxPool2d(2)
+        )
+
+        # Adaptive pooling added to handle variable input sizes
+        self.adaptive_pool = nn.AdaptiveAvgPool2d(output_size=1)
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Sequential(
+            nn.Linear(64, 512),  # Fixed input features (64 channels * 1*1)
+            nn.ReLU(),
+            nn.Linear(512, 3)
+        )
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.adaptive_pool(x)  # Add adaptive pooling
+        x = self.flatten(x)
+        x = self.fc1(x)
+        return x

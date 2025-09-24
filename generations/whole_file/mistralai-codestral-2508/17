@@ -1,0 +1,36 @@
+    parser.add_argument(
+        "--host_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M-deduped",
+        help="host_model_name",
+    )
+    parser.add_argument(
+        "--vanilla_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M",
+        help="vanilla_model_name",
+    )
+    parser.add_argument(
+        "--model_names",
+        type=lambda value: [str(x) for x in value.split(",")],
+        default=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+        help="Comma-separated list of model names to evaluate",
+    )
+    args = parser.parse_args()
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+        model_names=args.model_names,
+    )

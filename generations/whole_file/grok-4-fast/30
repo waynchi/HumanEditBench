@@ -1,0 +1,33 @@
+import math
+
+def can_be_sum_of_four_nonzero_squares(n):
+    """
+    Checks if a number n can be expressed as the sum of four non-zero squares.
+    """
+    if n < 4:
+        return False
+    max_val = int(math.sqrt(n))
+    for a in range(1, max_val + 1):
+        sq_a = a * a
+        if sq_a >= n:
+            break
+        for b in range(a, max_val + 1):  # Start from a to avoid duplicates
+            sq_b = b * b
+            if sq_a + sq_b >= n:
+                break
+            for c in range(b, max_val + 1):
+                sq_c = c * c
+                if sq_a + sq_b + sq_c >= n:
+                    break
+                remaining = n - sq_a - sq_b - sq_c
+                sq_d = int(math.sqrt(remaining))
+                if sq_d * sq_d == remaining and sq_d >= c:
+                    return True
+    return False
+
+# Generate and print numbers up to 100 that can be expressed as such
+print("Numbers that can be expressed as the sum of four non-zero squares up to 100:")
+for i in range(1, 101):
+    if can_be_sum_of_four_nonzero_squares(i):
+        print(i, end=' ')
+print()

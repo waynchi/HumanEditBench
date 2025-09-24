@@ -1,0 +1,114 @@
+◁think▷Okay, I need to generate a new implementation for the is_prime function based on the user's instruction. Let me start by recalling what a prime number is. A prime number is an integer greater than 1 that has no positive divisors other than 1 and itself. So the function needs to check if the input n is prime.
+
+The original code just has an empty function. The user wants to add the implementation. Let me think about how to write this function.
+
+First, handle edge cases. If n is less than or equal to 1, it's not prime. If n is 2 or 3, they are prime. Then, for numbers greater than that, check for divisibility by 2 and 3. Also, we can loop through possible divisors up to the square root of n. Wait, but how do we efficiently check for primality?
+
+Wait, maybe use the 6k ± 1 optimization. That is, after checking for divisibility by 2 and 3, check for factors of the form 6k ± 1 up to sqrt(n). That's a common approach.
+
+Wait, here's a possible algorithm:
+
+1. If n <= 1, return False (since primes are greater than 1)
+2. If n == 2 or 3, return True
+3. If n is divisible by 2 or 3, return False
+4. Otherwise, check for factors from 5 up to sqrt(n), incrementing by 6 steps each time (i.e., 5, 11, 17, ...) and check both i and i+2 (since 6k-1 and 6k+1)
+Wait, maybe not. Let me see. The 6k ± 1 method skips multiples of 2 and 3. So the loop would start at 5 and check i and i+2. For example, in the loop:
+
+i = 5
+while i * i <= n:
+    if n is divisible by i or i+2:
+        return False
+    i += 6
+
+But how to structure the loop. Let me code this.
+
+So, the code would be:
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    if n == 2 or n == 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i ** 2 <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True
+
+But wait, perhaps for n >= 5, primes are of the form 6k ± 1. So the code first checks for divisibility by 2 and 3. Then, for i starting at 5, step 6 each time, check if n is divisible by i (which is 6k-1) or i+2 (which is 6k+1). This way, all possible prime factors are covered.
+
+But the loop condition is i ** 2 <= n. That's efficient because if n is not a prime, it has a factor less than or equal to sqrt(n). So once i exceeds sqrt(n), we can stop the loop.
+
+This is a standard optimized primality check for integer inputs.
+
+Wait, but the user's code might not have this yet. So replacing the empty function with this implementation.
+
+So the original code was:
+
+def is_prime(n):
+    
+
+And after modification, it should be:
+
+def is_prime(n):
+    if n <= 1:
+        return False
+    if n == 2 or n == 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True
+
+Yes, this would correctly check if a number is prime. Let's verify some cases.
+
+If n=2: returns True
+If n=3: returns True
+If n=4: divisible by 2, returns False
+If n=5: returns True
+If n=6: divisible by 2, returns False
+If n=7: returns True
+If n=25: loop starts at i=5. 5*5=25, check if 25%5==0 → yes, returns False. Correct.
+If n=29: loop runs i=5, 5*5=25 <=29. 29%5=4, 29%7=1 → continue. Then i +=6 → 11. 11*11=121>29, loop ends. Returns True.
+
+Yes, this code works. So the function is properly implemented.
+
+Now, the user's instruction says to only change the highlighted section. The highlighted code is the empty function. So replacing the empty body with the new code. Therefore, the output should be:
+python
+def is_prime(n):
+    if n <= 1:
+        return False
+    if n == 2 or n == 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True
+
+That's the correct implementation. Let's check for edge cases again. If n is 1, returns False. If n is a negative number, same. The code should handle all integers.
+◁/think▷
+python
+def is_prime(n):
+    if n <= 1:
+        return False
+    if n == 2 or n == 3:
+        return True
+    if n % 2 == 0 or n % 3 == 0:
+        return False
+    i = 5
+    while i * i <= n:
+        if n % i == 0 or n % (i + 2) == 0:
+            return False
+        i += 6
+    return True

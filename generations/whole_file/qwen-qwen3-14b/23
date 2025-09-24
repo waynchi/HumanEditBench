@@ -1,0 +1,24 @@
+import nltk
+from nltk.corpus import words
+
+nltk.download('words')
+
+def main():
+    user_input = input("Enter the number of characters: ")
+    try:
+        n = int(user_input)
+    except ValueError:
+        print("Please enter a valid integer.")
+        return
+
+    word_list = words.words()
+    filtered = [word for word in word_list if len(word) == n]
+    if len(filtered) < 10:
+        print(f"Found {len(filtered)} words with {n} characters:")
+        print(filtered)
+    else:
+        print(f"10 words with {n} characters:")
+        print(filtered[:10])
+
+if __name__ == "__main__":
+    main()

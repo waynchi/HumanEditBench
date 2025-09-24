@@ -1,0 +1,16 @@
+
+python
+### evaluate_image_maps function ###
+<<<<<<< original
+    # Ensure similarity_map is float32 and on the CPU before using numpy operations
+    similarity_map_cpu = similarity_map.to(dtype=torch.float32).cpu().numpy()
+=======
+    # Ensure similarity_map is float32 and on the CPU before using numpy operations
+    if isinstance(similarity_map, torch.Tensor):
+        similarity_map_cpu = similarity_map.to(dtype=torch.float32).cpu().numpy()
+    else:
+        # Assume it's a numpy array, ensure float32
+        similarity_map_cpu = similarity_map.astype(np.float32)
+>>>>>>> modified
+
+This change adds a type check to avoid converting to numpy array if the input is already a numpy array. If the input is a PyTorch tensor, it performs the original conversion. If it's already a numpy array, it ensures the dtype is float32 by casting if necessary.

@@ -1,0 +1,77 @@
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+import requests
+import json
+
+# Crear una sesión Spark
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# -------------------------------------------------------------
+# * Sección modificada *
+# -------------------------------------------------------------
+# Los datos provienen de una API, por lo que primero los obtenemos
+# y analizamos su estructura antes de crear el DataFrame.
+
+# --- 1. Llamada a la API -------------------------------------------------
+api_url = "<your_api_endpoint>"  # Reemplazar con la URL de tu API
+# Si la API requiere headers (por ejemplo, token de autorización), añádelos aquí:
+api_headers = {
+    # "Authorization": "Bearer <your_token>",
+    # "Content-Type": "application/json"
+}
+
+response = requests.get(api_url, headers=api_headers)
+response.raise_for_status()          # Lanza excepción si la llamada falla
+raw_data = response.json()           # Asumimos que la respuesta es JSON
+
+# --- 2. Análisis preliminar de los datos ---------------------------------
+# Mostramos información básica para entender el formato recibido.
+print("Tipo de objeto devuelto por la API:", type(raw_data))
+if isinstance(raw_data, dict):
+    # Si el JSON es un dict, buscar la clave que contiene la lista de registros
+    # (esto depende de la API, aquí se asume que hay una clave 'data')
+    data_key = "data"
+    if data_key in raw_data:
+        records = raw_data[data_key]
+    else:
+        # Si no hay clave conocida, usar el dict completo como registro único
+        records = [raw_data]
+elif isinstance(raw_data, list):
+    records = raw_data
+else:
+    raise ValueError("Formato de respuesta inesperado de la API.")
+
+print(f"Número de registros obtenidos: {len(records)}")
+if records:
+    print("Ejemplo de registro:", json.dumps(records[0], indent=2, ensure_ascii=False))
+
+# --- 3. Creación del DataFrame Spark --------------------------------------
+# Spark puede inferir el esquema directamente a partir de una lista de dicts.
+df = spark.createDataFrame(records)
+
+# Opcional: inspeccionar el esquema inferido
+df.printSchema()
+df.show(truncate=False)
+
+# -------------------------------------------------------------
+# Fin de la sección modificada
+# -------------------------------------------------------------
+
+# Configurar la conexión a ADL2 usando la identidad de Microsoft ID
+# No es necesario proporcionar credenciales explícitamente en un notebook de Synapse
+# Spark utilizará la identidad administrada del notebook para autenticarse.
+
+# Especificar la ruta al contenedor y la carpeta en ADL2
+container_name = "<your_container_name>"  # Reemplazar con el nombre de tu contenedor
+folder_path = "<your_folder_path>"        # Reemplazar con la ruta a la carpeta dentro del contenedor
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Escribir el DataFrame en formato parquet en ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# Opcional: leer el archivo parquet para verificar
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# Detener la sesión Spark
+spark.stop()

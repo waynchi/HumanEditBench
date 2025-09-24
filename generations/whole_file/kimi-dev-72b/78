@@ -1,0 +1,23 @@
+
+javascript
+const createCamera = async (req, res) => {
+  try {
+    const camera = await cameraService.createCamera(req.body);
+    const newCameraId = camera.id;
+    const query = `
+      SELECT c.*, a.area_name 
+      FROM cameras c 
+      JOIN areas a ON c.area_id = a.id 
+      WHERE c.id = ?
+    `;
+    const result = await cameraService.db.execute(query, [newCameraId]);
+    if (result.length === 0) {
+      return res.status(404).json({ message: 'Camera not found' });
+    }
+    res.status(201).json(result[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+This change modifies the `createCamera` function to execute a raw SQL query that joins the `cameras` and `areas` tables after creating the new camera. The response now includes all fields from the created camera along with the corresponding `area_name` from the areas table. The query uses the new camera's ID to select the joined record. If no record is found, it returns a 404 error.

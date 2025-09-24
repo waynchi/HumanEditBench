@@ -1,0 +1,133 @@
+◁think▷Okay, let's tackle this problem. The user wants to modify the plot_query_token_importance function so that instead of using interpolation to resize the similarity maps, they should be upscaled linearly. Hmm, but wait, the current code uses F.interpolate with mode='bilinear'. The instruction says "do not interpolate, just upscale linearly". What exactly does that mean?
+
+The user probably wants to avoid interpolation methods that might smooth the image. Instead, they want a linear upscaling. Wait, bilinear interpolation is a form of linear scaling in two dimensions. Maybe the user is confusing interpolation with another method. Or perhaps they want to use a different approach, like nearest-neighbor upsampling but with linear scaling?
+
+Wait, maybe the issue is that interpolation isn't appropriate here. Let me think. The similarity maps are of size (n_patches_x, n_patches_y), and they need to be upsampled to (H, W) of the original image. The original code uses bilinear interpolation. Perhaps the user wants to instead use a method that doesn't interpolate between values, like nearest upsampling. But the instruction says "upscale linearly". Wait, linearly as in using a linear method? Wait, but bilinear interpolation is linear. Maybe the user just wants to remove the interpolation part. Wait, perhaps the user wants to replicate the values, not interpolate. For example, if a patch is of a certain value, upscalling linearly might mean just repeating that value in the corresponding larger pixels instead of blending between them.
+
+Wait, this is a bit confusing. Let me look at the existing code. The current code uses F.interpolate with mode='bilinear' and align_corners=False. The alternative might be to use 'nearest' mode, which would upscale without interpolation. But the user says "upscale linearly", which is a bit contradictory. Wait, linear upscaling could mean that you expand each patch into the corresponding larger area without averaging. For example, if the original similarity map is 7x7 and the image is 224x224, each patch would correspond to 32x32 pixels. So in the heatmap, each patch's value is used for that entire 32x32 block without interpolation. That's called nearest-neighbor upsampling. Wait, but that's not linear. So perhaps the user wants to change the interpolation mode to 'nearest' instead of 'bilinear'.
+
+Wait, but the user's instruction is: "do not interpolate, just upscale linearly". Maybe they are referring to using a method that scales the values without interpolation. Wait, maybe they want to use the patches as if each is a grid cell, and expand each value to its corresponding square. So, if the original image is H x W, and the similarity map is of size (patches_h, patches_w), then each cell in the similarity map is scaled up to ((H // patches_h) x (W // patches_w)) in size. So, if the original image is 224x224 and the similarity map is 7x7, each cell is 32x32. Then each cell's value is replicated 32x32 times. That would produce a blocky heatmap without interpolation. But how to implement that?
+
+In the current code, the code uses F.interpolate which applies interpolation. To avoid interpolation, maybe we can use a different approach. Let's see. Let's say the original image has height H and width W. The similarity map is size (n_patches_x, n_patches_y). Then, each cell in the similarity map corresponds to approx H/n_patches_x in height and W/n_patches_y in width. So, to upscale the similarity map to HxW, we need to tile each cell into the corresponding number of rows and columns. For example, if n_patches_x is 7 and H is 224, then each cell's value is used for 32 rows (since 224/7=32). Similarly for width. So the upsampled map would be a blocky expansion of the original cells.
+
+But how to do that in PyTorch? One way is to use torch.nn.Upsample with mode='nearest' and align_corners=None. Alternatively, maybe using repeat_interleave on the dimensions.
+
+Wait, maybe the user wants to use a different upscaling method. Let me think. The original code uses bilinear interpolation which smooths the heatmap. The user's instruction says to avoid interpolation and just upscale linearly. Wait, perhaps linearly here refers to the scaling factor, not the interpolation method. Maybe the user wants to use a linear upscaling where each patch's value is expanded into the corresponding area without mixing with adjacent values. So that's nearest-neighbor upscaling. So changing the mode from 'bilinear' to 'nearest' would achieve that. But the user's exact instruction is unclear. Given the instruction "do not interpolate, just upscale linearly", perhaps the user is suggesting that instead of interpolating between the patches, they should simply expand each patch's value into the corresponding image area.
+
+Wait, but "upscale linearly" is a confusing term here. Maybe the user is referring to the fact that each patch is mapped linearly to a contiguous block of pixels in the image. For example, if the similarity map is 7x7 and the image is 224x224, each patch is 32x32 in the image. So, each value in the similarity map is upscaled to a 32x32 block. So in the code, instead of using interpolation, we can use a nearest mode. So changing the F.interpolate mode to 'nearest' would do that.
+
+But the user's instruction says "do not interpolate, just upscale linearly". The F.interpolate function with 'nearest' mode doesn't interpolate between adjacent values, so that would be a non-interpolating approach. Wait, but 'nearest' is a type of upscaling method; you could consider it a form of interpolation, but perhaps in a different way. The user might want to avoid bilinear interpolation and instead use a method that directly scales up the values without blending. So changing the mode to 'nearest' would possibly satisfy the user's instruction.
+
+So the key change would be in the F.interpolate line. Replace mode='bilinear' with mode='nearest'. Let me check the code.
+
+Original code:
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='bilinear',
+            align_corners=False
+        )
+
+Changing to:
+
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='nearest'
+        )
+
+But wait, the align_corners is not applicable for 'nearest' mode. So removing that parameter. Also, for 'nearest' mode, align_corners should be None. So adjust that.
+
+But in PyTorch's interpolate function, when mode is 'nearest', the align_corners must be either None or False. Wait, checking the docs: for 'nearest', 'area' and 'nearest-exact', align_corners must be None. Wait, in PyTorch, when using mode='nearest', you can't specify align_corners. Wait, no. Let me check. The F.interpolate function for modes like 'nearest', 'area', 'nearest-exact' requires align_corners to be None. But in the original code, when using 'bilinear', align_corners is set to False. So when changing to 'nearest', we need to remove the align_corners argument.
+
+So modifying:
+
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='nearest',
+        )
+
+That way, the upsampled heatmap would use nearest-neighbor upscaling instead of bilinear. That would avoid interpolation between the patches, resulting in a blocky heatmap where each patch's value is directly mapped to the corresponding image area.
+
+So the entire code for the plot_query_token_importance function would change that line. Let me check the code again.
+
+Original section:
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='bilinear',
+            align_corners=False
+        )
+
+Modified section would be:
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='nearest'
+        )
+
+But we need to make sure that the code runs. When mode is 'nearest', align_corners must be None. By removing align_corners, it defaults to None, which is correct. So that should work.
+
+So the main change is in the F.interpolate call: switching from bilinear to nearest mode. That would handle the "upscaling linearly" instruction by not interpolating between the values. The user's intent might be to see a clearer, less-smoothed heatmap where each patch is directly visible. So this change would achieve that.
+
+Therefore, the code for that specific section should be modified as I described. Now, putting that into the correct code formatting.
+◁/think▷
+python
+def plot_query_token_importance(
+    pil_image,
+    similarity_maps,
+    query_tokens,
+    alpha: float = 0.5
+) -> None:
+    """
+    Plot a separate heatmap for each query token in the similarity_maps.
+    
+    Args:
+        pil_image (PIL.Image.Image): The original image (e.g., loaded via Image.open(...)).
+        similarity_maps (torch.Tensor): 
+            Shape = (num_query_tokens, n_patches_x, n_patches_y).
+        query_tokens (List[str]): A list of strings for each token in the query.
+        alpha (float): Transparency for the heatmap overlays (0=transparent, 1=opaque).
+    """
+    # Convert PIL to numpy
+    image_np = np.array(pil_image)
+    H, W = image_np.shape[:2]
+
+    num_tokens = similarity_maps.size(0)
+    assert num_tokens == len(query_tokens), (
+        f"The number of query tokens in similarity_maps ({num_tokens}) "
+        f"doesn't match the length of query_tokens list ({len(query_tokens)})."
+    )
+
+    fig, axs = plt.subplots(1, num_tokens, figsize=(5 * num_tokens, 5))
+    if num_tokens == 1:
+        # If there's only one token, axs won't be an iterable
+        axs = [axs]
+
+    for idx in range(num_tokens):
+        # Each similarity_map for a single query token: shape = (n_patches_x, n_patches_y)
+        single_map = similarity_maps[idx]  # (n_patches_x, n_patches_y)
+
+        # Upsample to full image size using nearest-neighbor (no interpolation)
+        single_map_4d = single_map.unsqueeze(0).unsqueeze(0)  # (1,1,n_patches_x, n_patches_y)
+        upsampled = F.interpolate(
+            single_map_4d,
+            size=(H, W),
+            mode='nearest'
+        )
+        
+        # .to(torch.float32) fix if your map is bfloat16
+        heatmap = upsampled.squeeze().to(torch.float32).cpu().numpy()  # (H, W)
+
+        # Optionally normalize heatmap (uncomment if desired)
+        # heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min() + 1e-8)
+
+        # Plot
+        axs[idx].imshow(image_np, cmap=None if image_np.ndim == 3 else 'gray')
+        axs[idx].imshow(heatmap, cmap='jet', alpha=alpha)
+        axs[idx].set_title(f"Query: {query_tokens[idx]}")
+        axs[idx].axis('off')
+
+    plt.tight_layout()
+    plt.show()

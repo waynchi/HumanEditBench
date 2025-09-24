@@ -1,0 +1,37 @@
+To implement the requested change, we need to modify the Default story by adding specific character stats as props. Here's the updated code:
+javascript/react
+import React from 'react';
+import { Meta, Story } from '@storybook/react';
+import CharacterStatUI from './CharacterStatUI';
+
+export default {
+  title: 'CharacterStatUI',
+  component: CharacterStatUI
+};
+
+const Template = (args) => <CharacterStatUI {...args} />;
+
+export const Default = Template.bind({});
+Default.args = {
+  name: "Alfonse",
+  level: 40,
+  weapon: "Folkvangr",
+  wpn: 50,
+  atk: 50,
+  spd: 50,
+  def: 30,
+  res: 30
+};
+
+Key changes made:
+1. Added all specified props to `Default.args`:
+   - `name="Alfonse"`
+   - `level=40`
+   - `weapon="Folkvangr"`
+   - `wpn=50`
+   - `atk=50`
+   - `spd=50`
+   - `def=30`
+   - `res=30`
+
+Note: The weapon name "Folkvangr" is assigned to the `weapon` prop as requested.

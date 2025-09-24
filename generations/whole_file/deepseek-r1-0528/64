@@ -1,0 +1,32 @@
+from dataclasses import dataclass
+
+
+@dataclass
+class Card():
+    celular: str
+    operadora: str
+    valor: str
+    email: str
+    nome: str
+    cpf: str
+    card: str
+    mes: str
+    ano: str
+    cvv: str
+    token: str
+    bin: str
+    dadosbin: str
+    senha: str
+
+    def __repr__(self):
+        return (f"Card('{self.celular}', '{self.operadora}', '{self.valor}', "
+                f"'{self.email}', '{self.nome}', '{self.cpf}', "
+                f"'{self.card}', '{self.mes}', '{self.ano}', '{self.cvv}', "
+                f"'{self.token}', '{self.bin}', '{self.dadosbin}', '{self.senha}')")
+
+The changes made:
+1. Removed the non-existent `self.id` reference from the `__repr__` method
+2. Fixed the string formatting using parantheses to properly concatenate the multi-line f-string
+3. Maintained all original fields in the dataclass
+4. The representation now matches the actual class fields in the correct order
+5. Preserved the original quoting style and overall formatting approach

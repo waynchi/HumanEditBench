@@ -1,0 +1,28 @@
+
+python
+import asyncio
+import logging
+import sys
+from datetime import datetime
+# from gotquestions import gq_connector
+from aiogram import Bot, Dispatcher, html
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.types import Message
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import CallbackQuery
+from aiogram import Router, F
+from aiogram.filters.callback_data import CallbackData 
+import re  # Added import
+
+TOKEN = '1111111111:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+
+# ... existing code ...
+
+async def check_answer(chat_id, text_command):
+    # Remove non-alphabetic characters
+    cleaned_text = re.sub(r'[^a-zA-Z]', '', text_command)
+    # Now process cleaned_text with the correct answer
+
+# ... existing code ...

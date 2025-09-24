@@ -1,0 +1,52 @@
+import random
+import os
+
+# Load English dictionary (wordlist)
+wordlist = []
+if os.path.exists('/usr/share/dict/words'):  # Common Linux path
+    with open('/usr/share/dict/words', 'r') as f:
+        wordlist = [w.strip().lower() for w in f if w.strip().isalpha()]
+elif os.path.exists('/usr/dict/words'):  # Alternative path
+    with open('/usr/dict/words', 'r') as f:
+        wordlist = [w.strip().lower() for w in f if w.strip().isalpha()]
+else:
+    # Fallback: a small sample word list for demonstration
+    wordlist = [
+        'apple', 'banana', 'cherry', 'date', 'elderberry', 'fig', 'grape', 'honeydew', 'iceberg', 'kiwi',
+        'lemon', 'mango', 'nectarine', 'orange', 'papaya', 'quinoa', 'raspberry', 'strawberry', 'tangerine', 'watermelon',
+        'ant', 'bee', 'cat', 'dog', 'elephant', 'frog', 'goat', 'horse', 'iguana', 'jackal',
+        'kite', 'lion', 'mouse', 'newt', 'owl', 'penguin', 'quail', 'raccoon', 'seal', 'tiger', 'ubuntu', 'viper', 'wombat', 'xerus', 'yak', 'zebra',
+        'a', 'an', 'the', 'in', 'on', 'at', 'to', 'from', 'by', 'for', 'with', 'are', 'is', 'it', 'i', 'he', 'she', 'you', 'we', 'they',
+        'hello', 'world', 'python', 'program', 'example', 'test', 'random', 'dictionary', 'word', 'list'
+    ]
+
+# Remove duplicates and sort
+wordlist = list(set(wordlist))
+
+while True:
+    try:
+        N = int(input("Enter the number of characters (N) for words, or 0 to quit: "))
+        if N == 0:
+            break
+        if N <= 0:
+            print("Please enter a positive integer.")
+            continue
+        
+        # Filter words with exactly N characters
+        filtered_words = [w for w in wordlist if len(w) == N]
+        
+        if not filtered_words:
+            print(f"No words found with exactly {N} characters.")
+        else:
+            # Select up to 10 random words
+            selected_words = random.sample(filtered_words, min(10, len(filtered_words)))
+            print(f"Here are {len(selected_words)} word(s) with {N} characters:")
+            for word in selected_words:
+                print(word)
+            print("-" * 40)
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+print("Program ended.")

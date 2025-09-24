@@ -1,0 +1,56 @@
+
+python
+    def compute_latency_objective(self, probs: np.ndarray) -> float:
+        """Compute expected maximum latency objective using exact PDF/CDF calculation."""
+
+        def max_latency_integrand(
+            l: float, mu_i: float, sigma_i: float, mu_j: float, sigma_j: float
+        ) -> float:
+            """
+            Compute the density function for max latency:
+            f_max(l) = f(l;mu_i,sigma_i)F(l;mu_j,sigma_j) + F(l;mu_i,sigma_i)f(l;mu_j,sigma_j)
+            """
+            # PDF for model i
+            f_i = lognorm.pdf(l, sigma_i, scale=np.exp(mu_i))
+            # CDF for model j
+            F_j = lognorm.cdf(l, sigma_j, scale=np.exp(mu_j))
+            # PDF for model j
+            f_j = lognorm.pdf(l, sigma_j, scale=np.exp(mu_j))
+            # CDF for model i
+            F_i = lognorm.cdf(l, sigma_i, scale=np.exp(mu_i))
+
+            max_latency = l * (f_i * F_j + F_i * f_j)
+            return max_latency
+
+        # Compute all expected max latencies first
+        expected_max_list = []
+        for idx in range(self.n_pairs):
+            i, j = self._index_to_pair(idx)
+            mu_i, sigma_i = self.latency_params[self.models[i]]
+            mu_j, sigma_j = self.latency_params[self.models[j]]
+
+            # Integrate the max latency density function from 0 to infinity
+            expected_max, _ = quad(
+                max_latency_integrand, 0, np.inf, args=(mu_i, sigma_i, mu_j, sigma_j)
+            )
+            expected_max_list.append(expected_max)
+
+        # If no pairs, return 0
+        if not expected_max_list:
+            return 0.0
+
+        # Find the maximum expected max to normalize
+        max_expected = max(expected_max_list)
+        if max_expected == 0:
+            # All expected_max are zero, so avoid division by zero
+            return 0.0
+
+        # Normalize and compute total latency
+        total_latency = 0
+        for idx in range(self.n_pairs):
+            normalized_expected_max = expected_max_list[idx] / max_expected
+            total_latency += probs[idx] * normalized_expected_max
+
+        return total_latency
+
+This change normalizes each expected maximum latency value to the range [0, 1] by dividing by the maximum value found across all model pairs. This ensures the latency objective is properly scaled while maintaining the relative relationships between different model pairings.

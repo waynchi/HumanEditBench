@@ -1,0 +1,42 @@
+
+python
+@app.post("/v1/chat/completions")
+async def chat_completions(request: Request):
+    """Handle chat completions with optional streaming."""
+    try:
+        data = await request.json()
+        messages = data.get("messages", [])
+        model = data.get("model", "gpt-4o-mini")
+        stream = data.get("stream", False)
+
+        if model not in MODELS:
+            raise HTTPException(status_code=400, detail="Invalid model requested")
+
+        # Get authorization header
+        auth_header = request.headers.get("authorization")
+        
+        # Check if we have a cached VQD for this auth header
+        if auth_header not in vqd_cache:
+            vqd_cache[auth_header] = await fetch_vqd()
+        
+        vqd = vqd_cache[auth_header]
+
+        # Check if VQD token is empty (indicates conversation limit)
+        if not vqd.get('vqd'):
+            del vqd_cache[auth_header]
+            raise HTTPException(status_code=429, detail="Conversation limit reached")
+
+        async with httpx.AsyncClient() as client:
+            if stream:
+                return StreamingResponse(
+                    stream_chat_response(client, vqd, messages, model),
+                    media_type="text/event-stream",
+                )
+            else:
+                aggregated_response = ""
+                async for chunk in stream_chat_response(client, vqd, messages, model):
+                    aggregated_response += chunk
+                return JSONResponse(content=json.loads(aggregated_response))
+    except Exception as e:
+        logger.error(f"Error in chat_completions: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

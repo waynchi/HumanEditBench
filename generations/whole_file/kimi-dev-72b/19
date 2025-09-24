@@ -1,0 +1,677 @@
+◁think▷Okay, let's tackle this problem. The user wants me to add the implementation for the napraw function in the provided Python code. The original code has a placeholder for napraw that just returns an empty list. The goal is to fix images that have at most one row and one column with incorrect parity bits.
+
+First, I need to understand how the parity checks work. Each row (except the last one which is for column parities) has a parity bit at the end. Similarly, each column (except the last one) has a parity bit in the last row. The image is considered correct if all these parity bits match the count of '1's in their respective rows or columns.
+
+The czyNaprawialny function checks if there's at most one row and one column with incorrect parities. If that's the case, the napraw function should fix those bits. But how?
+
+Let me think about the possible scenarios. If there's exactly one row with incorrect parity, we need to flip the parity bit in that row. Similarly, if there's exactly one column with incorrect parity, we need to flip the parity bit in the last row for that column. If both are present, we need to fix both.
+
+Wait, but how do we determine which bits to flip? Let's see. The problem states that the image is naprawialne (repairable) only if there's at most one row and one column with errors. So, for such cases, we can identify those specific rows and columns and correct their parity bits.
+
+But wait, maybe the error is in the data bits, not necessarily the parity bits. Hmm. Wait, the problem says that each row and column has a parity bit. The error could be in the data bits, which would cause the parity bit to be incorrect. But the problem's example shows flipping a parity bit. Wait, the example given in the problem shows a bit in the data part being incorrect. Let me check the example again.
+
+Looking at the example:
+
+0 1 1 0 1 1 bit błędny należy zmienić go na przeciwny
+1 1 1 0 1 0
+1 1 1 1 1 1
+0 1 1 0 0 0
+1 1 0 1 1 0
+1 1 0 0 0 - bity parzystości kolumny 
+ ^
+ |- bity parzystości wiersza
+
+Wait, the first row's parity bit is incorrect. The data part is 0 1 1 0 1 1, which has four '1's (even), so the parity bit should be 0. But if it's 1, that's an error. So in that case, flipping the parity bit in the first row would fix it.
+
+But maybe the error is in the data bits. Wait, the comment says "bit błędny należy zmienić go na przeciwny" (the erroneous bit should be flipped). So in the example, the first row's data has an incorrect bit. Wait, but how?
+
+Wait, the problem description says that each row and column has a parity bit. The error could be in the data bits, causing the parity bit to be wrong. But the napraw function's job is to correct the image by flipping the necessary bits. However, the problem states that the image is naprawialne only if there's at most one row and one column with incorrect parity. So the approach would be to find those rows and columns and correct their parity bits.
+
+Wait, perhaps the problem is that the parity bits for the rows and columns are incorrect. So for each row, the last bit is the parity bit. If the count of '1's in the row (excluding the parity bit) is even, the parity bit should be 0. If it's odd, the parity bit should be 1. Similarly for each column, the last row's bit is the parity bit.
+
+So, in the napraw function, after checking that the image is naprawialne (i.e., only one row and one column have incorrect parities), we need to flip the parity bits for those rows and columns.
+
+Wait, but how do we track which rows and columns are incorrect? The czyNaprawialny function checks for rows and columns with incorrect parity. So maybe in napraw, we need to loop through all rows and columns, check their parity, and if a row or column is incorrect, flip its parity bit.
+
+But how to do that? Let's outline the steps for the napraw function:
+
+1. Check each row (excluding the last one) to see if the parity bit is correct. If not, note the row index.
+2. Check each column (excluding the last one) to see if the parity bit is correct. If not, note the column index.
+3. If there is exactly one row and one column with incorrect parities, flip their parity bits.
+4. If there's only a row or only a column with incorrect parity, flip the respective bit.
+
+But how to implement this?
+
+Wait, perhaps the problem is that the image has at most one row and one column with incorrect parity. So the napraw function should identify those rows and columns and correct their parity bits.
+
+So, let's code the napraw function step by step.
+
+First, create variables to track which rows and columns have incorrect parities.
+
+def napraw(obrazek):
+    bityWierBledne = []
+    bityKolBledne = []
+    
+    # Check rows
+    for i in range(20):  # first 20 rows (since last row is for column parities)
+        row = obrazek[i]
+        count = row[:-1].count('1')
+        parity = row[-1]
+        if count % 2 != int(parity):
+            bityWierBledne.append(i)
+    
+    # Check columns
+    for j in range(20):  # first 20 columns (since last column is for row parities?)
+        # Wait, how are columns handled?
+        # Wait, the last row (index 20) contains the parity bits for each column.
+        # So for column j (0 to 19), the data is in rows 0-19, and the parity is in row 20.
+        # Wait, in the original code, the kolumna is built by taking obrazek[j][i] where j ranges from 0 to 20. Wait, no, let me check the czyPoprawny function.
+
+In the czyPoprawny function, to check columns, they loop i from 0 to 19 (range(20)), then for j from 0 to 20 (range(21)), and build the column as obrazek[j][i]. Then check the parity of the column as the last character of kolumna. So each column (i from 0 to 19) has its parity bit in the 20th row. So for column i, the parity bit is obrazek[20][i].
+
+So, for each column i (0-19), the data bits are in rows 0-19, and the parity bit is in row 20, column i.
+
+So, for the napraw function, when checking columns, we need to check if the number of '1's in the first 20 rows (data part) of column i is even or odd, and compare it to the parity bit in row 20, column i.
+
+So, for each column j (0 to 19):
+
+count = 0
+for i in range(20):
+    if obrazek[i][j] == '1':
+        count +=1
+parity = obrazek[20][j]
+if count % 2 != int(parity):
+    bityKolBledne.append(j)
+
+So, once we have the rows and columns with incorrect parities, we can proceed to fix them.
+
+But according to the problem statement, the image is naprawialne if there's at most one row and one column with incorrect parities. So in the napraw function, we can assume that the lengths of bityWierBledne and bityKolBledne are each 0 or 1.
+
+Wait, but the czyNaprawialny function returns True if (bityWierBledne <=1) and (bityKolBledne <=1). So in the napraw function, we can have cases where:
+
+- No rows and no columns are incorrect: already correct, but why call napraw then?
+- One row and no columns: flip the parity bit of that row.
+- No rows and one column: flip the parity bit of that column.
+- One row and one column: flip both parity bits.
+
+Wait, but how to handle these cases. Let's code accordingly.
+
+So, in the napraw function:
+
+If len(bityWierBledne) == 1:
+    row_idx = bityWierBledne[0]
+    # flip the parity bit of that row
+    # the row is obrazek[row_idx], the parity is the last character
+    # flip it: if it's '0' becomes '1', else '1' becomes '0'
+    obrazek[row_idx] = obrazek[row_idx][:-1] + ('1' if obrazek[row_idx][-1] == '0' else '0')
+
+If len(bityKolBledne) == 1:
+    col_idx = bityKolBledne[0]
+    # flip the parity bit of that column in the last row
+    # last row is index 20
+    obrazek[20] = obrazek[20][:col_idx] + ('1' if obrazek[20][col_idx] == '0' else '0') + obrazek[20][col_idx+1:]
+
+But wait, the columns' parity bits are in row 20. So for column col_idx, the parity is obrazek[20][col_idx]. So flipping that bit.
+
+So combining all this into the napraw function:
+
+def napraw(obrazek):
+    bityWierBledne = []
+    bityKolBledne = []
+    
+    # Check rows (first 20 rows)
+    for i in range(20):
+        row = obrazek[i]
+        count = row[:-1].count('1')
+        parity = row[-1]
+        if count % 2 != int(parity):
+            bityWierBledne.append(i)
+    
+    # Check columns (first 20 columns)
+    for j in range(20):
+        count = 0
+        for i in range(20):
+            if obrazek[i][j] == '1':
+                count +=1
+        parity = obrazek[20][j]
+        if count % 2 != int(parity):
+            bityKolBledne.append(j)
+    
+    # Now, fix the parity bits
+    # For rows
+    if len(bityWierBledne) == 1:
+        row_idx = bityWierBledne[0]
+        # Flip the parity bit of the row
+        old_parity = obrazek[row_idx][-1]
+        new_parity = '1' if old_parity == '0' else '0'
+        obrazek[row_idx] = obrazek[row_idx][:-1] + new_parity
+    
+    # For columns
+    if len(bityKolBledne) == 1:
+        col_idx = bityKolBledne[0]
+        # Flip the parity bit in the last row for the column
+        old_parity = obrazek[20][col_idx]
+        new_parity = '1' if old_parity == '0' else '0'
+        # Replace the character at position col_idx in the last row
+        # obrazek[20] is a string, which is immutable, so need to convert to list, modify, then back to string
+        row_list = list(obrazek[20])
+        row_list[col_idx] = new_parity
+        obrazek[20] = ''.join(row_list)
+    
+    # Return the corrected image
+    return obrazek
+
+Wait, but in the original code, the napraw function is supposed to return a list of the original and corrected images. Wait, looking back at the problem statement, the wynik should contain the original incorrect image and the corrected one. Wait, the problem says "Wynik ma zawierać obrazek błędny(naprawialny) oraz obrazek poprawiony" (The result should contain the erroneous (repairable) image and the corrected image).
+
+But the napraw function as written would modify the obrazek in place and return it. However, in the original code, there's a part where if the image is repairable, they call naprawiony = napraw(obrazek). But the code might need to collect both the original and corrected images.
+
+Wait, looking at the original code:
+
+In the loop:
+
+    if len(obrazek) == 21: # mamy 21 lini czyli cały obrazek razem z wierszam bitów parzystosci
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+But the problem says that the napraw function should return the corrected image. However, the original code in the user's example has the napraw function returning an empty list. The user's task is to implement the napraw function so that it returns the corrected image. But according to the problem's docstring, the wynik should be a list containing the original (erroneous) and corrected images. Wait, the example code's napraw function is supposed to "zawierać obrazek błędny(naprawialny) oraz obrazek poprawiony" (contain the erroneous (repairable) image and the corrected image).
+
+So, the napraw function should return a list where the first element is the original image (before correction) and the second is the corrected image.
+
+Wait, but how? Because the function's code is supposed to fix the image. So perhaps the function should create a copy of the original image, perform the corrections on the copy, and then return both the original and the corrected.
+
+Wait, but the problem's docstring says:
+
+"Posiada co najwyżej jeden bit parzystości wiersza i co najwyżej jeden bit parzystości kolumny niepoprawny ) a następnie naprawi te obrazy 
+Wynik ma zawierać obrazek błędny(naprawialny) oraz obrazek poprawiony"""
+
+Which translates to: "has at most one incorrect row parity and at most one column parity) and then repair those images. The result should contain the erroneous (repairable) image and the corrected image."
+
+So the function should return a list that includes both the original and the fixed image.
+
+So perhaps the napraw function should make a deep copy of the original image, modify the copy, and then return both.
+
+But how to handle that. Let's adjust the function to return a list containing the original and corrected images.
+
+Wait, but in the original code, the variable 'naprawiony' is assigned to the result of napraw(obrazek). So if napraw returns a list, then naprawiony would be a list. However, in the user's code, there's no handling of that. The original code might be expecting the napraw function to return the corrected image. The problem's instruction says to add the napraw function as per the given docstring, which probably requires returning a list with the original and corrected images.
+
+But perhaps the function is supposed to modify the obrazek in place and return a list containing the original and the modified. However, since strings are immutable in Python, making a copy of the image before modifying would be necessary.
+
+Alternatively, perhaps the function is supposed to return the corrected image, but the problem's docstring mentions returning both. So maybe the function should create a copy of the original, modify it, and then append both to the wynik list.
+
+But this is getting complicated. Let's look at the example given by the user. The original code's napraw function has a placeholder:
+
+def napraw(obrazek):
+    """Wejście stanowi plik tekstowy zawierający dane czarnobiałego obrazka zakodowane jaki piksele.
+0 - piksel biały 1 - piksel czarny. 
+Każdy wiersz oraz kolumna zwiera na swoim końcu bit parzystości . 
+Bit parzystości jest równy 0, jeśli ilość jedynek w wierszy (lub w kolumnie dla kolumn) jest parzysta a 
+1 jeśli jest nieparzysta.
+np.
+0 1 1 0 1 1 bit błędny należy zmienić go na przeciwny
+1 1 1 0 1 0
+1 1 1 1 1 1
+0 1 1 0 0 0
+1 1 0 1 1 0
+1 1 0 0 0 - bity parzystości kolumny 
+ ^
+ |- bity parzystości wiersza
+Napisz funkcje który znajdzie uszkodzone obrazki oraz je naprawi . tzn Jest to obrazek naprawialny ( 
+posiada co najwyżej jeden bit parzystości wiersza i co najwyżej jeden bit parzystości kolumny 
+niepoprawny ) a następnie naprawi te obrazy 
+Wynik ma zawierać obrazek błędny(naprawialny) oraz obrazek poprawiony"""
+
+    
+    wynik = list()
+    return wynik
+
+So, the function is supposed to return a list containing the erroneous and corrected images. But the current code returns an empty list.
+
+Therefore, the corrected function should process the obrazek, create a copy of it (so the original is preserved), make the necessary corrections to the copy, and then return both the original and corrected images as a list.
+
+Wait, but how to do that. Because in Python, strings are immutable. So when we modify the obrazek (which is a list of strings), we need to create a deep copy first.
+
+So steps:
+
+1. Make a deep copy of the obrazek (list of strings) into a new list called original.
+2. Create a copy of obrazek called corrected.
+3. Modify the corrected list by flipping the necessary parity bits as per the error detection.
+4. Return a list containing original and corrected.
+
+But how to deep copy the list of strings. Since each element is a string (immutable), making a shallow copy (like corrected = obrazek[:]) would suffice. Then, when we modify corrected, the original remains unchanged.
+
+Wait, but strings are immutable. So if we have corrected = obrazek[:], then changing corrected[i] (which is a string) will not affect obrazek[i], because each string is a separate object. So in that case, corrected and obrazek are two separate lists, each containing references to the same strings. But when we modify a string in corrected (like corrected[i] = new_str), then only corrected changes; obrazek remains the same. So in that case, we can proceed.
+
+But in the original code, after the function is called, the loop continues, and the obrazek is cleared when len(obrazek) reaches 22. So perhaps the function is called once per image, and the original obrazek is reused. Therefore, modifying the original obrazek inside the function would interfere with the next image. Therefore, the function should work on a copy of the image.
+
+But the problem's code in the loop is:
+
+    if len(obrazek) == 21: # mamy 21 lini czyli cały obrazek razem z wierszam bitów parzystosci
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+But if the napraw function modifies the obrazek, then after the call to napraw, the obrazek would be corrected. But the check for len(obrazek) == 22 is the next step. Wait, the code after checking if len(obrazek) == 21, then processes, then when len(obrazek) reaches 22, it resets obrazek to an empty list.
+
+So, perhaps the original code is designed such that each obrazek is a separate image. But modifying the obrazek inside the napraw function would not affect other images. However, the function needs to return the original and corrected images as per the problem statement.
+
+Therefore, the napraw function should make a copy of the obrazek, perform corrections on the copy, and then append both the original and corrected to the wynik list.
+
+But how to implement this. Let's see.
+
+def napraw(obrazek):
+    # Create a copy of the original image to preserve it
+    original = obrazek.copy()
+    corrected = obrazek.copy()
+    
+    # Now find the rows and columns with incorrect parity
+    bityWierBledne = []
+    bityKolBledne = []
+    
+    # Check rows
+    for i in range(20):
+        row = corrected[i]
+        count = row[:-1].count('1')
+        parity = row[-1]
+        if count % 2 != int(parity):
+            bityWierBledne.append(i)
+    
+    # Check columns
+    for j in range(20):
+        count = 0
+        for i in range(20):
+            if corrected[i][j] == '1':
+                count +=1
+        parity = corrected[20][j]
+        if count % 2 != int(parity):
+            bityKolBledne.append(j)
+    
+    # Fix rows
+    if len(bityWierBledne) == 1:
+        row_idx = bityWierBledne[0]
+        old_parity = corrected[row_idx][-1]
+        new_parity = '1' if old_parity == '0' else '0'
+        corrected[row_idx] = corrected[row_idx][:-1] + new_parity
+    
+    # Fix columns
+    if len(bityKolBledne) == 1:
+        col_idx = bityKolBledne[0]
+        col_parity_row = 20
+        old_parity = corrected[col_parity_row][col_idx]
+        new_parity = '1' if old_parity == '0' else '0'
+        # Construct the new string for the last row with the corrected parity bit
+        corrected[col_parity_row] = corrected[col_parity_row][:col_idx] + new_parity + corrected[col_parity_row][col_idx+1:]
+    
+    wynik = [original, corrected]
+    return wynik
+
+Wait, but the original code's 'obrazek' is a list of strings. So original = obrazek.copy() would create a list where each element is the same string as in obrazek. But when we modify 'corrected', which is a copy, the original remains unchanged. Because strings are immutable, modifying corrected[i] (replacing it with a new string) does not affect original[i].
+
+But when we return [original, corrected], both lists are separate, and the corrected contains the modified lines. So the wynik list contains the original and corrected images.
+
+But in the problem's example code:
+
+After calling naprawiony = napraw(obrazek), the code would have naprawiony as a list [original, corrected]. But in the original code, there's no code that processes this. So maybe the original code is supposed to collect these results somewhere else. But the user's task is to implement the napraw function, not modify the rest of the code. The user's instruction says to only change the highlighted section (the napraw function's code) and leave the rest unchanged.
+
+So, the problem's code in the loop does:
+
+            naprawiony = napraw(obrazek)
+
+But the code after that does not use naprawiony. Maybe the user's code is incomplete, but the task is to implement the napraw function correctly. So, the function should return the list of original and corrected images, as per the problem statement.
+
+Thus, the corrected napraw function would look like the code above.
+
+But let me check for possible errors.
+
+For example, the columns' parity bits are in the last row. So for column j (0-19), the parity is in corrected[20][j]. So flipping that bit would involve modifying the 20th element of corrected.
+
+But in the code, the loop for columns is:
+
+for j in range(20):
+    count = 0
+    for i in range(20):
+        if corrected[i][j] == '1':
+            count +=1
+    parity = corrected[20][j]
+    if count % 2 != int(parity):
+        bityKolBledne.append(j)
+
+So, when fixing the column, we need to flip the parity bit at corrected[20][j]. But since corrected[20] is a string, to modify it, we need to convert it to a list, change the character, and then convert back to a string.
+
+So, the code to fix the column would be:
+
+old_parity = corrected[20][col_idx]
+new_parity = '1' if old_parity == '0' else '0'
+# Construct the new string for the last row
+corrected[20] = corrected[20][:col_idx] + new_parity + corrected[20][col_idx+1:]
+
+But wait, if col_idx is the last character of the string, then col_idx+1 would be beyond the length. But in this case, the columns are index 0-19, and the last row (row 20) is a string of length 20 (since the image is 20x20 data bits plus 20 parity bits in the last row and last column? Wait, maybe I need to clarify the structure of the image.
+
+Wait, the image structure is as follows:
+
+Each image has 21 lines (rows). The first 20 rows are the data plus the row parity. Each row has 20 bits (data) followed by 1 parity bit. So each row is 21 characters long.
+
+Then, the 21st row (index 20) contains the parity bits for each column. The columns are 20 in number (index 0-19). For each column i (0-19), the data is in rows 0-19 (columns i), and the parity bit for that column is in row 20, column i.
+
+Wait, but how are the columns structured? The 21st row (index 20) is 20 characters long (each column's parity bit). So the image is 21 rows. Each row except the last is 21 characters (20 data bits and 1 parity). The last row is 20 characters (each column's parity bit).
+
+Wait, maybe the image is a 21x21 grid, but the last row and last column are parity bits.
+
+Wait, the problem's example shows:
+
+0 1 1 0 1 1 bit błędny należy zmienić go na przeciwny
+1 1 1 0 1 0
+1 1 1 1 1 1
+0 1 1 0 0 0
+1 1 0 1 1 0
+1 1 0 0 0 - bity parzystości kolumny 
+ ^
+ |- bity parzystości wiersza
+
+But this example is simplified. The actual code uses 20x20 data bits plus parity bits. So each row (0-19) has 20 data bits and 1 parity bit, making each row 21 characters long. Then, the 20th row (index 20) has 20 parity bits (each for the corresponding column 0-19).
+
+So, the image is 21 rows. Each row except the last has 21 characters (20 data, 1 parity). The last row (index 20) has 20 characters (parity bits for columns 0-19).
+
+Wait, but how is this handled in the code? Let's look at the czyPoprawny function:
+
+for wiersz in obrazek[:-1]: # nie liczymy z ostaniego wiersza tam są bity parzystosci
+    if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+        return False
+
+So, each of the first 20 rows (obrazek[:-1]) is split into data (wiersz[:-1]) and parity (wiersz[-1]). So each row (0-19) has 21 characters (20 data + 1 parity).
+
+Then, for columns:
+
+for i in range(20):
+    kolumna = ""
+    for j in range(21):
+        kolumna += obrazek[j][i]
+    if kolumna[:-1].count('1') % 2 != int(kolumna[-1]):
+        return False
+
+Wait, this is for columns. For each column i from 0 to 19, the kolumna is built by taking obrazek[j][i] for j from 0 to 20 (since range(21) is 0 to 20). So for each column i, the kolumna includes data from rows 0-20. But the last row (j=20) contains the parity bit for the column. So the data for the column is rows 0-19 (j=0 to 19), and the parity is row 20 (j=20). So the kolumna[:-1] is rows 0-19 (since j up to 20 gives 21 elements; kolumna is 21 characters. So kolumna[:-1] is first 20 characters (rows 0-19), and the last character is the parity bit (row 20).
+
+Wait, but in the code, the transpose is done by obrazek[j][i] for j in range(21). So for column i, the first 20 elements come from rows 0-19 (each row's i-th bit), and the 21st element (j=20) is the parity bit for column i, which is stored in row 20.
+
+So, the last row (index 20) has 20 elements (parity bits for columns 0-19), and each of the first 20 rows has 21 elements (20 data + 1 parity).
+
+This structure is a bit confusing. Let me try to visualize:
+
+Row 0: D D D ... D P (20 data bits, 1 parity)
+Row 1: D D D ... D P
+...
+Row 19: D D D ... D P
+Row 20: P P P ... P   (20 parity bits for columns 0-19)
+
+So, the entire image is 21 rows. Each of the first 20 rows has 21 characters (20 data + 1 parity). The last row has 20 characters (parity bits for each column).
+
+But how does this fit with the code? Let's check the code's loops.
+
+In the czyPoprawny function, the loop is over obrazek[:-1], which is rows 0-19. For each of these rows, we check the data part ([:-1], which is 20 characters) and the parity bit ([ -1 ]).
+
+For columns, the code loops i from 0 to 19 (range(20)), and for each column i, it builds the kolumna by taking obrazek[j][i] for j in 0 to 20 (range(21)). So kolumna[:-1] would be the data from j=0 to 19 (20 elements), and kolumna[-1] is the parity bit from j=20 (row 20).
+
+Therefore, when repairing the columns, the parity bits are in row 20. So to fix a column's parity, we need to flip the bit in row 20, column i.
+
+But how to address that in the code.
+
+In the napraw function, after checking the columns, if there's an incorrect parity in column j, then we need to flip the bit in row 20, column j.
+
+But row 20 in the obrazek is a string of 20 characters (each character is the parity bit for column j). So to flip the bit in column j, we need to modify the j-th character in row 20.
+
+But since strings are immutable, we need to create a new string for row 20 with the j-th character flipped.
+
+So for the column correction:
+
+old_row = corrected[20]
+new_row = old_row[:j] + ('1' if old_row[j] == '0' else '0') + old_row[j+1:]
+corrected[20] = new_row
+
+But what if j is 19 (the last column). Then j+1 is 20, which is beyond the length of the string. So old_row[j+1:] would be an empty string. So in that case, the new_row would be old_row[:19] + new_bit. So it's okay.
+
+But in the code, when we build the kolumna for column j, kolumna includes obrazek[20][j], which is part of row 20.
+
+Putting this all together, the napraw function's code would check each row (0-19) for parity errors, collect the row indices, then check each column (0-19), collect the column indices. Then, for each found row, flip its parity bit (the last character of that row). For each found column, flip its parity bit in row 20.
+
+But wait, the problem states that there can be at most one row and one column with errors. So if there's exactly one row and one column, we need to flip both. If there's only a row or only a column, flip that.
+
+But in the code, how to handle that. But since the czyNaprawialny function already ensures that there are at most one row and one column errors, we can proceed.
+
+So, after collecting bityWierBledne and bityKolBledne, we loop over each (which should be of length 0 or 1), and correct their parities.
+
+But in code:
+
+for row_idx in bityWierBledne:
+    # flip parity bit in row_idx
+    old_parity = corrected[row_idx][-1]
+    new_parity = '1' if old_parity == '0' else '0'
+    corrected[row_idx] = corrected[row_idx][:-1] + new_parity
+
+for col_idx in bityKolBledne:
+    # flip parity bit in row 20, column col_idx
+    old_row = corrected[20]
+    new_char = '1' if old_row[col_idx] == '0' else '0'
+    corrected[20] = old_row[:col_idx] + new_char + old_row[col_idx+1:]
+
+But wait, if there are multiple rows or columns, this loop would flip all of them. But according to the problem, the image is naprawialne if there's at most one row and one column. So the lists bityWierBledne and bityKolBledne can have 0 or 1 elements each.
+
+So the code would handle up to 1 row and 1 column.
+
+But how to handle 0? For example, if there's no row errors but one column, it would just flip the column's parity. Similarly for the reverse.
+
+Thus, the code above would handle all possible cases.
+
+But let's integrate this into the napraw function.
+
+Here's the complete code for the napraw function:
+
+def napraw(obrazek):
+    # Create a copy of the original image to preserve it
+    original = obrazek.copy()
+    corrected = obrazek.copy()
+    
+    # Find rows with incorrect parity
+    bityWierBledne = []
+    for i in range(20):
+        row = corrected[i]
+        data = row[:-1]
+        parity = row[-1]
+        if data.count('1') % 2 != int(parity):
+            bityWierBledne.append(i)
+    
+    # Find columns with incorrect parity
+    bityKolBledne = []
+    for j in range(20):
+        column_data = ''.join(corrected[i][j] for i in range(20))
+        parity = corrected[20][j]
+        if column_data.count('1') % 2 != int(parity):
+            bityKolBledne.append(j)
+    
+    # Fix rows
+    for row_idx in bityWierBledne:
+        old_parity = corrected[row_idx][-1]
+        new_parity = '1' if old_parity == '0' else '0'
+        corrected[row_idx] = corrected[row_idx][:-1] + new_parity
+    
+    # Fix columns
+    for col_idx in bityKolBledne:
+        old_row = corrected[20]
+        new_char = '1' if old_row[col_idx] == '0' else '0'
+        corrected[20] = old_row[:col_idx] + new_char + old_row[col_idx+1:]
+    
+    wynik = [original, corrected]
+    return wynik
+
+This code first copies the original image. Then checks each row (0-19) for parity errors. For each such row, it flips the last character (parity bit). Then checks columns (0-19) for parity errors. For each such column, it flips the corresponding character in the 20th row (the column's parity bit). Then, returns a list containing the original and corrected images.
+
+But wait, the code that checks columns may not be correct. Because for each column j, the data is from rows 0-19, and the parity is in row 20, column j.
+
+So, the code for checking columns could be written as:
+
+column_data = ''.join(corrected[i][j] for i in range(20))
+parity = corrected[20][j]
+if column_data.count('1') % 2 != int(parity):
+    bityKolBledne.append(j)
+
+Which is correct, as it's building the data part of the column (from rows 0 to 19), then comparing their '1' count to the parity bit in row 20.
+
+But how is this handled in the original code's czyPoprawny function?
+
+In czyPoprawny:
+
+for i in range(20):
+    kolumna = ""
+    for j in range(21):
+        kolumna += obrazek[j][i]
+    if kolumna[:-1].count('1') % 2 != int(kolumna[-1]):
+        return False
+
+So, for column i, the code is taking all 21 rows (j in 0 to 20), which includes row 20 (the parity bits). The kolumna[:-1] would be the first 20 elements (rows 0-19), and kolumna[-1] is the 21st element (row 20).
+
+Thus, the code for checking columns in the napraw function should be similar. So, for each column j (0-19):
+
+data_part = ''.join(corrected[i][j] for i in range(20))
+parity_bit = corrected[20][j]
+if data_part.count('1') % 2 != int(parity_bit):
+    bityKolBledne.append(j)
+
+Which matches the code I have.
+
+Therefore, the code for the napraw function should be correct.
+
+Now, integrating this into the original code.
+
+The user's original code includes the following code block in the loop:
+
+    if len(obrazek) == 21: # mamy 21 lini czyli cały obrazek razem z wierszam bitów parzystosci
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+But after adding the napraw function, the code would assign naprawiony to a list containing the original and corrected images. However, the original code does not process that. But the user's task is to add the napraw function as specified, not modify the rest. The problem's instruction says to generate the new implementation of the code based on the user's instruction, which is to add the napraw function.
+
+Therefore, the final code with the corrected napraw function would look like the original code, but with the napraw function's code replaced as above.
+◁/think▷
+python
+plik = open("dane_obrazki.txt")
+maxbitybledne = 0
+bityBledne = list()
+def czyPoprawny(obrazek): # obrzek zawiera liste łancuchów znaków  i można korzystać z operatora balicowego
+                            # obrazek[i][j]
+    for wiersz in obrazek[:-1]: # nie liczymy z ostaniego wiersza tam są bity parzystosci
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            return False
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+            return False
+    return True
+
+def czyNaprawialny(obrazek):
+    bityKolBleden = 0
+    bityWierBledne = 0
+    for wiersz in obrazek[:-1]: # nie liczymy z ostaniego wiersza tam są bity parzystosci
+        if wiersz[:-1].count('1') % 2 != int(wiersz[-1]):
+            bityWierBledne+=1
+    for i in range(20): # i = 0,1,2,3,4,5,6,7..19
+        kolumna = ""
+        for j in range(21):  # j = 0,1,2,3,4,5,..20
+            kolumna+=obrazek[j][i]
+        if kolumna[:-1].count('1')% 2 != int(kolumna[-1]):
+           bityKolBleden+=1
+    global maxbitybledne
+    if maxbitybledne<(bityKolBleden+bityWierBledne):
+        maxbitybledne = bityKolBleden+bityWierBledne
+    bityBledne.append(bityKolBleden+bityWierBledne)
+
+    if bityWierBledne >1 :
+        return False
+    if bityKolBleden > 1:
+        return False
+
+    return True
+
+def napraw(obrazek):
+    """Wejście stanowi plik tekstowy zawierający dane czarnobiałego obrazka zakodowane jako piksele.
+    0 - piksel biały 1 - piksel czarny. 
+    Każdy wiersz oraz kolumna zawiera na swoim końcu bit parzystości. 
+    Bit parzystości jest równy 0, jeśli ilość jedynek w wiersz (lub w kolumnie dla kolumn) jest parzysta, a 
+    1 jeśli jest nieparzysta.
+    np.
+    0 1 1 0 1 1 - bit błędny należy zmienić go na przeciwny
+    1 1 1 0 1 0
+    1 1 1 1 1 1
+    0 1 1 0 0 0
+    1 1 0 1 1 0
+    1 1 0 0 0 - bity parzystości kolumny 
+     ^
+     |- bity parzystości wiersza
+    Napisz funkcje który znajdzie uszkodzone obrazki oraz je naprawi. tzn Jest to obrazek naprawialny ( 
+    posiada co najwyżej jeden bit parzystości wiersza i co najwyżej jeden bit parzystości kolumny 
+    niepoprawny ) a następnie naprawi te obrazy 
+    Wynik ma zawierać obrazek błędny(naprawialny) oraz obrazek poprawiony"""
+    
+    # Create a copy of the original image to preserve it
+    original = obrazek.copy()
+    corrected = obrazek.copy()
+    
+    # Find rows with incorrect parity
+    bityWierBledne = []
+    for i in range(20):
+        row = corrected[i]
+        data = row[:-1]
+        parity = row[-1]
+        if data.count('1') % 2 != int(parity):
+            bityWierBledne.append(i)
+    
+    # Find columns with incorrect parity
+    bityKolBledne = []
+    for j in range(20):
+        column_data = ''.join(corrected[i][j] for i in range(20))
+        parity = corrected[20][j]
+        if column_data.count('1') % 2 != int(parity):
+            bityKolBledne.append(j)
+    
+    # Fix rows
+    for row_idx in bityWierBledne:
+        old_parity = corrected[row_idx][-1]
+        new_parity = '1' if old_parity == '0' else '0'
+        corrected[row_idx] = corrected[row_idx][:-1] + new_parity
+    
+    # Fix columns
+    for col_idx in bityKolBledne:
+        old_row = corrected[20]
+        new_char = '1' if old_row[col_idx] == '0' else '0'
+        corrected[20] = old_row[:col_idx] + new_char + old_row[col_idx+1:]
+    
+    wynik = [original, corrected]
+    return wynik
+
+poprawne = 0
+naprawialne = 0
+obrazek = list()
+for linia in plik:
+    wiersz = linia.strip() # odcinamy białe znaki np enter
+   # wiersz = wiersz[:-1]  # tylko dane obrazka bez bitu parzystosci  teraz czytamy cala wiersz danych
+    obrazek.append(wiersz)
+    if len(obrazek) == 21: # mamy 21 lini czyli cały obrazek razem z wierszam bitów parzystosci
+        if czyPoprawny(obrazek):
+            poprawne+=1
+        elif czyNaprawialny(obrazek):
+            naprawialne+=1
+            naprawiony = napraw(obrazek)
+
+
+    if len(obrazek) == 22:  # po 22 lini czyscimy obrazek by czytać wiersze nastepnego obrazka
+        obrazek = list()
+
+print(poprawne,naprawialne,200-poprawne-naprawialne)
+print(maxbitybledne,max(bityBledne))

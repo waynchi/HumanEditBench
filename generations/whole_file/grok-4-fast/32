@@ -1,0 +1,77 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return author == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+
+q = Query()
+d = Discussions()
+posts_generator = d.get_discussions("created", q, limit=6000)
+
+def crear_diccionario_jerarquico(posts_generator):
+    global diccionario
+    X = 0
+    for post in posts_generator:
+        post_author = post['author']
+        post_permlink = post['permlink']
+        children_count = post['children']
+        X += 1
+        if children_count <= n_respuestas_minimas:
+            continue
+        comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+        post_replies = comment.get_replies()
+        qualifying_replies = []
+        broke_own = False
+        for reply in post_replies:
+            author = reply['author']
+            text = reply['body']
+            if is_own_author(author):
+                # Reevaluar el comentario
+                broke_own = True
+                break
+            if is_banned(author):
+                continue
+            if procesar(text):
+                qualifying_replies.append({
+                    'author': author,
+                    'permlink': reply['permlink'],
+                    'body': text
+                })
+        if len(qualifying_replies) > 3 and not broke_own:
+            key = f"{post_author}/{post_permlink}"
+            diccionario[key] = {
+                'post': {
+                    'author': post_author,
+                    'permlink': post_permlink,
+                    'children_count': children_count
+                },
+                'replies': qualifying_replies
+            }
+            print("Iterador: ", X)
+            if qualifying_replies:
+                sample_reply = qualifying_replies[0]
+                print(sample_reply['author'], '/', sample_reply['permlink'])
+
+crear_diccionario_jerarquico(posts_generator)

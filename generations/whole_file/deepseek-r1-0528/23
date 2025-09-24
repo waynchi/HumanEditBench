@@ -1,0 +1,61 @@
+def load_words():
+    # Try common system dictionary paths
+    paths = [
+        '/usr/share/dict/words',
+        '/usr/dict/words',
+        '/etc/dictionaries-common/words'
+    ]
+    for path in paths:
+        try:
+            with open(path, 'r') as f:
+                return [word.strip() for word in f.readlines()]
+        except IOError:
+            continue
+    
+    # Fallback to nltk if available
+    try:
+        from nltk.corpus import words
+        return words.words()
+    except ImportError:
+        print("Error: Couldn't find system dictionary and nltk is not installed.")
+        print("Please install nltk with: pip install nltk")
+        exit(1)
+    except LookupError:
+        print("Error: nltk word corpus not downloaded.")
+        print("Please run: import nltk; nltk.download('words')")
+        exit(1)
+
+def main():
+    word_list = load_words()
+    
+    try:
+        n = int(input("Enter the number of characters: "))
+        if n <= 0:
+            print("Please enter a positive integer.")
+            return
+    except ValueError:
+        print("Invalid input. Please enter a positive integer.")
+        return
+    
+    # Collect distinct words (case-insensitive) with length n
+    distinct_words = []
+    seen = set()
+    for word in word_list:
+        if len(word) == n:
+            lower_word = word.lower()
+            if lower_word not in seen:
+                distinct_words.append(word)
+                seen.add(lower_word)
+                if len(distinct_words) >= 10:
+                    break
+    
+    # Print results
+    print(f"\nWords with {n} characters:")
+    if distinct_words:
+        for word in distinct_words:
+            print(word)
+    else:
+        print("No words found")
+
+if __name__ == "__main__":
+    main()

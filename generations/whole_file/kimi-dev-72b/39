@@ -1,0 +1,4 @@
+
+python
+    # (A) Correlation
+    correlation = np.corrcoef(sim_map_flat.cpu().numpy().astype(np.float32), patch_mask_flat)[0, 1]

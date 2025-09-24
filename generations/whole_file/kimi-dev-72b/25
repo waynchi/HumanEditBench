@@ -1,0 +1,451 @@
+◁think▷Okay, let's see. The user wants to fix the code they provided. The highlighted section is the entire code. Wait, no, the user instruction says to fix the code based on their instruction, but the highlighted part is the entire code. Hmm, maybe they want to adjust how the SHAP values are processed or how the prompt is structured.
+
+Wait, looking at the original code, after loading the SHAP values from the JSON file, they do json.dumps(shap_values_json) and pass that as user_input. But maybe the prompt template expects the actual SHAP values as a variable, not a JSON string. So instead of passing the entire JSON as user_input, perhaps they need to format it into the template properly.
+
+Wait, the user_input variable in the prompt template is probably where the SHAP data should be inserted. If the system.prompt (sys_prompt) includes placeholders that refer to the SHAP values, then they need to pass the data into the template's variables, not as a string. For example, if the sys_prompt has something like "The SHAP values are: {shap_values}", then the template.invoke should pass a dictionary with "shap_values" as a key. But in the original code, they are passing json.dumps(shap_values_json) as the user_input, which would replace {user_input} in the template. But maybe the template doesn't have a {user_input} as part of the human message, but instead the SHAP data should be part of the system prompt.
+
+Wait, looking at the code:
+
+The template is defined as:
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+Then they do prompt_value = template.invoke(json.dumps(shap_values_json)). So the "user_input" is replaced with the JSON string. But perhaps the system prompt (sys_prompt) is supposed to reference the SHAP values, so the SHAP data should be passed as variables into the system message. For example, if the system_prompt is "Analyze the SHAP values: {shap_values}", then the code should pass the shap_values as a variable.
+
+But the original code reads the sys_prompt from a file. So the problem might be that the code is not passing the SHAP values correctly into the prompt. The current code is passing the entire JSON string as the user_input, which is part of the human message. But maybe the model expects the SHAP values to be part of the system instruction.
+
+Alternatively, maybe the code is supposed to pass the SHAP values as part of the variables to the template, not as a JSON string. For example, if the template has a variable in the system message, like "Here are the SHAP values: {shap_values}", then the code should pass a dictionary with "shap_values" as the key. But the current code is using "user_input" as the variable, which might not be the correct approach.
+
+So the fix might involve changing how the template is invoked. Instead of invoking with a JSON string, perhaps pass the actual data as a dictionary. For example, if the sys_prompt includes variables, then the shap_values_json should be passed as a variable. Wait, but the code is using ChatPromptTemplate from langchain_core. The way to pass variables is by using the .invoke method with a dictionary. But in the original code, they are passing a string (the JSON dump) as the variables, which would replace {user_input} in the template. Wait, the template's second message is ("human", "{user_input}"), so the user_input is part of that message. So when they invoke with the JSON string, it's replacing {user_input} in the human message with that string. However, if the model expects the SHAP values to be part of the system message, this would be incorrect.
+
+Wait, maybe the problem is that the SHAP values are not being passed as part of the system message. So the code should modify the system prompt to include the SHAP values, instead of having the human message contain a JSON string. For example, the system_prompt might need to be something like "Analyze the SHAP values: {shap_values}" and then pass the shap_values_json as the value for "shap_values". But how to do that?
+
+Wait, the code currently reads the system.prompt from a file. So perhaps the system.prompt in the file is expecting the SHAP values to be passed as part of the variables. In that case, the code should format the system prompt with the SHAP values. But the current code is not doing that. Instead, it's adding the SHAP values as a JSON string in the human message. That's probably wrong.
+
+So the correct approach would be to pass the SHAP values as variables into the system prompt's template. For example, if the system.prompt has a placeholder like "The SHAP values are {shap_values}", then the code should pass a dictionary with "shap_values" pointing to the data. But how to do that in the code?
+
+Wait, the code is using a ChatPromptTemplate, which takes a list of tuples indicating message roles and their content. The "system" message's content is sys_prompt, which might include variables. For example, if sys_prompt is a string like "The SHAP values are {shap_values}", then the code should pass a variable called "shap_values". But in the current code, the template is structured as:
+
+ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+So when invoking the template, variables can be passed as a dictionary. However, in the original code, they invoke the template with json.dumps(shap_values_json), which is a string. Wait, the .invoke method expects variables, but if the code does template.invoke(json.dumps(...)), that's passing a string as the variables. So that's probably wrong. Because .invoke() should take a dictionary of variables to substitute into the message content. So, for example, if the system message is "The SHAP values are {shap_values}", then the code should pass {"shap_values": ...}.
+
+Wait, but the current code is passing json.dumps(shap_values_json) as the argument to .invoke(), which would substitute {user_input} in the "human" message. Because the template is built with a "human" message that has "{user_input}" as the content. So invoking with a string would replace {user_input} with that string. But if the model expects the SHAP values to be part of the system message, then the code should instead modify the system message to include the SHAP values as variables.
+
+Alternatively, perhaps the code is supposed to format the system_prompt with the SHAP values. For example, if sys_prompt is a string that includes a placeholder like "Analyze the SHAP values: {shap_values}", then the code should pass "shap_values" as a variable. But how?
+
+Wait, the code is loading sys_prompt from a file. So the code reads the system.prompt from the file as sys_prompt. Suppose the contents of the file are:
+
+Analyze the SHAP values: {shap_values}
+
+Then, the code would need to pass a variable called "shap_values" when invoking the template. But the code is currently passing the JSON string as user_input, which is part of the human message. So that's incorrect.
+
+Therefore, the fix would involve passing the SHAP values as part of the variables to the template. Instead of passing a JSON string, the code should pass a dictionary of variables. For example:
+
+variables = {
+    "shap_values": shap_values_json,
+    "user_input": "some actual user input"
+}
+
+But how does the user_input tie into this? Maybe the user_input is part of the conversation, but in this code, it's being set to the SHAP values as a JSON string. That might not be correct.
+
+Wait, the code is generating a prompt where the human message is the JSON string of SHAP values. But maybe the model expects the SHAP values to be part of the system message. So the system_prompt should include the SHAP data, not the human message. So perhaps the code should modify the system_prompt instead.
+
+But the code is reading the system_prompt from a file. So perhaps the code is supposed to format the system_prompt with the SHAP values. For example, if the system_prompt in the file is "Analyze the SHAP values: {shap_values}", then the code should pass "shap_values" as a variable. But how to do that?
+
+Ah, the ChatPromptTemplate allows for variables in the message content using {variable} syntax, and when invoking the template, you pass a dictionary of variables. So in the code, the template is structured with a system message and a human message. If the system message's content (sys_prompt) has a placeholder like {shap_values}, then the code needs to pass that variable. However, in the current code, the code is passing the variables as a JSON string, which is replacing {user_input} in the human message. But that's not helpful if the system message is supposed to have the SHAP values.
+
+So the fix would involve two steps:
+
+1. Modify the system_prompt file to include a placeholder for the SHAP values, like "{shap_values}".
+
+2. Update the code to pass the SHAP values as the "shap_values" variable instead of dumping them into a JSON string.
+
+In the code, instead of:
+
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+They should pass a dictionary with the variables. For example:
+
+variables = {
+    "shap_values": shap_values_json,
+    "user_input": "..."  # if needed
+}
+
+But the code currently uses ("human", "{user_input}"), so the user_input is part of the variables. Wait, maybe the code is supposed to pass the SHAP values as the user_input? But that might not be the correct approach. The model might expect the SHAP values to be part of the system context, not a human message.
+
+Alternatively, maybe the code should remove the human message entirely and pass the SHAP values as part of the system message.
+
+Hmm. Let's think again.
+
+The code's original structure is:
+
+The template has two messages: system and human. The system message is read from a file (sys_prompt), and the human message is "{user_input}". The code then invokes the template with json.dumps(shap_values_json) as the variable, which would replace {user_input} in the human message. But that's probably not correct if the model expects the SHAP values to be part of the system's instructions. So maybe the code should instead pass the SHAP values as part of the system message.
+
+But how? The system_prompt is read from the file. If the system_prompt includes a placeholder, like "The SHAP values are {shap_values}", then the code should pass a variable "shap_values" when invoking the template.
+
+So the code should be modified to:
+
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    # Maybe there's a human message here, but perhaps not needed.
+])
+
+Then, when invoking the template, pass the shap_values as a variable:
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But the code's current structure includes a human message. So maybe the user_input variable is part of the conversation, but in the original code, the user_input is being replaced with the JSON string. Maybe the code is intended to send the SHAP values as input, which is part of the conversation.
+
+But perhaps the issue is that the code is passing a JSON dump as the user_input, but the model expects structured data instead. For example, if the model is trained to process SHAP values in a certain format, and the code is converting them to a JSON string, that might not be correct. The model might expect the data to be passed as a Python object (like a list of dictionaries) so that the prompt can reference the values directly. So instead of passing the JSON string, the code should pass the actual Python data structure.
+
+In the code, the line with open("Vuori_Final_Approval_2024_09_24.json", "r") as file: shap_values_json = json.load(file).get("shap_values") loads the shap_values as a Python list (or similar structure). Then, when invoking the template, instead of json.dumps(shap_values_json), they should pass shap_values_json as a variable.
+
+But how to do that? The template's messages contain variables using {variable} syntax. Suppose the system_prompt includes a variable like "Here are the SHAP values: {shap_values}", then the code should pass a dictionary {"shap_values": shap_values_json} when invoking.
+
+So the code would need to:
+
+1. Modify the system.prompt file to include a placeholder for shap_values.
+
+2. Update the template invocation to pass the SHAP data as a variable, not as a JSON string.
+
+So the code would change from:
+
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+to
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But then the template's messages need to include that variable. For example, the system message would be "Analyze the SHAP values: {shap_values}".
+
+But the original code's system_prompt is read from the file. So if the user hasn't modified the system.prompt file to include the variable, that's part of the problem. The code fix would involve changing the template to include the variable correctly.
+
+Wait, the user's code has the system_prompt loaded from the file. Perhaps that file's contents are the actual system prompt, which may include variables. For example, if the system.prompt file contains:
+
+Analyze the SHAP values provided by the user.
+
+But maybe the SHAP values need to be inserted into the prompt as variables. So the code should structure the template to include the SHAP values in the system message. For example, modifying the template to have:
+
+template = ChatPromptTemplate([
+    ("system", sys_prompt + "\n\nThe SHAP values are: {shap_values}"),
+    ("human", "{user_input}"),
+])
+
+But that would require that the sys_prompt is adjusted to include a placeholder, or perhaps the code is supposed to format the system prompt with the SHAP values.
+
+Alternatively, maybe the code is supposed to pass the SHAP values as part of the variables when invoking the template. For example, if the system_prompt is "Analyze the SHAP values: {shap_values}", then the code should invoke the template with {"shap_values": shap_values_json}.
+
+But in the original code, the code is using template.invoke(json.dumps(shap_values_json)), which is replacing {user_input} in the human message with the JSON string. That's probably incorrect if the model expects the SHAP values to be part of the system message.
+
+So the fix would be:
+
+- Modify the system_prompt to include a variable like {shap_values}.
+
+- Pass the shap_values_json as the "shap_values" variable when invoking the template.
+
+But how to do that? Let's adjust the code.
+
+Assuming the system_prompt file's contents have a placeholder for shap_values, like:
+
+"Please analyze the data. The SHAP values are: {shap_values}"
+
+Then the code should pass the shap_values_json as the variable. So the code would be:
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But the current code's template includes the human message with {user_input}, which might not be necessary. So the code would need to adjust the template to include the SHAP values in the system message.
+
+But how can this be done without changing the system.prompt file? Maybe the code is supposed to format the system_prompt with the SHAP values when creating the template. For example, instead of passing sys_prompt as the system message, pass sys_prompt.format(shap_values=shap_values_json). But that's possible only if the sys_prompt string includes a format placeholder.
+
+But the code is using ChatPromptTemplate, which handles variables. So perhaps the code should pass the variables when invoking the template. For example, if the system_prompt is "The SHAP values are: {shap_values}", then the code would invoke the template with {"shap_values": shap_values_json}.
+
+But in the current code, the code is using ("system", sys_prompt), and sys_prompt is a string from the file. So if the sys_prompt includes variables, the code needs to pass those variables when invoking the template.
+
+Wait, but the template's messages are structured as tuples, where the content can have variables. For example, ("system", "The SHAP values are: {shap_values}") would require passing "shap_values" as a variable when invoking the template.
+
+But the code's current template is:
+
+ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+So when invoking, the variables would include "user_input", "shap_values", etc., depending on the content of the messages.
+
+So, if the sys_prompt includes a variable called "shap_values", then the code needs to pass that variable when invoking. For example, if sys_prompt is "Here are the SHAP values: {shap_values}", then the code needs to pass {"shap_values": shap_values_json} as the variables.
+
+But in the current code, the code is invoking the template with json.dumps(shap_values_json) as the argument. That would replace {user_input} in the "human" message. But if the "system" message has a {shap_values} variable, it's not being provided. So this is a problem.
+
+Therefore, the correct fix would be:
+
+1. In the code, read the shap_values_json as a Python object (as it is a list from the JSON file).
+
+2. Modify the template's invocation to pass the variables as a dictionary, including the SHAP values. So if the system_prompt includes a {shap_values} variable, then when invoking, pass {"shap_values": shap_values_json}.
+
+But how to coordinate that with the code. Let's assume that the system_prompt should include the SHAP values. So the code should structure the template so that the system message includes the SHAP values as a variable, and then pass that variable when invoking.
+
+So the code would be modified as follows:
+
+template = ChatPromptTemplate([
+    ("system", sys_prompt),  # sys_prompt may include {shap_values}
+    # other messages if needed
+])
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But the code's current template includes a "human" message with "{user_input}". If the model is expecting the SHAP values to be part of the human message, then the code is passing the correct variables. But perhaps the code is supposed to pass the SHAP values as a Python object, not a JSON string. So instead of json.dumps(shap_values_json), the code should pass shap_values_json directly.
+
+Wait, the code's line:
+
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+But if the template has a variable {user_input} in the "human" message, then this would replace {user_input} with the JSON string. But if the model expects the SHAP values to be structured data (like a list of dicts), then passing the JSON string as a user_input would not be correct. The model would need to process the structured data, not a JSON string.
+
+Therefore, the fix is to pass the actual Python structure (shap_values_json) instead of dumping it to a JSON string. For example, if the shap_values_json is a list, then the code should pass that list as the variable. But how would that be included in the prompt? If the template's message content includes a variable that is a Python object, the prompt template may need to format it into a string. For example, if the system_prompt is "Analyze the SHAP values: {shap_values}", and shap_values is a list, then when invoking, the template would format that list into a string.
+
+But LangChain's prompt templates can handle structured data by converting them to strings. For example, in J2 templates, you can loop through the variables. But maybe the code's current approach is causing issues because it's converting the SHAP values to a JSON string, which might not be the expected format for the model.
+
+So the code should modify the invocation to pass the SHAP values as a Python object, not a JSON string. For example:
+
+prompt_value = template.invoke({"user_input": shap_values_json})
+
+But wait, that would replace {user_input} in the human message with the shap_values_json object, which would then be stringified when the prompt is created. But if the model's prompt is supposed to include a JSON string, then the code is correct. However, if the model expects structured data (like a list of SHAP values) in the prompt, then the code should pass them as variables so the prompt template can format them correctly.
+
+But how does the model's prompt need the SHAP values? The code's original approach is to pass the SHAP values as a JSON string in the user_input. If the model is expecting that, then maybe it's correct. But perhaps there's an error in the code where the SHAP values are not properly formatted into the prompt.
+
+Another possibility is that the code is not passing the SHAP values into the template at all. Because the code does template.invoke(json.dumps(shap_values_json)), which would replace {user_input} in the human message, but if the system_prompt requires variables that are not being provided, then the code is missing those.
+
+Alternatively, maybe the code is supposed to pass the SHAP values as part of the variables when invoking the template, not as a JSON string. For example, if the system_prompt includes a placeholder like "Here are the SHAP values: {shap_values}", then the code should pass a variable "shap_values": shap_values_json.
+
+So the code would need to be modified as follows:
+
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    # Maybe other messages here
+])
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But then, the system_prompt must include {shap_values} as part of its content. So the code's original problem may be that the SHAP values are not being included in the prompt correctly.
+
+So, the fix would involve changing:
+
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+to something like:
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But this would require that the system_prompt includes {shap_values} in its content. Assuming the system_prompt file is modified to include that, but the user hasn't done that, then the code would still be incorrect. However, the user's code may have a system.prompt file that doesn't include the variable, leading to the error. So the code needs to be adjusted to pass the SHAP values in the correct way.
+
+But given that the user hasn't provided the contents of the system.prompt file, it's hard to know. However, based on the code they provided, the main issue seems to be that they are passing the SHAP values as a JSON string to the user_input variable, which may not be the correct approach.
+
+Another possibility is that the code is supposed to pass the SHAP values as part of the system message, not the user message. So the code should modify the system_prompt to include the SHAP values, and pass them as a variable.
+
+But how to implement that in the code:
+
+If the system_prompt in the code is "Analyze the SHAP values provided by the user.", then perhaps changing the template to include the SHAP values in the system message. For example:
+
+template = ChatPromptTemplate([
+    ("system", f"{sys_prompt}\n\nHere are the SHAP values: {shap_values_json}"),
+    ("human", "Analyze the data."),
+])
+
+But this is not how the code is structured. The code's current structure uses variables to replace placeholders in the messages. So the correct approach is to pass the SHAP values as variables in the .invoke() method.
+
+So, modifying the code:
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But this requires that the system_prompt includes the variable {shap_values}.
+
+Assuming that the system_prompt needs to include the SHAP values as a variable, then the code should be modified as follows:
+
+The code currently has the line:
+
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+This line is passing a JSON string as the user_input. But maybe the code should instead pass the SHAP values as a variable to the template. So changing that line to:
+
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But then, the template's messages need to include a {shap_values} placeholder. For example, the system message could be:
+
+sys_prompt = "Analyze the SHAP values: {shap_values}"
+
+But if the sys_prompt is read from the file, the code would need to have that structure. So if the system.prompt file doesn't include that variable, the code would need to modify the system_prompt string programmatically.
+
+But maybe the code should format the system_prompt with the SHAP values when creating the template. For example:
+
+template = ChatPromptTemplate([
+    ("system", sys_prompt.format(shap_values=shap_values_json)),
+    ("human", "Analyze the data."),
+])
+
+But if sys_prompt includes other variables, this could lead to errors.
+
+Alternatively, perhaps the code should construct the system message dynamically. For example:
+
+system_content = f"{sys_prompt}\n\nHere are the SHAP values: {shap_values_json}"
+template = ChatPromptTemplate([
+    ("system", system_content),
+    ("human", "Analyze the data."),
+])
+
+But this approach would require that the SHAP values are properly formatted into the system message.
+
+But how to determine the correct approach without knowing the model's expected prompt structure?
+
+Given the code provided by the user, the main issue seems to be that they are passing a JSON string as user_input, but the model might need the SHAP values in a different format. For example, if the model expects the SHAP values to be part of the system message, then the code needs to adjust the system message.
+
+Another possibility is that the code is missing a step where the SHAP values are converted into a more human-readable format and included in the prompt. For example, instead of a JSON string, the SHAP values should be presented as a list of feature importance.
+
+So the code may need to format the SHAP values into a string and insert them into the system prompt. For example:
+
+shap_str = json.dumps(shap_values_json, indent=2)
+template = ChatPromptTemplate([
+    ("system", f"{sys_prompt}\n\nSHAP values:\n{shap_str}"),
+    ("human", "Analyze the data."),
+])
+
+But then the code would need to adjust the template accordingly.
+
+But given the user's code, the key line to change is the template.invoke(json.dumps(...)) to pass the variables correctly. For example, if the system_prompt includes {shap_values}, then the code should pass {"shap_values": shap_values_json}.
+
+So modifying the code:
+
+# Generate the response
+prompt_value = template.invoke({"shap_values": shap_values_json})
+
+But this requires the system_prompt to include {shap_values} in its content. If the system.prompt file doesn't have that, this would cause an error. So the code also needs to modify the system_prompt. But since the user's code is reading sys_prompt from the file, perhaps the code should modify the system_prompt by appending the SHAP values.
+
+But how to do that. Wait, the code currently has:
+
+sys_prompt = file.read().strip()
+
+So if the system_prompt is just a string, then the code can format it with the SHAP values.
+
+But the code is using the ChatPromptTemplate, which may not support formatting strings at runtime (unless variables are used).
+
+Alternative approach: The code can directly construct the system message by concatenating the sys_prompt with the SHAP values.
+
+For example:
+
+shap_values_str = json.dumps(shap_values_json, indent=2)
+system_content = f"{sys_prompt}\n\nSHAP values:\n{shap_values_str}"
+template = ChatPromptTemplate([
+    ("system", system_content),
+    ("human", "Analyze the SHAP values."),
+])
+
+But then the code would need to adjust the template and the variables passed.
+
+But this depends on how the model expects the SHAP values to be presented. If this is the case, then the code's original problem is that it's passing the SHAP values as a user message instead of part of the system context.
+
+So, the code should be modified to include the SHAP values in the system message. Here's how:
+
+Replace:
+
+# Prepare the messages
+template = ChatPromptTemplate([
+    ("system", sys_prompt),
+    ("human", "{user_input}"),
+])
+
+# Generate the response
+prompt_value = template.invoke(json.dumps(shap_values_json))
+
+with:
+
+# Prepare the system message to include SHAP values
+shap_values_str = json.dumps(shap_values_json, indent=2)
+system_content = f"{sys_prompt}\n\nHere are the SHAP values:\n{shap_values_str}"
+
+template = ChatPromptTemplate([
+    ("system", system_content),
+    ("human", "Analyze the SHAP values."),
+])
+
+# Generate the response
+prompt_value = template.invoke()
+
+But this requires that the user's code is changed to structure the system message this way. This would include the SHAP values as part of the system message. The human message would be a simple instruction to analyze the data.
+
+This change would create a prompt where the SHAP values are part of the system context, which the model can see, and the human message is just the instruction to proceed.
+
+Therefore, the code would be modified as follows:
+
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+# Initialize the ChatOllama model
+chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+
+# Load SHAP values from JSON file
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+
+# Load system prompt from file
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+# Prepare the messages with SHAP values in the system message
+shap_values_str = json.dumps(shap_values_json, indent=2)
+system_content = f"{sys_prompt}\n\nSHAP values:\n{shap_values_str}"
+
+template = ChatPromptTemplate([
+    ("system", system_content),
+    ("human", "Analyze the SHAP values"),
+])
+
+# Generate the response
+prompt_value = template.invoke()
+
+chain = prompt_value | chat_model
+
+# Print the response
+chain.invoke()
+
+This version of the code constructs the system message by appending the SHAP values as a formatted JSON string and then creates a human message that simply asks to analyze the SHAP values. This way, the model is provided with the SHAP values in the system context and an instruction from the user to process them.
+
+This change removes the use of a variable in the template and directly constructs the system message with the SHAP values. It assumes that the model expects the SHAP values to be part of the system message. The original code was passing the SHAP values as a JSON string in the user's message, which might have been causing the model to not process them correctly.
+◁/think▷
+python
+from langchain_ollama import ChatOllama
+from langchain_core.prompts.chat import ChatPromptTemplate
+import json
+
+# Initialize the ChatOllama model
+chat_model = ChatOllama(model="llama3.2", base_url="http://localhost:11434")
+
+# Load SHAP values from JSON file
+with open("Vuori_Final_Approval_2024_09_24.json", "r") as file:
+    shap_values_json = json.load(file).get("shap_values")
+
+# Load system prompt from file
+with open("system.prompt", "r") as file:
+    sys_prompt = file.read().strip()
+
+# Prepare the messages with SHAP values in the system message
+shap_values_str = json.dumps(shap_values_json, indent=2)
+system_content = f"{sys_prompt}\n\nSHAP values:\n{shap_values_str}"
+
+template = ChatPromptTemplate([
+    ("system", system_content),
+    ("human", "Analyze the SHAP values"),
+])
+
+# Generate the response
+prompt_value = template.invoke()
+
+chain = prompt_value | chat_model
+
+# Print the response
+chain.invoke()

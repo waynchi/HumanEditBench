@@ -1,0 +1,41 @@
+
+
+To get the list of XML files with their comments and modification times, here's the implementation of `get_task_list`:
+python
+@eel.expose
+def get_task_list(settings):
+    path = settings.get('taskPath')
+    if not path:
+        print("Error: taskPath not specified in settings.")
+        return []
+    result = []
+    try:
+        xml_files = [f for f in os.listdir(path) if f.endswith('.xml')]
+        for f in xml_files:
+            full_path = os.path.join(path, f)
+            try:
+                with open(full_path, 'r', encoding='utf-8') as file:
+                    first_line = file.readline().strip()
+                comment = ''
+                if first_line.startswith('<!--') and first_line.endswith('-->'):
+                    comment = first_line[4:-3].strip()
+                # Get file modification time as a string
+                mod_time = os.path.getmtime(full_path)
+                file_date_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(mod_time))
+                result.append({'fileName': f, 'comment': comment, 'file_date_str': file_date_str})
+            except Exception as e:
+                print(f"Error reading file {f}: {e}")
+    except Exception as e:
+        print(f"Error accessing directory {path}: {e}")
+    return result
+
+This function:
+1. Gets the taskPath from settings
+2. Lists all XML files in the directory
+3. For each XML file:
+   - Reads the first line
+   - Extracts the comment between `<!--` and `-->` if present
+   - Gets the file modification date as a formatted string
+4. Returns a list of dictionaries with file information
+
+Note: This code requires adding `import time` to handle date formatting.

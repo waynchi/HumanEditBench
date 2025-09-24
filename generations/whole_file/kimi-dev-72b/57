@@ -1,0 +1,19 @@
+
+python
+    def create_image(self, prompt, hf_model="black-forest-labs/FLUX.1-schnell"):
+        import time
+        
+        client = InferenceClient(hf_model, token=self.hf_token)
+        
+        # Generate image with retry logic on error
+        while True:
+            try:
+                image = client.text_to_image(
+                    prompt
+                )
+                return image
+            except Exception as e:
+                print(f"Error generating image: {e}. Retrying in 61 seconds...")
+                time.sleep(61)
+
+This change adds an infinite retry loop that waits 61 seconds between attempts. The time module is imported directly inside the method to avoid modifying the top-level imports. The rest of the code remains unchanged as per instructions.

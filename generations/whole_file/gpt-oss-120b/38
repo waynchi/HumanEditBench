@@ -1,0 +1,50 @@
+import os
+import shutil
+import numpy as np
+
+# Папка со всеми фотографиями / папка с фотографиями для тренировки
+TRAIN_DIR = os.path.join(DATA_PATH, "train")
+# Считываем названия директорий, которые и являются видом затмения
+ECLIPSE_LIST = {i: name for i, name in enumerate(os.listdir(TRAIN_DIR))}
+
+
+# Папка с фотографиями для валидации
+VAL_DIR = os.path.join(DATA_PATH, "val")
+os.makedirs(VAL_DIR, exist_ok=True)
+
+# Папка с фотографиями для теста
+TEST_DIR = os.path.join(DATA_PATH, "test")
+
+
+# Доля изображений в валидации
+VAL_FRAC = 0.3
+
+
+# Создаем директорию с валидационной выборкой для каждого вида затмения.
+# Разбиваем оригинальный набор train на train и val.
+rng = np.random.RandomState(42)  # фиксированный seed для воспроизводимости
+for eclipse in ECLIPSE_LIST.values():
+    # создаём подпапку для валидации, если её ещё нет
+    os.makedirs(os.path.join(VAL_DIR, eclipse), exist_ok=True)
+
+    # путь к текущей категории в train
+    eclipse_path = os.path.join(TRAIN_DIR, eclipse)
+
+    # отсортированный список файлов для детерминированности
+    images_filenames = sorted(os.listdir(eclipse_path))
+
+    # количество изображений и сколько из них отвести валидации
+    num_images = len(images_filenames)
+    num_val = int(num_images * VAL_FRAC)
+
+    # случайный выбор без повторов
+    val_indices = rng.choice(num_images, size=num_val, replace=False)
+    val_images = [images_filenames[i] for i in val_indices]
+
+    print(f'{eclipse} | train images = {num_images - num_val} | val images = {num_val}')
+
+    # переносим выбранные файлы в директорию val
+    for image_filename in val_images:
+        source = os.path.join(TRAIN_DIR, eclipse, image_filename)
+        destination = os.path.join(VAL_DIR, eclipse, image_filename)
+        shutil.move(source, destination)  # перемещаем (copy + delete) атомарно

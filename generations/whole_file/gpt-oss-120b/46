@@ -1,0 +1,52 @@
+import os
+import time
+import undetected_chromedriver as uc
+
+# Get the directory of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the relative path to the chromedriver executable
+chromedriver_path = os.path.join(script_dir, "chromedriver-win64", "chromedriver.exe")
+
+# ----------------------------------------------------------------------
+# Fixed options block – use the Chrome binary that is already installed on the system
+# (do NOT set binary_location to the chromedriver executable)
+# ----------------------------------------------------------------------
+options = uc.ChromeOptions()
+# You can add any desired arguments here, for example:
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument("--start-maximized")
+# ----------------------------------------------------------------------
+
+
+print("wde")
+# Initialise the undetected Chrome driver with the correct driver path
+with uc.Chrome(
+    driver_executable_path=chromedriver_path,
+    use_subprocess=True,
+    options=options,
+) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    # keep the browser open for a short while so you can see the page
+    time.sleep(10)
+
+
+# ----------------------------------------------------------------------
+# Second block – same fix applied (removed duplicate binary_location assignment)
+# ----------------------------------------------------------------------
+options = uc.ChromeOptions()
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_argument("--start-maximized")
+
+print("wde")
+with uc.Chrome(
+    driver_executable_path=chromedriver_path,
+    use_subprocess=True,
+    options=options,
+) as driver:
+    print("wde")
+    driver.get("https://lmarena.ai/")
+    print("wde")
+    time.sleep(10)

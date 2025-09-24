@@ -1,0 +1,40 @@
+
+python
+    if device is None:
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+    fact_results = []
+    format_hard_results, format_soft_results = ([], []) if output_format else (None, None)
+    for batch, expected_answers in zip(dataset, expected_answers):
+        batch = {k: v.to(device) for k, v in batch.items() if k in ["input_ids", "attention_mask"]}
+
+        with torch.no_grad():
+            outputs = model.generate(
+                **batch,
+                max_new_tokens=max_new_tokens,
+                pad_token_id=tokenizer.pad_token_id
+            )
+        
+        detokenized_inputs = tokenizer.batch_decode(batch["input_ids"], skip_special_tokens=True)
+        output_strings = tokenizer.batch_decode(outputs[:, batch["input_ids"].shape[-1]:], skip_special_tokens=True)
+        
+        if verbose:
+            for output_str, expected_answer, question in zip(output_strings, expected_answers, detokenized_inputs):
+                print(repr(question), repr(output_str), repr(expected_answer))
+
+        # Batch processing of checks
+        fact_results.extend(
+            check_answer_factual(output_str, expected_answer)
+            for output_str, expected_answer in zip(output_strings, expected_answers)
+        )
+        if output_format:
+            format_hard_results.extend(
+                check_answer_format(output_str, hard=True)
+                for output_str in output_strings
+            )
+            format_soft_results.extend(
+                check_answer_format(output_str, hard=False)
+                for output_str in output_strings
+            )
+        
+    return (fact_results, format_hard_results, format_soft_results) if output_format else fact_results

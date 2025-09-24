@@ -1,0 +1,44 @@
+def napraw(obrazek):
+    # Find row error
+    row_error = None
+    for i in range(20):  # rows 0-19
+        row = obrazek[i]
+        parity_bit = int(row[-1])
+        data_bits = row[:-1]
+        if data_bits.count('1') % 2 != parity_bit:
+            row_error = i
+            break
+
+    # Find column error
+    col_error = None
+    for j in range(20):  # columns 0-19
+        column = ""
+        for i in range(21):  # rows 0-20
+            column += obrazek[i][j]
+        parity_bit = int(column[-1])
+        data_bits = column[:-1]
+        if data_bits.count('1') % 2 != parity_bit:
+            col_error = j
+            break
+
+    # Create corrected image
+    corrected = []
+    for i in range(21):  # all rows
+        if i == row_error:
+            # Flip the parity bit of the row
+            row = obrazek[i]
+            new_row = row[:-1] + str(1 - int(row[-1]))
+            corrected.append(new_row)
+        else:
+            corrected.append(obrazek[i])
+
+    # Handle column error
+    if col_error is not None:
+        # Flip the parity bit of the column (in the 20th row)
+        parity_row = corrected[20]
+        parity_list = list(parity_row)
+        parity_list[col_error] = str(1 - int(parity_list[col_error]))
+        corrected[20] = ''.join(parity_list)
+
+    # Return both the original (error) image and the corrected image
+    return [obrazek, corrected]

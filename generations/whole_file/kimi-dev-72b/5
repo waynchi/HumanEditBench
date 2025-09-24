@@ -1,0 +1,94 @@
+◁think▷Okay, let's see. The user wants me to generate a new implementation of the code based on their instruction. The original code is just a comment saying "Write binary search", and the user instruction is to create a binary search function in Python named binary_search.
+
+First, I need to figure out how to structure the code. The user mentioned that the highlighted section to be changed is an empty block. So I need to replace that empty section with the actual code for the binary search function.
+
+Binary search typically works on a sorted list. The function should take a sorted list and a target value, then return the index of the target if found, or maybe -1 if not found.
+
+I'll start by defining the function. The parameters could be arr (the array), target, left, and right. But maybe the user expects a simple version where left and right are handled within the function. Let's make the function signature def binary_search(arr, target):.
+
+Wait, but binary search can be implemented recursively or iteratively. Let me go with the iterative approach for simplicity.
+
+So, inside the function, initialize left as 0 and right as len(arr) - 1. Then, while left <= right, find the middle index. Compare the middle element with the target. If equal, return the index. If the target is less, adjust right to mid -1. If more, adjust left to mid +1.
+
+Wait, but need to calculate mid properly. mid = left + (right - left) // 2 to avoid overflow, though in Python integers are unbounded.
+
+Also, the array must be sorted. But the function can't check that, so assuming it's already sorted.
+
+So putting it all together:
+
+def binary_search(arr, target):
+    left = 0
+    right = len(arr) - 1
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+But wait, the original code had a comment "Write binary search" and the user wants to replace the highlighted section. The original code's highlighted part is empty, so the new code should replace that empty section with the function.
+
+So the entire code file would be:
+
+# Write binary search
+
+def binary_search(arr, target):
+    left = 0
+    right = len(arr) - 1
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+Wait, but the user said "Please only change the highlighted section and leave the rest of the code unchanged." The original code had the comment "# Write binary search" followed by an empty section. So the new code should have that comment, then the function.
+
+But the user's original code was:
+
+# Write binary search
+
+So the highlighted part is the empty lines after the comment. So the replacement would be to add the function there. So the final code would be:
+
+# Write binary search
+
+def binary_search(arr, target):
+    left = 0
+    right = len(arr) - 1
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1
+
+That makes sense. So the comment remains, and the function is added below it. The user's instruction said to generate the code based on that, so that's the correct approach.
+◁/think▷
+python
+# Write binary search
+
+def binary_search(arr, target):
+    left = 0
+    right = len(arr) - 1
+    
+    while left <= right:
+        mid = left + (right - left) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+    return -1

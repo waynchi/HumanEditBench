@@ -1,0 +1,29 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+# INPUT_FILE_PATH = './example_in.txt'  # Commented out to use actual input; uncomment for testing
+
+def main():
+    lines = parse_input_file()
+    # print(lines)  # Removed debug print for cleanliness
+    cols = [l.split() for l in lines if l.strip()]  # Use split() instead of split("   ") for robustness, filter empty lines
+    if not cols:
+        print(0)
+        return
+    array = np.array(cols, dtype=int)
+    list_1 = array[:, 0].tolist()
+    list_2 = array[:, 1].tolist()
+
+    # More efficient way: sort both lists and compute differences
+    list_1.sort()
+    list_2.sort()
+    total_distance = sum(abs(a - b) for a, b in zip(list_1, list_2))
+    print(total_distance)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

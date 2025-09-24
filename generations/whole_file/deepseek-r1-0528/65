@@ -1,0 +1,66 @@
+I'll enhance the quadratic fitting function to also calculate the maximum deviation from the fitted curve. Here's the complete implementation:
+python
+# 导入Pymapdl
+# from ansys.mapdl.core import launch_mapdl
+
+# 创建MAPDL实例
+# mapdl = launch_mapdl(override=True)
+
+# 定义一个求数组拟合直线的函数def fit_line(x, y):
+import numpy as np
+
+def fit_line(x, y):
+    """
+    求数组拟合直线的函数
+    """
+    # 计算x和y的平均值
+    x_mean = np.mean(x)
+    y_mean = np.mean(y)
+    
+    # 计算x和y的偏差
+    x_dev = x - x_mean
+    y_dev = y - y_mean
+    
+    # 计算x和y的偏差的乘积
+    xy_dev = x_dev * y_dev
+    
+    # 计算x的偏差的平方
+    x_dev_squared = x_dev ** 2
+    
+    # 计算直线的斜率和截距
+    slope = np.sum(xy_dev) / np.sum(x_dev_squared)
+    intercept = y_mean - slope * x_mean
+    
+    return slope, intercept
+
+# 定义一个求xy数组二次曲线拟合的函数
+def fit_quadratic(x, y):
+    """
+    求数组二次曲线拟合的函数
+    返回拟合系数以及最大绝对偏差
+    """
+    # 创建一个Vandermonde矩阵
+    A = np.vstack([x**2, x, np.ones(len(x))]).T
+    
+    # 使用最小二乘法求解系数
+    coeffs = np.linalg.lstsq(A, y, rcond=None)[0]
+    
+    # 计算拟合结果
+    y_fit = A @ coeffs
+    
+    # 计算偏差（残差）
+    residuals = y - y_fit
+    
+    # 计算最大绝对偏差
+    max_deviation = np.max(np.abs(residuals))
+    
+    return coeffs, max_deviation
+
+Key changes made:
+1. Added calculation of the fitted y-values using the obtained coefficients
+2. Added residual (deviation from actual) calculation
+3. Implemented maximum absolute deviation using `np.max(np.abs(...))`
+4. Updated the docstring to include information about the maximum deviation in the return value
+5. Modified the return statement to include both coefficients and maximum deviation
+
+The rest of the code remains unchanged as requested. The function now returns a tuple where the first element is the coefficients (a, b, c) and the second element is the maximum absolute deviation from the fitted curve.

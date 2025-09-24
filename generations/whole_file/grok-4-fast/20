@@ -1,0 +1,19 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+
+def main():
+    lines = parse_input_file()
+    cols = [[int(x) for x in line.split()] for line in lines if line.strip()]
+    col1, col2 = zip(*cols)
+    sorted_col1 = sorted(col1)
+    sorted_col2 = sorted(col2)
+    total_dist = sum(abs(a - b) for a, b in zip(sorted_col1, sorted_col2))
+    print(total_dist)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        return f.read().splitlines()
+
+if __name__ == "__main__":
+    main()

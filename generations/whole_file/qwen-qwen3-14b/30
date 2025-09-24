@@ -1,0 +1,13 @@
+def is_sum_of_four_nonzero_squares(n):
+    if n < 4:
+        return False
+    for a in range(1, int((n - 3)**0.5) + 1):
+        for b in range(a, int((n - a**2 - 2)**0.5) + 1):
+            for c in range(b, int((n - a**2 - b**2 - 1)**0.5) + 1):
+                d_sq = n - a**2 - b**2 - c**2
+                if d_sq < 1:
+                    continue
+                d = int(d_sq**0.5)
+                if d >= c and d*d == d_sq:
+                    return True
+    return False

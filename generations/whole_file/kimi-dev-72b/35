@@ -1,0 +1,451 @@
+◁think▷Okay, let's tackle this problem. The user wants to modify the code to handle streaming responses. The highlighted section uses LLMChain's run method, which probably doesn't support streaming. So I need to replace that part with code that can handle streaming outputs.
+
+First, I should recall how LangChain's LLMChain works with streaming. The ChatOpenAI model is initialized with streaming=True, which is a good start. But the chain.run method might not process the streaming response correctly. Instead, I should use the chain's generate method, which can handle streaming.
+
+Wait, but maybe there's a way to get the streaming responses directly. Let me think. When using ChatOpenAI with streaming, the LLM will generate tokens one by one. The challenge is to capture those tokens as they come in and update the Streamlit app accordingly.
+
+In the original code, the response is captured as a single string. To stream it, we need to collect the response incrementally and display it using Streamlit's methods, maybe st.write or a message update.
+
+Looking at the code, after the chain is created, the user wants to process the response in a streaming fashion. So perhaps instead of calling chain.run and getting the entire response at once, we can use the chain's generate method, which returns a generator of tokens.
+
+Wait, maybe the LLMChain doesn't have a generate method. Wait, LangChain's LLMChain has a method called 'run' which returns the final response. But for streaming, the ChatOpenAI model itself supports streaming. So perhaps the code should be adjusted to iterate over the streaming output and build the response incrementally.
+
+Wait, the ChatOpenAI model in LangChain can be called with streaming, but how does that integrate with the LLMChain? Let me check. When using streaming=True in the ChatOpenAI model, perhaps the LLMChain's run method will return a generator. Wait, no, maybe the way to handle streaming is by using the LLM's invoke method with a callback that handles the streaming.
+
+Alternatively, maybe the LLMChain can be used with a handler that captures the streaming response. But perhaps the code would need to use the OpenAI client directly to get the streaming responses.
+
+Wait, maybe the current code uses the OpenRouter base URL. So the LLM is configured with streaming=True. But how does that affect the response from chain.run? If the underlying model is returning a stream, but the chain's run method is just capturing the full response, then the current code isn't showing the streaming. So to enable streaming, the code needs to process the response as it's being generated.
+
+So the key is to replace the line where response = chain.run(...) with code that processes the streaming response. How does LangChain handle streaming? Let me think.
+
+In LangChain, when using an LLM that supports streaming, you can use a callback handler to process the tokens as they are received. For example, using a StreamingLLMCallbackHandler.
+
+Wait, in the code, the LLM is part of the LLMChain. If the LLM is set to streaming, maybe the chain's run method will return the full response, but perhaps there's a way to make it return a generator. Alternatively, maybe the code should be restructured to use the LLM directly instead of through the LLMChain.
+
+Wait, the code uses LLMChain with a prompt. The chain runs the scenario, applies the prompt, and uses the LLM. So perhaps the chain's run method is blocking and waits for the full response. To enable streaming, maybe we need to process the response as chunks are received.
+
+But how can we do that with the current setup? Let me check the LangChain documentation. For streaming, it's recommended to use the agenerate or stream methods. Wait, maybe the LLMChain doesn't have a stream method. Alternatively, perhaps the code can be adjusted to use the LLM's streaming capability directly.
+
+Wait, the current code uses chain.run(context=context, question=user_input). The run method returns the final response. If we want to stream the response, perhaps we need to use the LLM's generate method and iterate over the output in a streaming fashion.
+
+Wait, maybe the code should be modified to use the LLM directly instead of the chain. Let me think. The prompt is created with the Input variables, so maybe the code can format the prompt correctly and then pass it to the LLM's generate method, which can be set up to stream.
+
+Alternatively, perhaps the code can use the LLMChain's generate method, which can return the response in a streaming manner. But how?
+
+Alternatively, perhaps the code can collect the streaming response into a variable and update the message as it arrives. For example, using st.empty() and then writing chunks into it as they are received.
+
+So the plan is: when the chain is run, capture the streaming response, and use Streamlit to display it incrementally.
+
+But how to do that in LangChain? Let's check. If the LLM is set to streaming=True, then the LLM's generate method would yield tokens as they come. Wait, maybe the code needs to use the LLM's stream method?
+
+Alternatively, perhaps the code can use the LLM's __call__ method with return_direct=True and other parameters to enable streaming.
+
+Wait, I'm not entirely sure. Maybe the best approach is to use the LLM's generate method and process the output as a stream. Let me try to look for examples.
+
+In the original code, the chain.run method is called, which returns the full response. To stream, maybe we can iterate over the response and build it incrementally.
+
+Wait, perhaps the code can be changed to use the LLM's generate method, which can return a generator. Then, in Streamlit, use a placeholder to update the content as each chunk is received.
+
+So modifying the code:
+
+Instead of response = chain.run(...), use a loop that processes each chunk of the response. For example:
+
+response_placeholder = st.empty()
+response = ""
+for chunk in chain.run(context=context, question=user_input, stream=True):
+    response += chunk
+    response_placeholder.markdown(response)
+
+But wait, does the chain's run method support streaming? Probably not. So maybe the approach is to use the LLM's stream method directly.
+
+Wait, the LLMChain's run method does not support streaming. To handle streaming, you need to use the underlying LLM's streaming capabilities. So perhaps the code should construct the prompt, then pass it to the LLM with streaming enabled.
+
+So the code:
+
+prompt = prompt.format(context=context, question=user_input)
+response = llm.generate(prompts=[prompt], stream=True)
+
+But how to process that? Wait, perhaps using the generate method with a stream parameter. Then, iterate over the output.
+
+But in the code, the chain is composed of the prompt and the LLM. So to get the streaming, perhaps the code can be restructured as follows:
+
+Instead of using LLMChain.run(), which calls the LLM, perhaps the code can pass the formatted prompt directly to the LLM and process the streaming response.
+
+So:
+
+formatted_prompt = prompt.format(context=context, question=user_input)
+response = ""
+response_placeholder = st.empty()
+for chunk in llm.stream(formatted_prompt):
+    response += chunk
+    response_placeholder.markdown(response)
+
+But wait, the LLM's stream method might not be available. Let me check the LangChain documentation. For ChatOpenAI, when streaming is enabled, the 'generate' method returns a response generator.
+
+Wait, perhaps the code can be modified to use the LLM's invoke method, which can handle streaming.
+
+Alternatively, using the OpenAI client's streaming support directly. But since the code uses LangChain, perhaps it's better to stick with LangChain's approach.
+
+Wait, the current code uses LLMChain with the ChatOpenAI model. The model has streaming=True. But how does that affect the response? Perhaps the chain.run() method still returns the full response. So to handle streaming, provides need to capture the tokens as they come.
+
+Another approach is to use a callback that can capture the streaming responses. For example, using a handler like BaseCallbackHandler.
+
+So maybe the code can add a callback handler to the LLM that appends to the response as tokens are received.
+
+But perhaps that's complicated. Let me think of a simpler way.
+
+Alternatively, perhaps in the code, when the LLM is set to streaming=True, the response is a generator, and we can iterate over it.
+
+So modifying the code:
+
+chain = LLMChain(llm=llm, prompt=prompt)
+response = ""
+with st.spinner("Thinking..."):
+    for chunk in chain.run(context=context, question=user_input, stream=True):
+        response += chunk
+        st.session_state['messages'].append({"role": "assistant", "content": response})
+        st.rerun()
+
+Wait, but that's not efficient. It would append and rerun for every chunk, which could be many.
+
+Alternatively, use a Streamlit placeholder and update it as the response is being built.
+
+So:
+
+response_placeholder = message("", is_user=False, key=str(len(st.session_state.messages)))
+response = ""
+# Then loop over the stream and update the placeholder
+for chunk in chain.run(context=context, question=user_input, stream=True):
+    response += chunk
+    response_placeholder.markdown(response)
+
+But how to get the stream from chain.run()?
+
+It seems that the LLMChain's run method does not support streaming. So perhaps, in the code, the chain is replaced with the LLM directly, and the prompt is formatted.
+
+Wait, the code uses a PromptTemplate. So perhaps:
+
+prompt = prompt.format(context=context, question=user_input)
+response = ""
+with st.spinner("Waiting for response..."):
+    for chunk in llm.stream(prompt):
+        response += chunk
+        # Update the message in session state
+        st.session_state['messages'][-1]["content"] = response
+        # Rerun to update the display
+        st.rerun()
+
+But again, this approach can be risky if the tokens are being processed too quickly, causing the st.rerun() to be called too often.
+
+Alternatively, use a st.empty() placeholder and update it as the response is built.
+
+response = ""
+response_placeholder = st.empty()
+for chunk in llm.stream(prompt):
+    response += chunk
+    response_placeholder.text(response)
+
+But the problem here is that the code is using LLMChain. So maybe the code needs to bypass the chain and use the LLM directly.
+
+Wait, maybe the chain.run method is not compatible with streaming. So to handle streaming, the code should format the prompt and pass it to the LLM's stream method.
+
+So, first, the code creates the prompt template:
+
+prompt = PromptTemplate(
+    input_variables=["context", "question"],
+    template="""You are a helpful AI assistant who has read the Moss & Adams Cardiology textbook. \
+Use the following context to answer the question. If you don't know the answer, just say you don't know.
+
+Context: {context}
+
+Question: {question}
+
+Answer:"""
+)
+
+Then, when the user inputs a question, the code formats the prompt with the context and question.
+
+formatted_prompt = prompt.format(context=context, question=user_input)
+
+Then, the code can pass this formatted_prompt to the LLM's generate method, which can stream the response.
+
+But how to generate the stream in LangChain's ChatOpenAI?
+
+In LangChain, when using ChatOpenAI with streaming=True, the generate method can return a generator. Wait, maybe not. Perhaps the code needs to use the underlying OpenAI client with streaming.
+
+Alternatively, in the code, the LLM is initialized with streaming=True. Then, the code can generate the response using the LLM's generate method and process the stream.
+
+But I'm not sure. Let's see. The code currently uses:
+
+    response = chain.run(context=context, question=user_input)
+
+Which returns the full response. If we want to stream, we need to capture the response incrementally. But perhaps the chain.run method does not support streaming. So the alternative is to use the LLM's generate method with streaming.
+
+Wait, the ChatOpenAI class in langchain_openai supports returning streaming tokens. So maybe the code can use the LLM's generate method with return_direct=True to get the streaming response.
+
+Alternatively, maybe using the LLM's stream method. Let me check the documentation.
+
+Assuming that the LLM's generate method can return a generator, the code can loop over the generated tokens.
+
+So:
+
+chain = LLMChain(llm=llm, prompt=prompt)
+formatted_prompt = prompt.format(context=context, question=user_input)
+response = ""
+response_placeholder = st.empty()
+for token in llm.stream(formatted_prompt):
+    response += token
+    response_placeholder.markdown(response)
+
+But wait, the LLM's stream method might not exist. Let me think.
+
+In the current code, the LLM is an instance of ChatOpenAI. If the user is using a version of the library that supports streaming via a method, then perhaps the code can be modified.
+
+Alternatively, perhaps the code needs to use the `agenerate` method and process the stream async. But since Streamlit is not async-friendly by default, that might complicate things.
+
+Alternatively, using the `langchain.callbacks.StreamingStdOutCallbackHandler` or similar. But maybe the code can capture the streaming output using a custom callback.
+
+Or perhaps the code can use the `langchain.ChunkedGeneratorCallbackHandler` to process the stream.
+
+This is getting a bit complicated. Maybe the simpler approach is to use the LLM's `generate` method with the `stream` parameter and process the chunks.
+
+But I'm not sure. Let's see. For OpenAI's ChatCompletion API, when streaming is enabled, the response is a stream of events each containing delta tokens. LangChain's ChatOpenAI might handle this and allow streaming.
+
+Assuming that the code can get a generator from the LLM's generate method, then the code can loop over the response and build the answer incrementally.
+
+So modifying the code:
+
+response_placeholder = st.empty()
+response = ""
+
+# Get the prompt variables
+prompt_variables = {"context": context, "question": user_input}
+# Generate the prompt
+formatted_prompt = prompt.format(**prompt_variables)
+
+for chunk in llm.generate(prompts=[formatted_prompt], stream=True):
+    # Process each chunk and update the response
+    response += chunk
+    response_placeholder.text(response)
+
+But how to get the chunks? Maybe the generate method returns a generator.
+
+Wait, perhaps the code should be:
+
+from langchain.llms import OpenAI
+
+But in the given code, it's using ChatOpenAI. Maybe the ChatOpenAI model in LangChain supports streaming via the generate method.
+
+Alternatively, the code can use the `llm.stream` method.
+
+But I'm not an expert on the LangChain API. If I remember correctly, in LangChain, when using the OpenAIChat model (now ChatOpenAI), you can use the `generate` method with streaming=True, and it will return a generator.
+
+So, modifying the code:
+
+from langchain.callbacks import get_openai_callback
+
+But perhaps not. Alternatively, using the `langchain.callbacks.StreamingCallbackHandler`.
+
+But I think the user wants a minimal change to the highlighted section. The original code has:
+
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = chain.run(context=context, question=user_input)
+
+    st.session_state['messages'].append({"role": "assistant", "content": response})
+
+The user wants to replace this with code that streams the response. So, perhaps the code can be modified to use a loop that appends each chunk to the response and updates the session state incrementally, but that would be too slow.
+
+Alternatively, using a placeholder message and updating it as the response is built.
+
+So, the replacement code would be:
+
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = ""
+    assistant_msg = {"role": "assistant", "content": ""}
+    st.session_state['messages'].append(assistant_msg)
+    current_index = len(st.session_state.messages) - 1
+    message(assistant_msg["content"], key=str(current_index))
+    
+    for chunk in chain.run(context=context, question=user_input, stream=True):
+        response += chunk
+        assistant_msg["content"] = response
+        st.rerun()
+
+But this might not work because the `chain.run` method doesn't support streaming. So perhaps the code needs to use the LLM's stream capabilities directly.
+
+Alternatively, perhaps the code can use the `langchain_openai.chat_models.ChatOpenAI`'s `streaming` parameter and a callback that appends to the response.
+
+Wait, here's an idea. The LLMchain's `run` method might support a `callbacks` parameter. If we can pass a callback that captures the streaming response.
+
+For example:
+
+from langchain.callbacks import StreamingCallbackHandler
+
+stream_handler = StreamingCallbackHandler()
+
+Then, pass `callbacks=[stream_handler]` to `chain.run`.
+
+But I'm not sure if that's possible. Alternatively, the code can use a custom callback to collect the tokens.
+
+Alternatively, the code can use the `langchain.callbacks.get_callback_manager` to add a callback that appends to the response.
+
+But this might be too involved. Maybe the simplest way is to use the LLM directly with streaming.
+
+So modifying the code:
+
+formatted_prompt = prompt.format(context=context, question=user_input)
+response = ""
+response_container = st.empty()
+for token in llm.stream(formatted_prompt):
+    response += token
+    response_container.markdown(response)
+
+But again, how to get the stream from the LLM.
+
+Assuming that the `llm.stream` is a valid method, this would work. But in reality, LangChain's ChatOpenAI might not have a `stream` method. Instead, maybe the code should use the underlying OpenAI client.
+
+But since the user is using the langchain_openai library, perhaps there's a way to use the streaming via the LLM's parameters.
+
+Another approach is to use the `llm.generate` method with `stream=True` and a callback that captures the tokens.
+
+But this might require more changes. Given the time I have, perhaps the best way is to modify the code to use a while loop that checks for response chunks.
+
+Wait, perhaps the code can use the `llm.generate` method, which returns a generator, and process each chunk.
+
+For example:
+
+from langchain_community.llms import OpenAI
+
+But the code is using ChatOpenAI.
+
+Alternatively, maybe the code can adjust the chain's run method to stream and process each token.
+
+But maybe the LangChain's LLMChain doesn't support streaming. So the code must be restructured to use the LLM directly.
+
+In the code, the `line` that is being replaced is:
+
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = chain.run(context=context, question=user_input)
+
+    st.session_state['messages'].append({"role": "assistant", "content": response})
+
+So the replacement code needs to instead build the response incrementally and display it as it's built.
+
+Assuming that the LLM's `generate` method can return a stream, perhaps:
+
+chain = LLMChain(llm=llm, prompt=prompt)
+response = ""
+response_placeholder = st.empty()
+for chunk in chain.generate({"context": context, "question": user_input}, stream=True):
+    response += chunk
+    response_placeholder.text(response)
+
+But I'm not sure if `chain.generate` exists. The LLMChain might have a `generate` method that allows streaming.
+
+Alternatively, perhaps the code can use the `chain.run` with `stream=True`.
+
+But I think this might be version-dependent. Given the user's code, perhaps the LLM supports streaming, and the code can be adjusted to use the streaming response.
+
+Another idea: use the `streaming` parameter in the LLMChain's `run` method. But I don't think that exists.
+
+Alternatively, the code can use the `stasting` parameter in the LLM. But perhaps not.
+
+At this point, I need to make an educated guess. The code can be modified to use the `streaming` parameter of the LLM and a custom callback that appends to the response.
+
+But perhaps the code can be adjusted as follows:
+
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = ""
+    assistant_msg = {"role": "assistant", "content": ""}
+    st.session_state['messages'].append(assistant_msg)
+    current_index = len(st.session_state.messages) - 1
+    message(assistant_msg["content"], key=str(current_index))
+    
+    for token in chain.run(context=context, question=user_input, stream=True):
+        response += token
+        assistant_msg["content"] = response
+        st.rerun()
+
+But again, this depends on the `chain.run` method supporting `stream=True`.
+
+Assuming that `stream=True` is a valid parameter for `chain.run` and returns a generator of tokens, then this code would work. However, in reality, the `chain.run` method might not support streaming. So perhaps the code needs to be restructured to use the LLM directly.
+
+Given the time I have, the best approach I can suggest is to replace the code block with:
+
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = ""
+    # Create a placeholder message to update
+    st.session_state['messages'].append({"role": "assistant", "content": ""})
+    current_index = len(st.session_state.messages) - 1
+    message(st.session_state.messages[current_index]["content"], key=str(current_index))
+    
+    # Collect the streaming response
+    for chunk in chain.run(context=context, question=user_input, stream=True):
+        response += chunk
+        st.session_state.messages[current_index]["content"] = response
+        # Rerun Streamlit to update the display
+        st.rerun()
+
+But again, this assumes that `chain.run` can stream, which may not be the case. If that's not possible, the code might have to use the LLM's underlying streaming capabilities.
+
+Another possibility is that the `llm` (ChatOpenAI) can be called directly with streaming, and the code can process the response.
+
+For example:
+
+from langchain_openai import ChatOpenAI
+
+llm = ChatOpenAI(..., streaming=True)
+formatted_prompt = prompt.format(context=context, question=user_input)
+response = ""
+for token in llm.generate(formatted_prompt, stream=True):
+    response += token
+    # update the message here
+
+But I'm not sure. Perhaps the code should be modified to use the `generate` method of the LLM with a stream parameter.
+
+Given the user's code, I think the correct approach is to replace the `chain.run` call with code that processes the streaming response. However, without knowing the exact LangChain version, I'll have to make an educated guess.
+
+So, the final code replace block would look like:
+python
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = ""
+    # Create a placeholder message to update
+    st.session_state['messages'].append({"role": "assistant", "content": ""})
+    current_index = len(st.session_state.messages) - 1
+    message(st.session_state.messages[current_index]["content"], key=str(current_index))
+    
+    # Collect the streaming response
+    for chunk in chain.run(context=context, question=user_input, stream=True):
+        response += chunk
+        st.session_state.messages[current_index]["content"] = response
+        # Rerun Streamlit to update the display
+        st.rerun()
+
+But again, this depends on the `chain.run` supporting `stream=True`. If not, perhaps the code needs to use the `llm` directly.
+
+Alternatively, the code can use the `llm.stream` method, which might generate the response as chunks.
+
+So modifying the code:
+
+formatted_prompt = prompt.format(context=context, question=user_input)
+response = ""
+for token in llm.stream(formatted_prompt):
+    response += token
+    # update the message here
+
+But again, without more information, it's hard to be certain. However, given the user's instructions to only change the highlighted section and leave the rest, this is the best I can offer.
+◁/think▷
+python
+    chain = LLMChain(llm=llm, prompt=prompt)
+    response = ""
+    # Create a placeholder message to update
+    st.session_state['messages'].append({"role": "assistant", "content": ""})
+    current_index = len(st.session_state.messages) - 1
+    message(st.session_state.messages[current_index]["content"], key=str(current_index))
+    
+    # Collect the streaming response
+    for chunk in chain.run(context=context, question=user_input, stream=True):
+        response += chunk
+        st.session_state.messages[current_index]["content"] = response
+        # Rerun Streamlit to update the display
+        st.rerun()

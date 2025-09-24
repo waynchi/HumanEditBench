@@ -1,0 +1,64 @@
+To solve the issue where the original code encountered an `IndexError` due to incorrect grid dimensions, we need to ensure that the grid is properly represented as a 2D array of characters. The original code created a 1D array of strings, which caused the error when accessing the second dimension of the grid shape. 
+
+### Approach
+1. **Problem Analysis**: The error occurred because the grid was initialized as a 1D array of strings, leading to an `IndexError` when trying to access the second dimension (`grid.shape[1]`). This happened because the grid shape was a tuple with only one element (e.g., `(10,)`), making `grid.shape[1]` invalid.
+2. **Solution**: Convert each line of the input into a list of characters before creating the NumPy array. This ensures the grid is a 2D array where each element is a single character, allowing proper access to both dimensions (rows and columns).
+3. **Implementation**: Modify the grid initialization step by processing each line into a list of characters. This transforms the grid into a 2D structure, enabling the subsequent operations (horizontal, vertical, and diagonal checks) to function correctly.
+
+### Solution Codepython
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    #for l in lines:
+    #    print(l)
+    grid = np.array([list(line) for line in lines])
+    print(grid)
+    str_to_match = "XMAS"
+    count = 0
+    # Check horizontally
+    for row in grid:
+        row_str = ''.join(row)
+        count += row_str.count(str_to_match)
+
+    # Check vertically 
+    for col in range(grid.shape[1]):
+        col_str = ''.join(grid[:,col])
+        count += col_str.count(str_to_match)
+
+    # Check diagonally (top-left to bottom-right)
+    for i in range(-(grid.shape[0]-1), grid.shape[1]):
+        diag = np.diagonal(grid, offset=i)
+        diag_str = ''.join(diag)
+        count += diag_str.count(str_to_match)
+
+    # Check diagonally (top-right to bottom-left)
+    flipped_grid = np.fliplr(grid)
+    for i in range(-(grid.shape[0]-1), grid.shape[1]):
+        diag = np.diagonal(flipped_grid, offset=i)
+        diag_str = ''.join(diag)
+        count += diag_str.count(str_to_match)
+
+    print(f"Found {count} occurrences of {str_to_match}")
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()
+
+### Explanation
+1. **Grid Initialization**: The key change is replacing `grid = np.array(lines)` with `grid = np.array([list(line) for line in lines])`. This converts each line from a string into a list of characters, resulting in a 2D array where each element is a single character.
+2. **Horizontal Check**: Iterates over each row, joins the characters into a string, and counts occurrences of "XMAS".
+3. **Vertical Check**: Iterates over each column, joins the column characters into a string, and counts occurrences.
+4. **Diagonal Checks**: 
+   - **Top-left to Bottom-right**: Uses `np.diagonal` with offsets to traverse all possible diagonals, joining characters into strings and counting occurrences.
+   - **Top-right to Bottom-left**: Flips the grid horizontally and repeats the diagonal check process.
+5. **Result**: The total count of "XMAS" occurrences in all directions is printed.
+
+This approach ensures the grid is correctly dimensioned, preventing the `IndexError` and enabling accurate traversal and counting in all required directions.

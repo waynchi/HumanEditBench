@@ -1,0 +1,159 @@
+I'll modify the medcouple function to fix the ambiguity error when comparing arrays. The issue occurs because we're trying to use condition checks designed for single values on entire arrays. 
+
+Here's the complete solution with the necessary changes:
+python
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from scipy.stats import skew
+
+def medcouple(data):
+    data = np.sort(data)
+    n = len(data)
+    median = np.median(data)
+
+    # Split data into left and right of the medium and ensure median is included in both
+    left = data[data <= median]
+    right = data[data >= median]
+    
+    k = len(data[data == median])  # Count of repeated median values
+    L = len(left)
+    R = len(right)
+    
+    # Precompute meshgrid for both cases
+    left_indices = np.arange(L)
+    right_indices = np.arange(R)
+    xi, xj = np.meshgrid(left, right, indexing='ij', copy=False)
+    h_matrix = np.zeros((L, R), dtype=float)  # Initialize with zeros
+    
+    # Use vectorized operations based on k
+    if k > 1:
+        i, j = np.meshgrid(left_indices, right_indices, indexing='ij', copy=False)
+        both_median_mask = (xi == median) & (xj == median)
+        not_both_median_mask = ~both_median_mask
+        
+        # Calculate h-values for non-median pairs
+        divisor = xj - xi
+        numerator = (xj - median) - (median - xi)
+        
+        # Avoid division by zero where denominator is zero
+        non_zero_divisor_mask = divisor != 0
+        valid_mask = not_both_median_mask & non_zero_divisor_mask
+        
+        # Calculate where division is valid
+        h_matrix[valid_mask] = numerator[valid_mask] / divisor[valid_mask]
+        
+        # Special handling for identical median values
+        if np.any(both_median_mask):
+            indices_sum = i[both_median_mask] + j[both_median_mask] - 1
+            # Calculate values
+            condition1 = indices_sum < k
+            condition2 = indices_sum == k
+            # Apply conditions using piecewise setting
+            h_matrix[both_median_mask] = np.select(
+                [condition1, condition2],
+                [-1.0, 0.0],
+                default=1.0
+            )
+    else:
+        # For k=1, use simple division only when denominator is non-zero
+        divisor = xj - xi
+        numerator = (xj - median) - (median - xi)
+        non_zero_mask = divisor != 0
+        # Fill where divisor is non-zero
+        h_matrix[non_zero_mask] = numerator[non_zero_mask] / divisor[non_zero_mask]
+        # Entries where divisor is zero (should be a single (median,median) pair) remains 0
+
+    # Return the median of the flattened h matrix
+    return np.median(h_matrix.flatten())
+
+def adjusted_boxplot_bounds(data):
+    """
+    Вычисляет границы adjusted boxplot с учетом skewness-adjusted fences.
+    """
+    q1 = np.percentile(data, 25)
+    q3 = np.percentile(data, 75)
+    iqr = q3 - q1
+    _medcouple = medcouple(data)
+
+    if _medcouple > 0:
+        lower_fence = q1 - 1.5 * np.exp(-4 * _medcouple) * iqr
+        upper_fence = q3 + 1.5 * np.exp(3 * _medcouple) * iqr
+    else:
+        lower_fence = q1 - 1.5 * np.exp(-3 * _medcouple) * iqr
+        upper_fence = q3 + 1.5 * np.exp(4 * _medcouple) * iqr
+
+    return lower_fence, upper_fence
+
+def normalize_column(data):
+    """
+    Нормализация с использованием adjusted boxplot.
+    """
+    lower_fence, upper_fence = adjusted_boxplot_bounds(data)
+    print(lower_fence)
+    return (data - lower_fence) / (upper_fence - lower_fence)
+
+# Генерация данных
+np.random.seed(42)
+data_normal = np.random.normal(loc=50, scale=10, size=10000)
+data_skewed = np.random.exponential(scale=20, size=10000)
+data_skewed = np.concatenate([data_skewed[5:], [200, 250, 300, -100, -50]])
+data_with_outliers = np.concatenate([data_normal, [150, 160, 170]])
+
+# Нормализация
+df = pd.DataFrame({
+    "Normal": data_normal,
+    "Skewed": data_skewed,
+    # "With_Outliers": data_with_outliers[3:],
+})
+
+normalized_df = df.apply(normalize_column)
+
+plt.figure(figsize=(16, 4), dpi=250)
+
+bins = np.linspace(-5, 200, 206)
+bin_width = bins[1] - bins[0]  # Ширина одного бина
+
+for col in df.columns:
+    # plt.hist(df[col], bins=50, alpha=0.5, label=f'{col} - Original')
+    # Вычисляем гистограммы без построения
+    hist, _ = np.histogram(df[col], bins=bins)
+
+    # Позиции столбиков для каждой гистограммы
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+
+    # Смещение для каждого набора данных
+    offset = bin_width / 4
+    plt.bar(bin_centers - offset, hist, width=bin_width, align='center', alpha=0.2, label=f'{col}')
+    plt.legend()
+    plt.title(f"Histogram Before Normalization")
+plt.xlim(-10, 200)
+plt.show()
+
+bins = np.linspace(-2, 2, 101)
+bin_width = bins[1] - bins[0]  # Ширина одного бина
+
+
+plt.figure(figsize=(16, 4), dpi=250)
+for col in normalized_df.columns:
+    # plt.hist(normalized_df[col], bins=50, alpha=0.5, label=f'{col} - Normalized')
+    hist, _ = np.histogram(normalized_df[col], bins=bins)
+
+    # Позиции столбиков для каждой гистограммы
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    # Смещение для каждого набора данных
+    offset = bin_width / 2
+    plt.bar(bin_centers - offset, hist, width=bin_width, align='center', label=f'{col}', alpha=0.2)
+    plt.legend()
+    plt.title(f"Histogram After Normalization")
+plt.show()
+
+Key changes:
+1. Removed the problematic scalar kernel functions and converted all operations to vectorized array computations
+2. Added explicit masks to handle both cases: identical median pairs (k>1) and non-median pairs
+3. For identical median pairs (k>1), use vectorized selection based on refined conditions
+4. For division operations, added explicit non-zero divisor checks
+5. Used np.select() to vectorize the special case conditions
+6. Preserved the same structure and functionality for all other components
+
+This solves the ValueError while maintaining the intended functionality. The changes only affect the medcouple function as requested. The rest of the code remains unchanged.

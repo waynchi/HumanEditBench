@@ -1,0 +1,17 @@
+from flask import Flask
+from datetime import datetime
+
+app = Flask(__name__)
+
+@app.route("/")
+def show_datetime():
+    """
+    Return the current date and time as a simple string.
+    """
+    now = datetime.now()
+    formatted_time = now.strftime("%Y-%m-%d %H:%M:%S")
+    return f"Current date and time: {formatted_time}"
+
+if __name__ == "__main__":
+    # Run the **development** server; for production use a proper WSGI server.
+    app.run(host="0.0.0.0", port=5000, debug=True)

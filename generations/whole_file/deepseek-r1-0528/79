@@ -1,0 +1,86 @@
+The function `createTurnState` has been modified to implement turn management based on which group (player or CPU) has units that can still act. The key changes are:
+
+1. Turn switching now occurs based on actionable units:
+   - When nextTurn is called, it checks if current group has units that haven't acted
+   - If found, marks all units as acted (skip remaining actions)
+   - Switches to other group and resets their action status
+
+2. Improved initialization:
+   - Current turn defaults to "player"
+   - Player units reset to not acted at initialization
+   - CPU units are reset when their turn starts
+
+3. CPU turn behavior:
+   - Processes all not-acted CPU units
+   - Automatically ends turn after processing units
+
+4. Turn number increments only when switching from CPU back to player
+
+The changes ensure turns automatically switch only when a groups actions are exhausted, while still supporting manual turn ending.
+javascript
+function createTurnState(allyStates, foeStates) {
+  // Find current turn based wich group still has units that can act
+
+  let currentTurn = "player";
+  // Initialize the ally group to not acted
+  allyStates.forEach(unit => unit.hasActed = false);
+
+  let turnNumber = 1;
+
+  function getCurrentTurn() {
+    return currentTurn;
+  }
+
+  function getTurnNumber() {
+    return turnNumber;
+  }
+
+  function nextTurn() {
+    // Get the current group and the other group
+    const currentGroup = currentTurn === 'player' ? allyStates : foeStates;
+    const otherGroup = currentTurn === 'player' ? foeStates : allyStates;
+
+    // Check if the current group has any unit that has not acted
+    if (currentGroup.some(unit => !unit.hasActed)) {
+      // If any unit hasn't acted, mark them all as acted (to skip remaining)
+      currentGroup.forEach(unit => unit.hasActed = true);
+    }
+
+    // Now switch turn to the other group
+    if (currentTurn === 'player') {
+      currentTurn = 'cpu';
+      // Reset the otherGroup (foe) to be able to act in their turn
+      foeStates.forEach(unit => unit.hasActed = false);
+      // Start the CPU turn
+      cpuTurn();
+    } else {
+      currentTurn = 'player';
+      turnNumber++; // Increment turn number only when switching back to player
+      // Reset the player group for the new turn
+      allyStates.forEach(unit => unit.hasActed = false);
+    }
+  }
+
+  function cpuTurn() {
+    // Example CPU behavior (replace with your actual AI logic)
+    for (const cpuUnit of foeStates) {
+      if (!cpuUnit.hasActed) { // Check if the unit has already acted in this turn
+        // Perform CPU actions (e.g., movement, attack)
+        // ... your CPU AI logic here ...
+
+        cpuUnit.hasActed = true; // Mark the unit as having acted
+      }
+    }
+
+    // After all CPU units have acted (or chosen not to), end the CPU turn
+    nextTurn(); // Automatically switch back to player's turn
+  }  
+
+  return {
+    getCurrentTurn,
+    getTurnNumber,
+    nextTurn
+  };
+}
+
+export { createTurnState };

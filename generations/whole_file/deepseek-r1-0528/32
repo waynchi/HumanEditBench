@@ -1,0 +1,82 @@
+python
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+import random
+import string
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return author == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+
+q = Query()
+d = Discussions()
+posts_generator = d.get_discussions("created", q, limit=6000)
+X = 0
+
+# Iterar sobre cada post
+for post in posts_generator:
+    post_author = post['author']
+    post_permlink = post['permlink']
+    # Crear clave única para el post
+    post_key = (post_author, post_permlink)
+    # Inicializar entrada en el diccionario
+    diccionario[post_key] = {
+        'autor': post_author,
+        'permlink': post_permlink,
+        'respuestas': []  # Lista para almacenar respuestas jerárquicas
+    }
+    post_children = post['children']
+    cnt = 0
+    X += 1
+    if post_children > n_respuestas_minimas:
+        comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+        replies_list = comment.get_replies()
+        
+        cnt = 0
+        # Procesar cada respuesta
+        for reply in replies_list:
+            autor = reply['author']
+            texto = reply['body']
+            permlink = reply['permlink']
+            
+            # Crear estructura de respuesta
+            reply_data = {
+                'autor': autor,
+                'texto': texto,
+                'permlink': permlink
+            }
+            # Añadir respuesta al diccionario principal
+            diccionario[post_key]['respuestas'].append(reply_data)
+            
+            # Verificar condiciones de ruptura
+            if is_own_author(autor):
+                break
+            if is_banned(autor):
+                break
+            if procesar(texto):
+                cnt += 1
+    # Mantener lógica de impresión existente
+    if cnt > 3:
+        print("Iterador: ", X)
+        print(reply['autor'], '/', reply['permlink'])

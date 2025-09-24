@@ -1,0 +1,74 @@
+
+To enhance the `visualize_results_grid` function to accommodate 4 or more columns, I've made the following improvements:
+
+1. **Adaptive subplot grid**: Instead of a single-row layout, we now dynamically create a grid of subplots that can wrap into multiple rows when needed
+2. **Scalable colormap handling**: Added an expandable list of colormaps that automatically cycles through available options
+3. **Proper subplot management**: Added logic to hide empty subplots in the grid when the number of columns isn't a perfect multiple of our grid columns
+4. **Flexible figure sizing**: Made the figure size responsive to the number of rows needed
+
+The revised implementation handles any number of columns while maintaining the original functionality for fewer columns:
+python
+def visualize_results_grid(results_df):
+    n_cols = len(results_df.columns)
+    columns = [results_df.iloc[:, i] for i in range(n_cols)]
+    columns = [pd.to_numeric(col, errors='coerce') if not pd.api.types.is_numeric_dtype(col) else col for col in columns]
+    
+    # Deduce grid shape
+    grid_size = int(np.sqrt(len(results_df)))
+    matrices = [col.to_numpy().reshape(grid_size, grid_size) for col in columns]
+    
+    # Create subplot grid - max 3 per row
+    max_per_row = 3
+    n_rows = (n_cols + max_per_row - 1) // max_per_row
+    n_subplot_cols = min(max_per_row, n_cols)
+    
+    # Responsive figure sizing
+    fig, axes = plt.subplots(n_rows, n_subplot_cols, 
+                             figsize=(5*n_subplot_cols, 3*n_rows),
+                             squeeze=False)
+    
+    # Define colormaps with fallbacks for many columns
+    cmap_list = ["coolwarm", "viridis", "plasma", "inferno", "magma", "cividis"]
+    cmaps = [cmap_list[i % len(cmap_list)] for i in range(n_cols)]
+    
+    # Title formatting
+    titles = [
+        f"{results_df.columns[i]} (Categorical/Binary)" if i == 0 
+        else f"{results_df.columns[i]} (Continuous)" 
+        for i in range(n_cols)
+    ]
+    
+    # Plot each metric matrix
+    for idx in range(n_cols):
+        row_idx = idx // max_per_row
+        col_idx = idx % max_per_row
+        ax = axes[row_idx, col_idx]
+        
+        # Create plot and colorbar
+        im = ax.imshow(matrices[idx], cmap=cmaps[idx], interpolation="none")
+        fig.colorbar(im, ax=ax)
+        
+        # Set plot title and labels
+        ax.set_title(titles[idx])
+        ax.set_xticks(range(grid_size))
+        ax.set_yticks(range(grid_size]))
+        ax.set_xlabel("X Grid")
+        ax.set_ylabel("Y Grid")
+    
+    # Hide empty subplots
+    for idx in range(n_cols, n_rows * max_per_row):
+        row_idx = idx // max_per_row
+        col_idx = idx % max_per_row
+        axes[row_idx, col_idx].axis('off')
+
+    plt.tight_layout()
+    plt.show()
+
+The rest of the original code remains unchanged. This modified function now:
+- Creates a responsive grid layout with up to 3 plots per row
+- Automatically wraps to a new row when needed
+- Handles unlimited columns by cycling through colormaps
+- Provides proper labeling for all subplots
+- Cleans up UI by hiding empty plot slots
+- Maintains the original visual style and information for each matrix plot
+- Scales figure size proportionally to the number of rows needed

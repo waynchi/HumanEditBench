@@ -1,0 +1,33 @@
+To address the user's request to avoid R-style formulas and use a more Pythonic approach, the solution involves building the design matrix explicitly using dummy variables and then fitting the OLS model. The original two lines relying on the formula string are replaced with a direct array-based approach, while the rest of the code remains unchanged.
+
+Here's the complete implementation:
+python
+import pandas as pd
+import statsmodels.api as sm
+from statsmodels.formula.api import ols
+
+data = {
+    'Brand': ['A'] * len(brand_A) + ['B'] * len(brand_B) + ['C'] * len(brand_C),
+    'Cost': all_data
+}
+
+df = pd.DataFrame(data)
+
+# Perform ANOVA analysis using explicit design matrix
+# Create dummy variables for Brand, dropping the first level to avoid multicollinearity
+X = pd.get_dummies(df['Brand'], drop_first=True)
+# Add a constant column for the intercept
+X = sm.add_constant(X)
+# Fit OLS model using numerical arrays
+model = sm.OLS(df['Cost'], X).fit()
+anova_table = sm.stats.anova_lm(model, typ=2)
+
+# Print the ANOVA table
+print(anova_table)
+
+**Explanation of changes:**
+1. **Explicit Design Matrix**: Created using `pd.get_dummies` with `drop_first=True` to encode the categorical `Brand` variable into dummy columns (avoiding the dummy variable trap).
+2. **Added Constant**: `sm.add_constant()` explicitly adds an intercept term to the model.
+3. **OLS Model**: Fitted using `sm.OLS()` with the dependent variable (`df['Cost']`) and the design matrix (`X`).
+
+This approach eliminates the R-style formula string while maintaining identical statistical functionality. The ANOVA table calculation remains unchanged to ensure consistency with the original analysis.

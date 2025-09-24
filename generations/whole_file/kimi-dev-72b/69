@@ -1,0 +1,37 @@
+
+python
+def print_probability_matrix(self, temp=1.0, title=""):
+    """Print the probability matrix in a formatted table."""
+    with open("output.txt", "a") as file:
+        file.write(title + "\n")
+        probs = self._softmax_function(theta=self.theta, temp=temp)
+        prob_matrix = np.zeros((self.n_models, self.n_models))
+
+        # Fill the matrix
+        for idx in range(self.n_pairs):
+            i, j = self._index_to_pair(idx)
+            prob = probs[idx]
+            prob_matrix[i, j] = prob
+            prob_matrix[j, i] = prob
+
+        # Write header
+        file.write("\nProbability Matrix:\n")
+        file.write("-" * 120 + "\n")
+        header_part = "Model".ljust(30)
+        model_cols = "".join([model.rjust(10) for model in self.models])
+        file.write(header_part + model_cols + "\n")
+        file.write("-" * 120 + "\n")
+
+        # Write rows
+        for i, model1 in enumerate(self.models):
+            row_parts = [model1.ljust(30)]
+            for j, model2 in enumerate(self.models):
+                if i == j:
+                    row_parts.append(f"{'---':>10}")
+                else:
+                    row_parts.append(f"{prob_matrix[i, j]:10.3f}")
+            file.write("".join(row_parts) + "\n")
+
+        file.write("-" * 120 + "\n")
+
+    return prob_matrix

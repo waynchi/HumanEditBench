@@ -1,0 +1,111 @@
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+import numpy as np
+
+def cluster_data(features_transformed, cluster_spec, n_clusters=2, clustering_method='kmeans'):
+    """
+    Выполняет кластеризацию данных независимо для указанных наборов столбцов.
+
+    Args:
+        features_transformed (pandas.DataFrame): Преобразованный DataFrame с параметрами.
+        cluster_spec (dict or str): Если dict, ключи – имена новых колонок,
+                                    значения – кортеж/список столбцов, по которым будет
+                                    проводиться кластеризация. Если str, то используется
+                                    весь DataFrame и имя колонки задаётся этим параметром.
+        n_clusters (int or dict): Количество кластеров. Если dict, ключи – те же,
+                                  что и в ``cluster_spec``, значения – количество кластеров
+                                  для соответствующего набора столбцов.
+        clustering_method (str): Метод кластеризации ('kmeans').
+
+    Returns:
+        pandas.DataFrame: DataFrame с добавленными столбцами меток кластеров.
+    """
+    if features_transformed is None:
+        print("Сначала выполните преобразование данных (этап 5).")
+        return None
+
+    # Подготовим копию исходного DataFrame, чтобы не менять его пока
+    df = features_transformed.copy()
+
+    # Приведём спецификацию к единому формату dict
+    if isinstance(cluster_spec, dict):
+        clusters_dict = cluster_spec
+    else:
+        # Один набор столбцов – используем все числовые признаки
+        clusters_dict = {cluster_spec: tuple(df.select_dtypes(include=np.number).columns)}
+
+    # Если n_clusters задан как dict, используем его, иначе – одно значение для всех
+    if isinstance(n_clusters, dict):
+        n_clusters_dict = n_clusters
+    else:
+        n_clusters_dict = {key: n_clusters for key in clusters_dict.keys()}
+
+    if clustering_method != 'kmeans':
+        print("Неподдерживаемый метод кластеризации.")
+        return None
+
+    for new_col, cols in clusters_dict.items():
+        # Проверяем, что указанные столбцы существуют
+        missing = [c for c in cols if c not in df.columns]
+        if missing:
+            print(f"Для кластеризации '{new_col}' не найдены столбцы: {missing}. Пропускаем.")
+            continue
+
+        # Выбираем только нужные столбцы
+        features_for_clustering = df.loc[:, cols]
+
+        # Приводим к numpy массиву (KMeans умеет работать с DataFrame, но для надёжности)
+        X = features_for_clustering.values
+
+        # Количество кластеров для текущего набора
+        k = n_clusters_dict.get(new_col, 2)
+
+        # Обучаем модель
+        model = KMeans(n_clusters=k, random_state=42, n_init=10)
+        cluster_labels = model.fit_predict(X)
+
+        # Оценка качества (силуэт)
+        if len(np.unique(cluster_labels)) > 1:
+            silhouette_avg = silhouette_score(X, cluster_labels)
+            print(f"Коэффициент силуэта для '{new_col}' ({k} кластеров): {silhouette_avg:.4f}")
+        else:
+            print(f"Невозможно рассчитать коэффициент силуэта для '{new_col}' ({k} кластеров) – все точки в одном кластере.")
+
+        # Добавляем метки в исходный DataFrame
+        df[new_col] = cluster_labels
+        print(f"Кластеризация для '{new_col}' выполнена. Метки добавлены в столбец '{new_col}'.")
+
+    return df
+
+# Выполнение кластеризации (после этапа 5 и до этапа 6)
+if 'features_transformed' in locals() and features_transformed is not None:
+    # Пример словаря: {'cluster1': ('col1', 'col2'), 'cluster2': ('col3',)}
+    cluster_spec = {
+        'cluster1': ('column1', 'column2'),   # замените на реальные имена столбцов
+        'cluster2': ('column3',)              # замените на реальные имена столбцов
+    }
+    n_clusters = {
+        'cluster1': 3,
+        'cluster2': 2
+    }
+    features_transformed = cluster_data(features_transformed, cluster_spec, n_clusters)
+
+    # Визуализация кластеров (пример для случая, когда есть 2 числовых признака)
+    numerical_features = features_transformed.select_dtypes(include=np.number)
+    if numerical_features.shape[1] >= 2:
+        plt.figure(figsize=(8, 6))
+        plt.scatter(
+            numerical_features.iloc[:, 0],
+            numerical_features.iloc[:, 1],
+            c=features_transformed['cluster1'],  # пример визуализации первого кластера
+            cmap='viridis'
+        )
+        plt.xlabel(numerical_features.columns[0])
+        plt.ylabel(numerical_features.columns[1])
+        plt.title('Результаты кластеризации')
+        plt.colorbar(label='Номер кластера')
+        plt.show()
+    else:
+        print("Недостаточно числовых признаков для визуализации кластеров на плоскости.")
+else:
+    print("Сначала выполните этап 5 (Преобразование данных).")

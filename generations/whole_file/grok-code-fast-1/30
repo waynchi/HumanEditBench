@@ -1,0 +1,29 @@
+# Programa para encontrar números que podem ser expressos como a soma de quatro quadrados não nulos
+# Aparentemente o código original estava vazio, então vou implementar do zero com base na instrução.
+
+def encontrar_somas_de_quatro_quadrados_nonzeros(limite):
+    """
+    Encontra todos os números até 'limite' que podem ser expressos como
+    a soma de quatro quadrados não nulos (não incluindo zero).
+    
+    Retorna uma lista de tais números.
+    """
+    resultados = []
+    for x in range(1, 100):  # Quadrado mínimo 1^2 = 1
+        for y in range(1, 100):
+            for z in range(1, 100):
+                for w in range(1, 100):
+                    soma = x**2 + y**2 + z**2 + w**2
+                    if soma <= limite and soma not in resultados:
+                        resultados.append(soma)
+    resultados.sort()
+    return [num for num in resultados if num > 0]  # Garantir que não haja zeros
+
+def main():
+    limite = 100  # Exemplo de limite
+    print("Números até", limite, "que podem ser expressos como a soma de quatro quadrados não nulos:")
+    resultados = encontrar_somas_de_quatro_quadrados_nonzeros(limite)
+    print(resultados)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,96 @@
+import random
+import logging
+import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.common.exceptions import NoSuchElementException, WebDriverException, TimeoutException
+
+
+class SearchModule:
+    def __init__(self, driver, config):
+        self.driver = driver
+        self.config = config
+        self.search_engine = config.get('Search', 'search_engine')
+        self.queries = [q.strip() for q in config.get('Search', 'queries').split(',') if q.strip()]
+        self.random_query = config.getboolean('Search', 'random_query')
+
+    def perform_search(self):
+        """Perform a search on the configured search engine safely."""
+        # Choose a query, guard against empty list
+        try:
+            query = random.choice(self.queries) if self.random_query else self.queries[0]
+        except IndexError:
+            logging.error("No queries provided in configuration.")
+            return
+
+        logging.info(f"Performing search with query: {query}")
+
+        try:
+            if self.search_engine.lower() == 'google':
+                self.driver.get("https://www.google.com")
+                search_box = self.driver.find_element(By.NAME, "q")
+            elif self.search_engine.lower() == 'yandex':
+                self.driver.get("https://ya.ru")
+                search_box = self.driver.find_element(
+                    By.CSS_SELECTOR, 'input[placeholder="Найдётся всё"]')
+            elif self.search_engine.lower() == 'bing':
+                self.driver.get("https://www.bing.com")
+                search_box = self.driver.find_element(By.NAME, "q")
+            else:
+                logging.error("Unsupported search engine.")
+                return
+        except (WebDriverException, NoSuchElementException) as e:
+            logging.warning(
+                f"Failed to load search page or locate search box for {self.search_engine}: {e}")
+            return
+
+        # Try to send the query; protect against element becoming stale or other errors
+        try:
+            search_box.send_keys(query + Keys.RETURN)
+        except (WebDriverException, NoSuchElementException) as e:
+            logging.warning(f"Unable to type the query into the search box: {e}")
+            return
+
+        # Small pause to let results load; ignore interruptions
+        time.sleep(random.uniform(2, 4))
+
+    def navigate_random_link(self):
+        """Navigate to a random result link from the previous search safely."""
+        logging.info("Navigating to a random search result link.")
+
+        try:
+            if self.search_engine.lower() == 'google':
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'div.yuRUbf > a')
+            elif self.search_engine.lower() == 'yandex':
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'a.link')
+            elif self.search_engine.lower() == 'bing':
+                links = self.driver.find_elements(By.CSS_SELECTOR, 'li.b_algo h2 a')
+            else:
+                logging.error("Unsupported search engine.")
+                return
+        except WebDriverException as e:
+            logging.warning(f"Error while locating result links: {e}")
+            return
+
+        if not links:
+            logging.warning("No links found on the search results page.")
+            return
+
+        try:
+            random_link = random.choice(links)
+            href = random_link.get_attribute('href')
+            if not href:
+                raise ValueError("Selected link does not contain an href attribute.")
+        except (IndexError, ValueError) as e:
+            logging.warning(f"Failed to select a valid link: {e}")
+            return
+
+        logging.info(f"Navigating to: {href}")
+
+        try:
+            self.driver.get(href)
+        except (WebDriverException, TimeoutException) as e:
+            logging.warning(f"Failed to navigate to the selected link: {e}")
+            return
+
+        time.sleep(random.uniform(3, 6))  # Ожидание загрузки страницы

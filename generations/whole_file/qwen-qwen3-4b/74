@@ -1,0 +1,2 @@
+    # Ensure similarity_map is float32 and on the CPU before using numpy operations
+    similarity_map_cpu = similarity_map.to(dtype=torch.float32).cpu().numpy() if not isinstance(similarity_map, np.ndarray) else similarity_map

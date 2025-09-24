@@ -1,0 +1,151 @@
+import os
+import random
+import torch
+from torchvision import transforms
+from datasets import load_dataset
+from PIL import Image
+import numpy as np
+
+
+class AlignmentDatasetCreator:
+    def __init__(self, sample_size=1000):
+        self.sample_size = sample_size
+        self.transform = transforms.Compose(
+            [
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485,.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
+        )
+
+    def create_unrelated_pairs(self, image_text_pairs):
+        """Creates unrelated image‑text pairs by shuffling the text descriptions."""
+        images, texts = zip(*image_text_pairs)
+        shuffled_texts = list(texts)
+        random.shuffle(shuffled_texts)
+        return list(zip(images, shuffled_texts))
+
+    def create_textual_pairs(self, dataset_name="quora"):
+        """Creates semantically similar text pairs using paraphrase datasets."""
+        dataset = load_dataset(dataset_name, split=f"train[:{self.sample_size}]")
+        textual_pairs = []
+        for item in dataset:
+            if item.get("is_duplicate") == 1:
+                pair = (item["question1"], item["question2"])
+                textual_pairs.append(pair)
+        return textual_pairs[: self.sample_size]
+
+    def create_visual_pairs(self, image_text_pairs):
+        """Creates augmented image pairs while maintaining semantic meaning."""
+        augmentation_transforms = transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(p=1.0),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2),
+                transforms.RandomRotation(15),
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+                ),
+            ]
+        )
+
+        visual_pairs = []
+        for image_path, _ in image_text_pairs:
+            # `image_path` is a string that points to the local image file.
+            if isinstance(image_path, str) and os.path.isfile(image_path):
+                try:
+                    image = Image.open(image_path).convert("RGB")
+                    augmented = augmentation_transforms(image)
+                    visual_pairs.append((image_path, augmented))
+                except Exception as e:
+                    # If an image cannot be opened, skip it but keep the process alive.
+                    print(f"Warning: could not process image {image_path}: {e}")
+        return visual_pairs
+
+    def load_mscoco_dataset(self):
+        """
+        Loads and preprocesses the MSCOCO dataset without eagerly loading the
+        actual image files (which can cause FileNotFoundError when using the
+        streaming mode).  Instead, we keep the local image file paths and
+        select the longest caption as the textual label.
+        """
+        # Load the dataset in non‑streaming mode so that image files are
+        # downloaded to the cache but not opened automatically.
+        dataset = load_dataset(
+            "shunk031/MSCOCO",
+            year=2014,
+            coco_task="captions",
+            split="train",
+            download_mode="reuse_dataset_if_exists",  # avoid re‑downloading
+        )
+
+        # Limit to the requested number of samples.
+        dataset = dataset.select(range(min(self.sample_size, len(dataset))))
+
+        image_text_pairs = []
+        for item in dataset:
+            # `item["captions"]` is a list of dicts like {"text": "..."}.
+            # Choose the longest caption (by word count) as the label.
+            if not item.get("captions"):
+                continue
+            # Extract plain strings from the caption dicts.
+            caption_texts = [
+                cap["text"] if isinstance(cap, dict) else str(cap)
+                for cap in item["ions"]
+            ]
+            best_caption = max(caption_texts, key=len)
+            if len(best_caption.split()) < 5:  # filter out very short captions
+                continue
+
+            # `item["image"]` for the Image feature is a dict containing
+            # the local file path (e.g., {"path": "..."}).  Keep only the path.
+            image_info = item["image"]
+            if isinstance(image_info, dict) and "path" in image_info:
+                image_path = image_info["path"]
+            else:
+                # Fallback – sometimes the feature may already be a string.
+                image_path = str(image_info)
+
+            image_text_pairs.append((image_path, best_caption))
+
+            if len(image_text_pairs) >= self.sample_size:
+                break
+
+        return image_text_pairs
+
+
+def main():
+    # Initialize dataset creator
+    creator = AlignmentDatasetCreator(sample_size=100)
+
+    # Load and create datasets
+    print("Loading MSCOCO dataset...")
+    image_text_pairs = creator.load_mscoco_dataset()
+
+    print("Creating unrelated pairs...")
+    unrelated_pairs = creator.create_unrelated_pairs(image_text_pairs)
+
+    print("Creating textual pairs...")
+    textual_pairs = creator.create_textual_pairs()
+
+    print("Creating visual pairs...")
+    visual_pairs = creator.create_visual_pairs(image_text_pairs)
+
+    # Print sample from each dataset
+    print("\nDataset Samples:")
+    if image_text_pairs:
+        print(f"Image‑Text Pair: {image_text_pairs[0]}")
+    if unrelated_pairs:
+        print(f"Unrelated Pair: {unrelated_pairs[0]}")
+    if textual_pairs:
+        print(f"Textual Pair: {textual_pairs[0]}")
+    if visual_pairs:
+        # visual_pairs contains a tensor, so we only show the path.
+        print(f"Visual Pair (path, tensor shape): ({visual_pairs[0][0]}, {visual_pairs[0][1].shape})")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,675 @@
+◁think▷Okay, I need to modify the colorbar in the visualize_token_map function so that the displayed values match the text on the raw map. Let me look at the original code.
+
+The user pointed out the section where the colorbar is added. The original code uses plt.cm.ScalarMappable(cmap=cmap) to create the colorbar. But the problem is that the ScalarMappable isn't using the actual data from the map, so the colorbar's values might not correspond to the annotated values.
+
+Wait, the raw map (visual_map) has values that are annotated. The overlay uses the resized_map, but the colorbar should reflect the range of the visual_map's values. So the ScalarMappable should be created with the data from the visual_map to get the correct scaling.
+
+So instead of just using the cmap, I need to create a ScalarMappable that uses the same data as the image displayed in the overlay. The colorbar should show the actual values from the visual_map, not just the cmap's range. 
+
+The original code for the colorbar is:
+cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+
+But this only sets the cmap. To get the correct values, we need to pass the norm (scaling) based on the visual_map's data. Alternatively, maybe using the same data as the image. Wait, the colorbar is for the resized_map, which is the visual_map resized to the image's dimensions. But the raw map (visual_map) is displayed as an image in axes[1], and the overlay uses resized_map. However, the colorbar should correspond to the values in the resized_map.
+
+Wait, but the resized_map is created by resizing the visual_map using NEAREST. So the values in resized_map are the same as in visual_map. The colorbar for the overlay (axes[2]) should represent the values of the resized_map. Therefore, when adding the colorbar, it should be based on the data in the resized_map.
+
+But how is the resized_map displayed? The overlay does axes[2].imshow(resized_map, cmap=cmap, alpha=0.6). The colorbar should reflect the values in the resized_map. However, when using im = axes[1].imshow(visual_map, cmap=cmap), the colorbar can be created with im. But in the overlay, the resized_map is displayed, so perhaps the colorbar should be based on that.
+
+Wait, in the overlay, the imshow is called with resized_map and cmap=cmap. So the colorbar should be created using the same normalization as the imshow. But the original code for the colorbar is using ScalarMappable which doesn't have the data. So the colorbar isn't connected to the data in the imshow, leading to incorrect scaling.
+
+So the correct approach is to first add the imshow to the axes[2], get the corresponding image object, and then create the colorbar based on that. But in the current code, the imshow for the overlay is done with resized_map. The colorbar should be added using that image data. However, when using plt.cm.ScalarMappable, it might not capture the actual data's min and max. Therefore, the colorbar might not show the correct range.
+
+Wait, the colorbar is created with ScalarMappable(cmap=cmap), which uses the default norm. The norm for the imshow in axes[2] is automatically scaled to the data. But when creating a separate colorbar, it's not using that norm. So thecolorbar may show a different range, especially if the data has a different range than default.
+
+So the fix is to create the ScalarMappable with the same data as the imshow in axes[2]. But how to do that? Maybe we can capture the norm when plotting the resized_map and use that for the colorbar.
+
+Wait, when you call imshow, it returns an image object which has a norm. So maybe after plotting the resized_map, we can get the norm from the image object and use that for the colorbar.
+
+But in the current code, the overlay is plotted with:
+
+axes[2].imshow(image_np, alpha=1)
+axes[2].imshow(resized_map, cmap=cmap, alpha=0.6)
+
+So the second imshow (resized_map) is the one determining the color. So the colorbar should be based on that. But the code for the colorbar is:
+
+cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+
+But this ScalarMappable doesn't have the norm from the data. So the colorbar's range is between 0 and 1, while the actual data may have a different range. Therefore, the solution is to create the ScalarMappable with the norm that matches the data in resized_map.
+
+To do that, perhaps we can compute the min and max of the resized_map, create a Normalize object, and use that in the ScalarMappable.
+
+So, first, calculate the vmin and vmax from the resized_map:
+
+vmin = resized_map.min()
+vmax = resized_map.max()
+
+Then create a Normalize object:
+
+from matplotlib.colors import Normalize
+norm = Normalize(vmin=vmin, vmax=vmax)
+
+Then the ScalarMappable would be:
+
+plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+
+But how to apply this in the code?
+
+Looking at the original code:
+
+The overlay uses:
+
+axes[2].imshow(resized_map, cmap=cmap, alpha=0.6)
+
+So the imshow automatically scales the data. If we want the colorbar to match, we can capture the norm from this imshow. But how?
+
+Alternatively, when creating the colorbar, instead of using a new ScalarMappable, use the image object from the imshow. But in the code, the imshow is called twice on axes[2] (once for image_np and once for resized_map). But the second imshow (resized_map) is transparent, but the color comes from that. So the colorbar should correspond to the resized_map's data.
+
+But since the code uses imshow twice, maybe the colorbar should be linked to the second imshow's data. However, when you plot two images on the same axes, the colorbar is associated with the last one. But in this case, the first imshow is image_np (probably RGB), and the second is resized_map with alpha=0.6. So the colorbar is for the resized_map.
+
+Therefore, the correct way is to create the colorbar using the resized_map's data. To do this, perhaps we can create an image object for the resized_map and then use that for the colorbar. But in the code, the colorbar is added after the imshow calls. Let me see:
+
+The code for axes[2] is:
+
+axes[2].imshow(image_np, alpha=1)
+axes[2].imshow(resized_map, cmap=cmap, alpha=0.6)
+...
+
+Then adding the colorbar:
+
+cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+
+But the problem is that the colorbar is not linked to the actual data being shown. So the colorbar's range may not match the values in the resized_map. To fix this, the ScalarMappable should be created with the same normalization as the imshow call for resized_map. 
+
+The imshow for resized_map would have a default norm that scales the data between min and max. So, in the code, the colorbar should use that same norm. However, since the ScalarMappable is created without norm, it uses linear scaling from 0 to 1. So the colorbar's ticks would be 0 to 1, but the actual data may have higher values. 
+
+Wait, let's think: the resized_map is the visual_map resized. The visual_map is the original map (from the model), which is a tensor. Suppose the values are between -1 and 1, but when displayed, the cmap is applied. Wait, but when you call imshow with a 2D array, the values are scaled between their min and max, unless you specify vmin and vmax.
+
+Wait, no. The default for imshow is to scale the data between min and max, but the color mapping is from 0 to 1. Wait, no. The colormap is applied based on the data values, with the norm determining how the values are mapped into the 0-1 range. The default norm is LinearSegmentedColormap, which maps the data linearly between min and max. So if the resized_map has values between a and b, then the colormap is applied such that a corresponds to 0 in the colormap and b to 1. The colorbar, when added to that image, would show the correct range.
+
+But in this case, the code for the colorbar is added not to the image, but to the axes. But the way the colorbar is created in the code is by creating a new ScalarMappable which is not linked to any data. So the colorbar's range would be from 0 to 1, which is the default for the ScalarMappable. But the actual data in the resized_map may have different min and max. So the colorbar's values would not match the annotations in the raw map.
+
+So the problem is that the colorbar in the overlay is showing 0 to 1, but the actual values in the resized_map (and the annotations in the raw map) are different. For example, if the visual_map has values between 0.5 and 1.0, the annotations in the raw map would show 0.5 to 1.0, but the colorbar in the overlay would show 0 to 1, which is incorrect.
+
+To fix this, the colorbar should reflect the actual data values from the resized_map. Therefore, when creating the colorbar, the ScalarMappable should use the same norm as the imshow call for the resized_map. 
+
+So the solution is to compute the min and max of the resized_map, create a Normalize object with those values, and pass it to the ScalarMappable. Then the colorbar's ticks would be between the min and max of the resized_map, matching the annotations in the raw map.
+
+So modifying the code:
+
+First, calculate vmin and vmax:
+
+vmin = np.min(resized_map)
+vmax = np.max(resized_map)
+
+Then import Normalize from matplotlib.colors:
+
+from matplotlib.colors import Normalize
+
+Then create the norm:
+
+norm = Normalize(vmin=vmin, vmax=vmax)
+
+Then create the ScalarMappable with the norm:
+
+sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+
+Then create the colorbar from this ScalarMappable:
+
+cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+
+This way, the colorbar's range is from vmin to vmax, which matches the data in the resized_map, and the annotations in the raw map.
+
+So the code section to change is:
+
+Original:
+
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+Modified:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But wait, we need to import numpy as np. But in the existing code, there's already an import numpy as np. Let me check:
+
+Looking at the original code in the function visualize_token_map, there's a line:
+
+import numpy as np
+
+Yes, so adding the vmin, vmax calculation and norm should work.
+
+So the revised code for the colorbar section would be:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But wait, the user's instruction is to change that specific section, and leave the rest of the code unchanged. So in the original code, the function visualize_token_map is defined, and the problem is in that section.
+
+In the original code, after the loop that annotates the heatmap, there's:
+
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+    # Add a title with the token name
+    plt.suptitle(f"Token: {token_list[token_index]}")
+
+So replacing that section with code that computes vmin, vmax from resized_map, creates a norm, and uses that in the ScalarMappable.
+
+But wait, in the code, the resized_map is created by:
+
+    resized_map = np.array(visual_map_pil)
+
+But visual_map_pil is the visual_map resized to the image's dimensions. The visual_map is the original map (from the model's output). If the model's output is in a certain range (like -1 to 1 or 0 to 1), then the visual_map may have values in that range. However, when the visual_map is converted to a PIL image and then back to a numpy array, the data type might change. For example, if the original visual_map is a float tensor, when saved as a PIL image and then converted back to a numpy array, the values might be scaled to 0-255 if the mode is 'L' (grayscale). Wait, but in the code, when creating visual_map_pil, it's done with Image.fromarray(visual_map). So the visual_map must be in a format compatible with PIL. For example, if visual_map is a float array between 0 and 1, then when converted to a PIL image, it's stored as 0-255. But if it's between -1 and 1, then converting to PIL might not work, and the resized_map would have values that are integers. So in that case, the vmin and vmax would be based on the rescaled values, not the original. 
+
+However, the problem is that the annotations in the raw map are based on the original visual_map's values. So if the visual_map has values between -1 and 1, but when resized and converted to a PIL image, those values are scaled to 0-255, then the resized_map's values are not the same as the original. Therefore, the colorbar's values would not match the annotations. 
+
+Wait, but the code for the annotations is:
+
+    for i in range(visual_map.shape[0]):
+        for j in range(visual_map.shape[1]):
+            text = axes[1].text(j, i, f"{visual_map[i, j]:.2f}",
+                           ha="center", va="center", color="w" if visual_map[i, j] > visual_map.max() / 2 else "black")
+
+So the annotations use the original visual_map's values. However, when resized_map (which is visual_map resized using NEAREST) is used in the overlay, the values in resized_map are still the same as in visual_map because NEAREST resampling just repeats the same values. Wait, no. If the visual_map is a numpy array of shape (H', W'), and when resized to (H, W) using NEAREST, each pixel in the resized_map is one of the original values from visual_map. So the unique values in resized_map should be a subset of those in visual_map. Therefore, the min and max of resized_map are the same as visual_map's min and max. Therefore, when we compute vmin and vmax from resized_map, they are the same as those from visual_map. 
+
+But wait, when you resize using NEAREST, you are halving the image size. Wait, actually, in the code:
+
+visual_map_pil = visual_map_pil.resize((image_np.shape[1], image_np.shape[0]), Image.NEAREST)
+
+But if the original visual_map is, say, 14x14, and the image is 224x224, then resizing with NEAREST would repeat each pixel 16 times. So each value in visual_map becomes a 4x4 block in resized_map. Therefore, the unique values in resized_map are the same as in visual_map. Therefore, the min and max of resized_map are the same as those of visual_map. 
+
+But when we convert a numpy array to a PIL image, does that affect the values? Let's look at the code:
+
+visual_map_pil = Image.fromarray(visual_map)
+
+But Image.fromarray requires that the array is in a valid format. If visual_map is a float array with values between 0 and 1, then Image.fromarray may not work. Wait, no. The Image.fromarray function expects the array to have integer values in 0-255 for mode 'L'. If the array is float values between 0 and 1, then converting it directly would result in an array where each value is multiplied by 255. For example, 0.5 would become 127.5, but since the array is float, it's stored as such. However, when converting to a PIL image, if the mode is not specified, it's inferred. For a float32 array, the mode is 'F', which is 32-bit floating-point. But when saving to an image, that's not common. However, in the code, when visual_map is a tensor from the model, it's possible that after converting to a numpy array, it's scaled between 0 and 1. 
+
+But this part may complicate the code. So the problem is that when the visual_map is converted to a PIL image and then back to a numpy array, the values may be scaled. For example, if the original values are between 0 and 1, but the PIL image is saved in mode 'L' (8-bit), then the values are scaled to 0-255. Then when converted back to numpy, they are integers. But the annotations used the original values. So this would create a discrepancy between the annotations and the colorbar.
+
+But this depends on how the visual_map is generated. The code shows that the original_maps is obtained via get_similarity_maps_from_embeddings, which may return values in a certain range. Suppose that the similarity maps are between 0 and 1. Then visual_map is a numpy array with values between 0 and 1. However, when converting to a PIL image using Image.fromarray, if the mode is not specified, the code may raise an error. For example, if visual_map is a numpy array of floats between 0 and 1, then Image.fromarray(visual_map) would infer the mode as 'F', which is 32-bit float. But when resizing, this mode may not be supported. So perhaps the code scales the visual_map to 0-255 before converting to a PIL image. 
+
+But in the current code, the code uses:
+
+visual_map_pil = Image.fromarray(visual_map)
+
+Which could be problematic. If the visual_map has values between -1 and 1, then converting to a PIL image would result in invalid values. So perhaps the code has already scaled the visual_map to 0-255. But the user hasn't provided that part. However, for the purpose of this problem, we need to make sure that the colorbar's range matches the annotations. The annotations are based on visual_map's values, which are floats. But the resized_map is obtained by resizing visual_map_pil (a PIL image) back to a numpy array. So if during this process, the visual_map's values are scaled to 0-255, then the annotations (which use original visual_map's values) would show, say, 0.5, but the colorbar would show 127.5. 
+
+But this seems like a flaw in the code. However, the user's instruction is to modify the colorbar code so that the displayed values are the same as the text on the raw map. The text on the raw map is based on the original visual_map's values. Therefore, the colorbar should use those values. 
+
+But if the resized_map is created by first converting the visual_map to a PIL image, then resizing, and then converting back to a numpy array, but during this process, the values are altered (e.g., scaled to 0-255), then the resized_map's values would not match the annotations. 
+
+In that case, the solution would be to use the original visual_map's values for the colorbar. But since the overlay is showing the resized_map, which may have different values, there's a conflict. 
+
+Alternatively, perhaps the visual_map is already in a 0-255 scale, so the annotations and the colorbar would match. But without knowing how the similarity_maps are generated, it's hard to say. 
+
+But given the user's instruction, the correct approach is to make sure that the colorbar's range is the same as the values in the raw map. The raw map is displayed in axes[1], and the annotations show the visual_map's values. The overlay uses the resized_map. 
+
+So if the resized_map has the same values as the visual_map (e.g., if the resize is done via interpolation but maintaining the values), then the min and max of resized_map would be the same as visual_map's, and using them for the colorbar would be correct. 
+
+But given that the code uses Image.NEAREST for resizing, which preserves the original values (each pixel in the resized image is the same value as the corresponding pixel in the original), the resized_map's min and max are the same as visual_map's. Therefore, using the min and max of resized_map for the colorbar would make the colorbar's range match the annotations. 
+
+But wait, the annotations are based on the original visual_map's values, and the resized_map is created by resizing the visual_map. So if the visual_map's values are between 0.1 and 0.9, then the resized_map would have the same values, but in a larger array. Therefore, the min and max of resized_map would be the same as visual_map's. 
+
+So the colorbar's range should be set to the same min and max as the annotations. To do this, compute vmin and vmax from the visual_map (the original data), not from the resized_map. 
+
+Wait, but the overlay uses the resized_map. If the resizing process does not change the values, then the colorbar based on resized_map would be correct. But if, for example, during resizing, the values are quantized, then the colorbar might show a different range. 
+
+But given the code's current structure, the correct way is to use the same vmin and vmax for both the annotations and the colorbar. 
+
+In the original code, the annotations are generated with:
+
+text = axes[1].text(j, i, f"{visual_map[i, j]:.2f}",...)
+
+So the values are the original visual_map's values. 
+
+The overlay shows the resized_map with a colormap. The colorbar should reflect the same range as the original visual_map. 
+
+But if the resized_map is just a scaled version of the visual_map (without changing values), then the min and max would be the same. 
+
+Therefore, the solution is to calculate vmin and vmax from the visual_map, and use those for both the annotations and the colorbar. 
+
+But in the code provided, the colorbar is added to the overlay, which uses the resized_map. 
+
+But to make sure the colorbar's values are the same as the annotations, we need to use the same vmin and vmax as in the raw map. 
+
+So in the code for axes[1], when displaying the visual_map, the code does:
+
+im = axes[1].imshow(visual_map, cmap=cmap)
+
+So the imshow automatically scales the data between min and max. The annotations are based on those same values. 
+
+But the overlay uses resized_map and the same cmap. But if the resized_map's values are the same as visual_map's (since resizing with NEAREST doesn't change values), then the colorbar should have the same range. 
+
+But the code for the colorbar is using a ScalarMappable without passing vmin and vmax, so the colorbar's range is from 0 to 1 (the default norm). But the actual data in the resized_map may have a different range. 
+
+Therefore, the fix is to set the vmin and vmax of the colorbar to the same as those from the visual_map. 
+
+So in the code, after computing the visual_map, we can calculate vmin and vmax as the min and max of visual_map. Then, when adding the colorbar, use those values to set the norm. 
+
+But the problem is that the code for the colorbar is in the overlay section, which is after the visual_map is resized and converted to an image. 
+
+Therefore, the best approach is to compute vmin and vmax from the visual_map before resizing. Then, when adding the colorbar to the overlay, use those vmin and vmax. 
+
+But the code for the colorbar is in the overlay section, which is after the resizing. 
+
+So here's the plan:
+
+- In the code where the visual_map is processed, calculate vmin and vmax as the min and max of visual_map.
+
+- When displaying the raw map (axes[1]), set vmin and vmax to those values.
+
+- When displaying the resized_map (axes[2]), also set vmin and vmax to those values.
+
+- Then, create the colorbar using the same vmin and vmax.
+
+But in the current code, the axes[1].imshow is called without specifying vmin and vmax, so it uses the data's min and max. But when we plot the resized_map, we need to make sure that the same vmin and vmax are used. 
+
+But the code for the resized_map in the overlay is:
+
+axes[2].imshow(resized_map, cmap=cmap, alpha=0.6)
+
+This would scale the image based on the resized_map's min and max. But if during resizing, the min and max remain the same, then the scaling is the same. 
+
+But when adding the colorbar, we need to make sure that the colorbar's range matches the original visual_map's min and max. 
+
+So to ensure that the colorbar's values match the annotations, we need to compute vmin and vmax from the visual_map (before resizing) and use those for both the raw map's imshow, the overlay's imshow, and the colorbar. 
+
+So modifying the code:
+
+First, compute vmin and vmax from the visual_map:
+
+vmin = np.min(visual_map)
+vmax = np.max(visual_map)
+
+Then, in the raw map's imshow:
+
+im = axes[1].imshow(visual_map, cmap=cmap, vmin=vmin, vmax=vmax)
+
+In the overlay's imshow:
+
+axes[2].imshow(resized_map, cmap=cmap, alpha=0.6, vmin=vmin, vmax=vmax)
+
+Then, create the colorbar using the same vmin and vmax.
+
+But this requires passing vmin and vmax to all the imshow calls and the colorbar. However, the user's problem is that the colorbar in the overlay is showing a different range than the annotations. 
+
+So modifying the code in the visualize_token_map function:
+
+When plotting the raw map:
+
+    # Display the raw map with annotations
+    im = axes[1].imshow(visual_map, cmap=cmap)
+    axes[1].set_title("Raw Map")
+    axes[1].axis("off")
+
+But wait, in the original code, the code for axes[1] is:
+
+    im = axes[1].imshow(visual_map, cmap=cmap)
+    axes[1].set_title("Raw Map")
+    axes[1].axis("off")
+
+    # Annotate the heatmap
+    for i in range(visual_map.shape[0]):
+        for j in range(visual_map.shape[1]):
+            text = axes[1].text(j, i, f"{visual_map[i, j]:.2f}",
+                           ha="center", va="center", color="w" if visual_map[i, j] > visual_map.max() / 2 else "black")
+
+So the annotations are based on the visual_map's values. The colorbar in the overlay should have the same range as the visual_map's values. 
+
+But when adding the colorbar, the code currently uses:
+
+cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], ...)
+
+Which creates a colorbar from 0 to 1, assuming that the data is in that range. But the visual_map's values might be outside that range. 
+
+Therefore, to match the colorbar's range to the visual_map's values, we need to set the vmin and vmax of the ScalarMappable to the min and max of the visual_map. 
+
+But how do we get the min and max of visual_map? 
+
+In the code, we have:
+
+    # Convert visual_map to NumPy array if it's a tensor
+    if isinstance(visual_map, torch.Tensor):
+        visual_map = visual_map.cpu().to(dtype=torch.float32).numpy()
+    elif not isinstance(visual_map, np.ndarray):
+        visual_map = np.array(visual_map)
+
+So visual_map is now a numpy array. 
+
+So we can compute vmin and vmax as:
+
+vmin = np.min(visual_map)
+vmax = np.max(visual_map)
+
+Then, when adding the colorbar, create a norm with those values. 
+
+But the code for the colorbar is in the overlay section. So after computing the vmin and vmax, we can proceed. 
+
+But how is the resized_map's data related to this? 
+
+If the resizing process doesn't alter the values (like using NEAREST resampling), then the min and max of resized_map would be the same as visual_map. But if the resizing uses a different method that interpolates, then the min and max could change. 
+
+But given that the code uses Image.NEAREST, the values remain the same. 
+
+Therefore, the vmin and vmax can be computed from visual_map. 
+
+So modifying the code:
+
+In the visualize_token_map function:
+
+    # Convert visual_map to NumPy array if it's a tensor
+    if isinstance(visual_map, torch.Tensor):
+        visual_map = visual_map.cpu().to(dtype=torch.float32).numpy()
+    elif not isinstance(visual_map, np.ndarray):
+        visual_map = np.array(visual_map)
+
+    # Compute vmin and vmax for consistent color scaling
+    vmin, vmax = np.min(visual_map), np.max(visual_map)
+
+    # Convert map to a PIL image
+    visual_map_pil = Image.fromarray(visual_map)
+
+    # Resize using NEAREST to keep "big pixels"
+    visual_map_pil = visual_map_pil.resize(
+        (image_np.shape[1], image_np.shape[0]),  # (width, height)
+        resample=Image.NEAREST
+    )
+
+    # Convert back to NumPy
+    resized_map = np.array(visual_map_pil)
+
+    # Create a figure with subplots
+    fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+
+    # ... (other code)
+
+    # Display the raw map with annotations
+    im = axes[1].imshow(visual_map, cmap=cmap, vmin=vmin, vmax=vmax)
+    axes[1].set_title("Raw Map")
+    axes[1].axis("off")
+
+    # Annotate the heatmap
+    for i in range(visual_map.shape[0]):
+        for j in range(visual_map.shape[1]):
+            text_val = f"{visual_map[i, j]:.2f}"
+            # Ensure text is readable by adjusting color based on the value
+            color = "w" if visual_map[i, j] > (vmax - vmin) / 2 else "black"
+            text = axes[1].text(j, i, text_val, ha="center", va="center", color=color)
+
+    # ... (overlay)
+
+    # Display the overlay plot
+    axes[2].imshow(image_np, alpha=1)
+    axes[2].imshow(resized_map, cmap=cmap, alpha=0.6, vmin=vmin, vmax=vmax)
+    axes[2].set_title("Overlay: Image + Map")
+    axes[2].axis("off")
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But wait, the user's instruction is to modify the highlighted section. So the original code's colorbar section is:
+
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+The user wants the colorbar's values to match the annotations. 
+
+So the fix is to compute vmin and vmax from the visual_map (the original data used in the annotations), then create the ScalarMappable with those vmin and vmax. 
+
+But how to get vmin and vmax?
+
+In the code, before adding the colorbar, compute vmin and vmax from the visual_map. 
+
+Wait, but the visual_map is available earlier in the code. Let's check:
+
+In the function visualize_token_map:
+
+- After processing the image and getting the visual_map (original_maps), the code proceeds to show the plots.
+
+So inside the function, after:
+
+    visual_map = original_maps[token_index]
+
+    # Convert visual_map to NumPy array if it's a tensor
+    if isinstance(visual_map, torch.Tensor):
+        visual_map = visual_map.cpu().to(dtype=torch.float32).numpy()
+    elif not isinstance(visual_map, np.ndarray):
+        visual_map = np.array(visual_map)
+
+    # Convert map to a PIL image
+    visual_map_pil = Image.fromarray(visual_map)
+
+Here, the visual_map is a numpy array. So the min and max can be computed here. 
+
+So:
+
+vmin = np.min(visual_map)
+vmax = np.max(visual_map)
+
+Then, when plotting the raw map (axes[1]), use vmin and vmax. 
+
+    im = axes[1].imshow(visual_map, cmap=cmap, vmin=vmin, vmax=vmax)
+
+But in the original code, the imshow for the raw map is called without vmin and vmax, so it uses the data's min and max. But this is correct, because vmin and vmax are the same as the data's. 
+
+But the problem is in the overlay. The overlay uses the resized_map, but if the resizing doesn't change the min and max, then the same vmin and vmax apply. 
+
+But when adding the colorbar, the code must use the same vmin and vmax. 
+
+But the code for the colorbar is:
+
+cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+
+Which uses the default norm. So to fix this, the code should create the ScalarMappable with the norm set to vmin and vmax. 
+
+So modifying the code within the colorbar section:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But wait, if the resizing process doesn't change the min and max (as in NEAREST resampling), then vmin and vmax from resized_map would be same as from visual_map. But if it does change, then the colorbar's range would match the resized_map's data. 
+
+But the annotations are based on visual_map's values. So if the resizing changes the min and max, the colorbar's range would not match the annotations. 
+
+But given that the resizing is done with NEAREST, the min and max remain the same. So it's safe. 
+
+Therefore, the fix is to compute vmin and vmax from the resized_map and use that for the colorbar. 
+
+So in the code:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+This way, the colorbar's range matches the resized_map's data, which is the same as the visual_map's data, as the resizing preserves the values. 
+
+But wait, the original code uses the code for the colorbar without this, and the user's report is that the values on the colorbar are not matching the annotations. So this fix should resolve that. 
+
+Therefore, the code to replace the original is:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But also, in the code, the resized_map is an integer array if it was converted via PIL. Because when you resize the visual_map_pil (which might have been converted from float values between 0 and 1, but PIL expects 0-255 for mode 'L'). Wait, maybe there's a mistake here. 
+
+For example, if visual_map is a float array between 0 and 1, then when converted to a PIL image with Image.fromarray(visual_map), PIL will not accept that, since 'F' mode is required for float32. But if the code uses mode='F', then resizing is possible. But I'm not sure. 
+
+Alternatively, if the visual_map is a float array between 0 and 1, and it's converted to a PIL image without specifying a mode, it might fail. But the code seems to work, so perhaps the visual_map is already scaled to 0-255 and is of integer type. 
+
+But if that's not the case, then the colorbar's values may not match the annotations. 
+
+But given the user's instruction to modify the colorbar section, the code change is to compute vmin and vmax from resized_map and use them in the ScalarMappable. 
+
+Therefore, the correct code replacement is:
+
+Original code:
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+Modified code:
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+This ensures that the colorbar's range is set to the min and max of the resized_map, which should match the annotations if the resizing preserves the values. 
+
+But the user also mentioned that the displayed values should be the same as the text displayed on the raw map. Therefore, the vmin and vmax used in the colorbar should be the same as those used in the raw map's annotations. 
+
+If the visual_map's values are not scaled during the resizing process, then the min and max of resized_map would be the same as visual_map's. But if they are scaled (e.g., converted to 0-255), then the colorbar's values would differ. 
+
+In that case, the solution would be to compute vmin and vmax from the visual_map (the original data) and apply those to the colorbar. 
+
+But how to pass vmin and vmax from the visual_map to the colorbar? 
+
+The code for the colorbar is in the overlay section, which is after the code that processes the visual_map. 
+
+So the plan is:
+
+- Compute vmin and vmax from the visual_map (the original data used in the annotations).
+
+- Use those values to set the norm for the colorbar. 
+
+But how to get vmin and vmax from the visual_map? 
+
+In the code, after converting the visual_map to a numpy array, compute vmin and vmax:
+
+    # Convert visual_map to NumPy array if it's a tensor
+    if isinstance(visual_map, torch.Tensor):
+        visual_map = visual_map.cpu().to(dtype=torch.float32).numpy()
+    elif not isinstance(visual_map, np.ndarray):
+        visual_map = np.array(visual_map)
+
+    # Compute vmin and vmax for consistent color scaling
+    vmin, vmax = np.min(visual_map), np.max(visual_map)
+
+Then, when adding the colorbar, use these values. 
+
+But since the code for the colorbar is later in the function, these variables need to be accessible. 
+
+Therefore, the code would need to be modified to compute vmin and vmax when the visual_map is first processed, then use them in the colorbar. 
+
+But the user's instruction says to modify the highlighted section and leave the rest of the code unchanged. So perhaps the solution is to compute vmin and vmax from the resized_map, which is available in the colorbar section. 
+
+But if the resizing process preserves the values (as with NEAREST resampling), then vmin and vmax are the same as the original. 
+
+So the code change would be:
+
+Original code:
+
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+Modified code:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But wait, in the original code, the import of Normalize is missing. So we need to add that import. 
+
+But the user's code may not have imported Normalize. So adding 'from matplotlib.colors import Normalize' in the function. 
+
+But the user's code in the visualize_token_map function has:
+
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch
+
+So the code needs to import Normalize from matplotlib.colors. 
+
+However, the user's code in the visualize_token_map function may not have imported that. So the code needs to add that import. 
+
+But the user's instruction is to modify only the highlighted section. So the code change must be within that section. 
+
+Therefore, the code replacement would be:
+
+Original lines:
+
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+Modified lines:
+
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+But this would require importing numpy as np in the function, which is already present. 
+
+So the final code for the visualize_token_map function would have this change. 
+
+Therefore, the user's code, with the highlighted section modified, would be:
+python
+...
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+...
+◁/think▷
+python
+    # Add a colorbar for the overlay
+    from matplotlib.colors import Normalize
+    vmin, vmax = np.min(resized_map), np.max(resized_map)
+    norm = Normalize(vmin=vmin, vmax=vmax)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cbar = fig.colorbar(sm, ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+This change:
+1. Adding normalization using the actual data ranges of `resized_map`
+2. Creating a ScalarMappable with the proper data normalization
+3. Using the properly normalized ScalarMappable for the colorbar
+
+This ensures the colorbar values match the actual data being displayed in both the raw map and overlay plots. The min/max values are now calculated based on the actual map data instead of using default 0-1 range.

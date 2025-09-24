@@ -1,0 +1,14 @@
+import nltk
+nltk.download('words')
+from nltk.corpus import words
+
+word_list = set(words.words())
+
+n = int(input("Enter the number of characters: "))
+filtered_words = [word for word in word_list if len(word) == n]
+
+if len(filtered_words) >= 10:
+    for word in filtered_words[:10]:
+        print(word)
+else:
+    print("Not enough words found with that character count.")

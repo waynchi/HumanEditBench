@@ -1,0 +1,107 @@
+from beem.discussions import Discussions, Query
+from beem.comment import Comment
+
+n_respuestas_minimas = 5
+diccionario = {}
+
+def procesar (texto: str):
+    return "count me " in texto
+def is_own_author (autor: str):
+    return author == 'subidu'
+def is_banned (autor: str):
+    list_banned = []
+    return autor in list_banned
+def generar_permlink_unico () -> str:
+    return "".join(random.choices(string.digits, k=10))
+def procesar_replies (replies: Comment):
+    pass
+def preparar_comentario (parent_author: str, parent_permlink: str, permlink: str, title: str = '', author: str = 'subidu' , body: str = 'Count me in ^^ @subidu') -> dict[str:str]:
+    return {
+        "parent_author": parent_author,
+        "parent_permlink": parent_permlink,
+        "author": author,
+        "permlink": permlink,
+        "title": title,
+        "body": body,
+    }
+
+# -------------------------------------------------
+# Función para crear un diccionario jerárquico con posts y sus replies
+def agregar_a_diccionario(post_author: str, post_permlink: str, replies_data: list[dict]):
+    """
+    Inserta en la variable global `diccionario` una estructura
+    que contiene la información del post y una lista de sus replies.
+
+    Ejemplo de estructura resultante:
+    {
+        "some-post-permlink": {
+            "author": "post_author",
+            "permlink": "some-post-permlink",
+            "replies": [
+                {"author": "...", "permlink": "...", "body": "..."},
+                ...
+            ]
+        },
+        ...
+    }
+    """
+    diccionario[post_permlink] = {
+        "author": post_author,
+        "permlink": post_permlink,
+        "replies": replies_data,
+    }
+# -------------------------------------------------
+
+q = Query()
+d = Discussions()
+posts_generator = d.get_discussions("created", q, limit=6000)
+X = 0
+
+for post in posts_generator:
+    post_author = post['author']
+    post_permlink = post['permlink']
+    post_replies = post['children']
+    cnt = 0
+    X += 1
+
+    # Sólo procesamos posts que tengan al menos `n_respuestas_minimas` replies
+    if post_replies > n_respuestas_minimas:
+        comment = Comment(authorperm=f"{post_author}/{post_permlink}")
+        post_replies_list: list = comment.get_replies()
+
+        # Lista que almacenará la información de cada reply válida
+        replies_info = []
+
+        cnt = 0
+        for reply in post_replies_list:
+            author = reply['author']
+            text = reply['body']
+
+            # Si el reply es del propio autor, dejamos de inspeccionar más replies
+            if is_own_author(author):
+                break
+            # Si el autor está baneado, también se interrumpe la iteración
+            if is_banned(author):
+                break
+            # Evaluamos el contenido del reply
+            if procesar(text):
+                cnt += 1
+
+            # Guardamos la información del reply para el diccionario jerárquico
+            replies_info.append({
+                "author": author,
+                "permlink": reply.get('permlink', ''),
+                "body": text,
+            })
+
+        # Añadimos al diccionario global la estructura del post con sus replies
+        agregar_a_diccionario(post_author, post_permlink, replies_info)
+
+    # Si el número de replies válidos supera el umbral, mostramos información
+    if cnt > 3:
+        print("Iterador: ", X)
+        # `reply` mantiene la última iteración del loop anterior; si se quiere el último
+        # reply procesado, se utiliza `replies_info[-1]` siempre que exista.
+        if replies_info:
+            ultimo_reply = replies_info[-1]
+            print(ultimo_reply['author'], '/', ultimo_reply.get('permlink', ''))

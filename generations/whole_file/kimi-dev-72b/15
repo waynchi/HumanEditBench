@@ -1,0 +1,574 @@
+◁think▷Okay, let's tackle this problem. The user wants to update the code because executor is no longer relevant in the newer versions of aiogram. The specific part that needs changing is the main block where executor.start_polling is called. 
+
+First, I need to recall that in aiogram 3.x, the recommended way to run the bot has changed. Instead of using executor, they use asyncio and run_until_complete. So I need to adjust that part.
+
+Looking at the code, the original uses executor.start_polling, which is part of the old style. The replacement would involve using the bot's main loop with asyncio. The steps would be:
+
+1. Import asyncio (already imported here).
+2. Define an async function that starts the bot.
+3. Use asyncio.run() in the main block to execute that async function.
+
+But wait, in the given code, there's already an on_startup function that's passed to start_polling. So when replacing executor, I need to ensure that the on_startup event is handled properly. The new approach might involve starting the dispatcher and handling events in an async context.
+
+Wait, maybe the new way is to use dp.start_polling(), but I'm not entirely sure. Let me check aiogram's documentation. Oh, right, in aiogram 3, you start the bot by calling await dp.start_polling(). So the code would change from executor.start_polling to using asyncio to run the dp.start_polling() coroutine.
+
+So the original code's main block is:
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+But since executor is from the old version, replacing it would involve:
+
+async def main():
+    await on_startup(dp)
+    await dp.start_polling()
+
+Then in the main block:
+
+if __name__ == '__main__':
+    asyncio.run(main())
+
+Wait, but maybe the skip_updates and other parameters are handled differently. Also, the on_startup function is already an async function? Let me check the existing code. The on_startup function is async def on_startup(dp)? Wait, in the original code, on_startup is defined as:
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+But executor.start_polling would handle on_startup events. When switching to the new approach, we need to call on_startup manually? Or perhaps the on_startup handler is still called automatically by the dispatcher. Hmm, maybe not. The on_startup parameter in executor.start_polling is part of the old executor setup. In the new approach, perhaps we need to call the startup actions before starting the poll.
+
+So, the main function would need to call on_startup first. Let me structure the replacement.
+
+Original code uses executor.start_polling, which sets up the event loop. The new approach would be:
+
+Replace the executor with asyncio.run, and start the polling via the dispatcher. Also, the on_startup might need to be handled manually.
+
+So the new code for the main block would be:
+
+import asyncio
+
+async def main():
+    await on_startup(dp)
+    await dp.start_polling()
+
+if __name__ == '__main__':
+    asyncio.run(main())
+
+But wait, in the original code, on_startup is passed as an argument to start_polling. In the new approach, maybe the dispatcher's start_polling method has parameters, but perhaps in aiogram 3, the on_startup event is triggered automatically. Or maybe we need to handle it differently.
+
+Alternatively, perhaps the on_startup functions are called when starting the dispatcher. But in the code, the on_startup is a function that's supposed to run when the bot starts. So in the new approach, we need to call on_startup explicitly before starting the bot.
+
+But according to aiogram 3's documentation, the dispatcher has a setup method, and the start_polling function is designed to be used with asyncio.
+
+Wait, let me check the official aiogram docs. The current version (3.x) uses:
+
+from aiogram import Bot, Dispatcher
+import asyncio
+
+# setup
+dp = Dispatcher()
+
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+But in this case, how are on_startup events handled? Maybe the on_startup handlers are added via dp.startup.register().
+
+Wait, in aiogram 3, maybe the on_startup is set up differently. For example:
+
+async def on_startup(dp: Dispatcher):
+    # do something
+
+dp.startup.register(on_startup)
+
+Then, when dp.start_polling is called, the startup event is triggered.
+
+But in the original code, on_startup is passed as a parameter to executor.start_polling. So perhaps the replacement is to register the on_startup function with the dispatcher's startup event.
+
+But in the existing code, the on_startup function is defined as:
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+But in the new approach, maybe we need to register this function to the startup event. So in the code, there should be:
+
+dp.startup.register(on_startup)
+
+But in the original code, this isn't done. Wait, no, the original code uses executor.start_polling with on_startup=on_startup, which would handle that. So when we remove the executor, we need to register the on_startup function to the dispatcher's startup event.
+
+But how? Let me think. In aiogram 3, the startup events are handled via the dispatcher's event system. So the code would need to register the on_startup function to the startup event.
+
+So adding:
+
+dp.startup.register(on_startup)
+
+But where? Probably after defining the on_startup function.
+
+Wait, in the existing code, the on_startup function is defined after all the handlers. So perhaps in the new code, we need to add dp.startup.register(on_startup) after defining the function.
+
+But in the existing code, the on_startup is passed as a parameter to start_polling. So in the new code, the process would be:
+
+- Define the on_startup function
+- Register it to the dispatcher's startup event via dp.startup.register(on_startup)
+- Then start the polling with await dp.start_polling()
+
+But in the code provided, the on_startup function is already defined, but the code doesn't register it. So perhaps the existing code is from aiogram 2.x, where the executor handles the on_startup.
+
+So to replace the executor with the new approach:
+
+1. Remove the executor import.
+2. In the main block, use asyncio.run(main()) where main is an async function.
+3. In that main function, start the dispatcher's polling.
+
+But also, the on_startup function is defined and needs to be registered.
+
+Wait, perhaps the code should be modified to use dp.run_polling() or something else. Let me check the aiogram 3 documentation again.
+
+Ah, right, in aiogram 3, the executor module is deprecated. The recommended way is to use asyncio and run the dispatcher's start_polling method.
+
+So the code would change as follows:
+
+Original code:
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+New code:
+
+import asyncio
+
+async def main():
+    await dp.start_polling(skip_updates=True)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+
+But then, how to handle the on_startup function? Because in the original code, on_startup is passed as a parameter. But in the new approach, perhaps the on_startup is registered as a startup handler via dp.startup.register.
+
+So in the code, after defining on_startup, we need to register it:
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+But in the original code, the on_startup is passed to executor.start_polling as a parameter. So when we switch to the new method, we need to ensure that the startup event is handled.
+
+So putting it all together:
+
+The original code uses executor.start_polling with on_startup=on_startup. The new code would register the on_startup function to the dispatcher's startup event and then run the dispatcher.
+
+So the code changes would be:
+
+1. Remove the import of executor from aiogram.
+2. Add the registration of the on_startup function to the dispatcher's startup event.
+3. Replace the executor.start_polling with asyncio.run(main()), where main starts the polling.
+
+But looking at the existing code, the user's code imports executor from aiogram. So in the modified code, we can remove that import because we're not using it anymore.
+
+Wait, but the user's code has:
+
+from aiogram import Bot, Dispatcher, executor, types
+
+But after the change, since executor is deprecated, we should remove it from the imports.
+
+But the user's instruction is to only change the highlighted section. So the task is to modify only the part inside:
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+But according to their instruction, they want to replace the use of executor. So perhaps the correct replacement is to use the dispatcher's start_polling method with asyncio.
+
+So the new code for the main block would be:
+
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(on_startup(dp))
+    loop.run_until_complete(dp.start_polling(skip_updates=True))
+
+But maybe that's not exactly right. Alternatively, using asyncio.run:
+
+if __name__ == '__main__':
+    asyncio.run(on_startup(dp))
+    asyncio.run(dp.start_polling(skip_updates=True))
+
+But wait, that would start on_startup first, then start polling. But maybe on_startup is supposed to be called when the polling starts.
+
+Alternatively, the dispatcher's start_polling might handle events including the startup. So perhaps the correct approach is to register the on_startup function as a startup handler.
+
+So in the code:
+
+dp.startup.register(on_startup)
+
+But how is that done in aiogram 3?
+
+In aiogram 3, the startup event can be registered using the @dp.startup_process decorator or via the register method.
+
+For example:
+
+@dp.startup_process
+async def on_startup(dp: Dispatcher):
+    # code here
+
+Or:
+
+async def on_startup(dp: Dispatcher):
+    # code here
+
+dp.startup.register(on_startup)
+
+So in the existing code, after defining the on_startup function, we need to register it.
+
+But in the original code, the on_startup function is passed to executor.start_polling. So when switching to the new approach, we need to add dp.startup.register(on_startup).
+
+But since the user's code has the on_startup function defined as:
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+But the original code doesn't register it to the startup event. Instead, it's passed to the executor. So in the new approach, we need to register it.
+
+So modifying the code to:
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+But where to put this? It should be after the function is defined.
+
+So in the code:
+
+...
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+...
+
+Then, in the main block:
+
+if __name__ == '__main__':
+    asyncio.run(dp.start_polling(skip_updates=True))
+
+Wait, but how does the startup event get triggered? By starting the polling.
+
+So when you start polling, the startup events are executed. So by registering the on_startup function to the startup event, it should be called when the polling starts.
+
+But in the original code, the on_startup is passed as a parameter to start_polling. In the new approach, that's handled via the event registration.
+
+So putting this together, the code modifications would be:
+
+1. Remove the executor from imports: from aiogram import Bot, Dispatcher, executor, types → from aiogram import Bot, Dispatcher, types
+
+2. Add dp.startup.register(on_startup) after defining the on_startup function.
+
+3. Replace the executor.start_polling line with asyncio.run(dp.start_polling(...)).
+
+Wait, but the code's main block is:
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+So the replacement would be:
+
+if __name__ == '__main__':
+    import asyncio
+    asyncio.run(dp.start_polling(skip_updates=True))
+
+But wait, does dp.start_polling have parameters like skip_updates? Let me check aiogram 3 docs.
+
+Yes, start_polling has parameters like skip_updates. So the code would be:
+
+async def main():
+    await dp.start_polling(skip_updates=True)
+
+if __name__ == '__main__':
+    asyncio.run(main())
+
+But also, registering the on_startup function.
+
+So the steps are:
+
+- Add dp.startup.register(on_startup) after the on_startup function is defined.
+
+- Replace the executor code with asyncio.run(dp.start_polling(...)).
+
+So the code would become:
+
+...
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+...
+
+if __name__ == '__main__':
+    asyncio.run(dp.start_polling(skip_updates=True))
+
+But wait, in the original code, the on_startup is passed as a parameter. In the new code, by registering it to the startup event, it should be called automatically when start_polling is run.
+
+Yes. So that should work.
+
+Putting all this together, the modifications needed are:
+
+1. Remove the import of executor: from aiogram import Bot, Dispatcher, types
+
+2. Add the registration of on_startup to the startup event.
+
+3. Replace the main block with the asyncio.run code.
+
+Now, looking at the user's code:
+
+Original code (to be modified):
+python
+import asyncio
+from aiogram import Bot, Dispatcher, executor, types
+import time
+
+token = "TOKEN"
+bot = Bot(token=token)
+dp = Dispatcher(bot)
+id = 111111111
+time_time = 5
+
+b = bool(True)
+
+@dp.message_handler(commands=['start'])
+async def start(message: types.Message):
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(inline_keuboard = [
+        [types.InlineKeyboardButton(text="Да", callback_data="stop"),
+        types.InlineKeyboardButton(text="Нет", callback_data="continue")]
+        ])
+    await bot.send_message(chat_id=id, text="Ты робот?", reply_markup=markup)
+
+@dp.callback_query_handler(text="stop")
+async def stop(call: types.CallbackQuery):
+    global b
+    # b = False
+    # await bot.send_message(chat_id=call.message.chat.id, text="Молодец, лох")
+    await bot.send_message(chat_id=call.message.chat.id, text="<obscene message>!")
+
+@dp.callback_query_handler(text="continue")
+async def stop(call: types.CallbackQuery):
+    await bot.send_message(chat_id=call.message.chat.id, text="Лох^лох, лох")
+
+@dp.message_handler(content_types=['text'])
+async def handle_all_messages(message: types.Message):
+    with open(r"D:\Python files\!MoexApiBot\censored.gif", "rb") as vid:
+        await bot.send_video(chat_id=id, video=vid, caption="Го <censor> ёр селф")
+
+async def send_periodic_messages():
+    while b:
+        await bot.send_message(chat_id=id, text="Лох лох")
+        with open(r"D:\Python files\!MoexApiBot\Shocked13.mp4", "rb") as vid:
+            await bot.send_video(chat_id=id, video=vid, caption="Ты проиграл")
+        await asyncio.sleep(time_time)
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+The highlighted part is:
+
+if __name__ == '__main__':
+    executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+The user wants to replace this with code that doesn't use executor. So the replacement would be:
+
+if __name__ == '__main__':
+    asyncio.run(dp.start_polling(skip_updates=True))
+
+But also, the on_startup function needs to be registered. So after defining on_startup, we add:
+
+dp.startup.register(on_startup)
+
+But wait, looking at the code, the on_startup function is already defined. So inserting the registration after the function definition:
+
+After the line:
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+Add:
+
+dp.startup.register(on_startup)
+
+So the code becomes:
+
+...
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+...
+
+Then, in the main block, replace executor.start_polling with asyncio.run(dp.start_polling(...)).
+
+But also, in the code's imports, executor is no longer needed. So remove it from the imports.
+
+So the import line changes from:
+
+from aiogram import Bot, Dispatcher, executor, types
+
+to:
+
+from aiogram import Bot, Dispatcher, types
+
+Additionally, in the code, the line with inline_keuboard might have a typo. It's written as 'inline_keuboard' instead of 'inline_keyboard'. But since the user's instruction is to only change the highlighted part, we shouldn't fix other typos. But wait, the user's code has:
+
+markup = types.InlineKeyboardMarkup(inline_keuboard = [ ... ])
+
+This is probably a typo, but the code may have been working if the user didn't get an error. Maybe it's correct, or maybe it's a typo. But since the user is only focusing on replacing the executor, we don't need to fix other parts.
+
+Now, putting all the modifications together:
+
+1. Remove executor from imports.
+
+2. Register on_startup to the startup event.
+
+3. Replace the main block with asyncio code.
+
+So the final code would look like:
+python
+import asyncio
+from aiogram import Bot, Dispatcher, types
+import time
+
+token = "TOKEN"
+bot = Bot(token=token)
+dp = Dispatcher(bot)
+id = 111111111
+time_time = 5
+
+b = bool(True)
+
+@dp.message_handler(commands=['start'])
+async def start(message: types.Message):
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(inline_keuboard = [
+        [types.InlineKeyboardButton(text="Да", callback_data="stop"),
+        types.InlineKeyboardButton(text="Нет", callback_data="continue")]
+        ])
+    await bot.send_message(chat_id=id, text="Ты робот?", reply_markup=markup)
+
+@dp.callback_query_handler(text="stop")
+async def stop(call: types.CallbackQuery):
+    global b
+    # b = False
+    # await bot.send_message(chat_id=call.message.chat.id, text="Молодец, лох")
+    await bot.send_message(chat_id=call.message.chat.id, text="<obscene message>!")
+
+@dp.callback_query_handler(text="continue")
+async def stop(call: types.CallbackQuery):
+    await bot.send_message(chat_id=call.message.chat.id, text="Лох^лох, лох")
+
+@dp.message_handler(content_types=['text'])
+async def handle_all_messages(message: types.Message):
+    with open(r"D:\Python files\!MoexApiBot\censored.gif", "rb") as vid:
+        await bot.send_video(chat_id=id, video=vid, caption="Го <censor> ёр селф")
+
+async def send_periodic_messages():
+    while b:
+        await bot.send_message(chat_id=id, text="Лох лох")
+        with open(r"D:\Python files\!MoexApiBot\Shocked13.mp4", "rb") as vid:
+            await bot.send_video(chat_id=id, video=vid, caption="Ты проиграл")
+        await asyncio.sleep(time_time)
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+if __name__ == '__main__':
+    asyncio.run(dp.start_polling(skip_updates=True))
+
+But wait, the user's main block had 'on_startup=on_startup' as a parameter, but in the new code, by registering on_startup to the startup event, that's handled. So when start_polling is called, the startup event is triggered, and the on_startup function is executed.
+
+Thus, this should be the correct replacement.
+
+Also, note that the code previously had:
+
+executor.start_polling(dp, skip_updates=True, on_startup=on_startup)
+
+But now it's replaced with:
+
+asyncio.run(dp.start_polling(skip_updates=True))
+
+But does skip_updates still work? Yes, the start_polling method in the dispatcher accepts skip_updates as a parameter.
+
+Therefore, the code is correctly modified.
+◁/think▷
+python
+import asyncio
+from aiogram import Bot, Dispatcher, types
+import time
+
+token = "TOKEN"
+bot = Bot(token=token)
+dp = Dispatcher(bot)
+id = 111111111
+time_time = 5
+
+b = bool(True)
+
+@dp.message_handler(commands=['start'])
+async def start(message: types.Message):
+    markup = types.InlineKeyboardMarkup(row_width=2)
+    markup = types.InlineKeyboardMarkup(inline_keuboard = [
+        [types.InlineKeyboardButton(text="Да", callback_data="stop"),
+        types.InlineKeyboardButton(text="Нет", callback_data="continue")]
+        ])
+    await bot.send_message(chat_id=id, text="Ты робот?", reply_markup=markup)
+
+@dp.callback_query_handler(text="stop")
+async def stop(call: types.CallbackQuery):
+    global b
+    # b = False
+    # await bot.send_message(chat_id=call.message.chat.id, text="Молодец, лох")
+    await bot.send_message(chat_id=call.message.chat.id, text="<obscene message>!")
+
+@dp.callback_query_handler(text="continue")
+async def stop(call: types.CallbackQuery):
+    await bot.send_message(chat_id=call.message.chat.id, text="Лох^лох, лох")
+
+@dp.message_handler(content_types=['text'])
+async def handle_all_messages(message: types.Message):
+    with open(r"D:\Python files\!MoexApiBot\censored.gif", "rb") as vid:
+        await bot.send_video(chat_id=id, video=vid, caption="Го <censor> ёр селф")
+
+async def send_periodic_messages():
+    while b:
+        await bot.send_message(chat_id=id, text="Лох лох")
+        with open(r"D:\Python files\!MoexApiBot\Shocked13.mp4", "rb") as vid:
+            await bot.send_video(chat_id=id, video=vid, caption="Ты проиграл")
+        await asyncio.sleep(time_time)
+
+async def on_startup(dp):
+    print('Бот запущен!')
+    asyncio.create_task(send_periodic_messages())
+
+dp.startup.register(on_startup)
+
+if __name__ == '__main__':
+    asyncio.run(dp.start_polling(skip_updates=True))

@@ -1,0 +1,44 @@
+def conjugate_gradient(A, b, x0=None, tol=1e-8, max_iter=None):
+    """
+    Solves the linear system Ax = b using the Conjugate Gradient method.
+
+    Parameters:
+    - A: square matrix (numpy array)
+    - b: right-hand side vector (numpy array)
+    - x0: initial guess (numpy array, defaults to zeros)
+    - tol: tolerance for convergence (float)
+    - max_iter: maximum number of iterations (int, defaults to len(b))
+
+    Returns:
+    - x: solution vector (numpy array)
+    """
+    import numpy as np
+
+    n = len(b)
+    if x0 is None:
+        x = np.zeros_like(b)
+    else:
+        x = x0.copy()
+    
+    if max_iter is None:
+        max_iter = n
+    
+    r = b - A @ x  # residual
+    p = r.copy()   # search direction
+    rs_old = np.dot(r, r)  # old residual norm squared
+    
+    for i in range(max_iter):
+        Ap = A @ p
+        alpha = rs_old / np.dot(p, Ap)
+        x += alpha * p
+        r -= alpha * Ap
+        rs_new = np.dot(r, r)
+        
+        if np.sqrt(rs_new) < tol:
+            break
+        
+        beta = rs_new / rs_old
+        p = r + beta * p
+        rs_old = rs_new
+    
+    return x

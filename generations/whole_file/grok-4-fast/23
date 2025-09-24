@@ -1,0 +1,30 @@
+import nltk
+from nltk.corpus import words
+
+# Download the words corpus if not already available
+try:
+    word_list = words.words()
+except LookupError:
+    nltk.download('words')
+    word_list = words.words()
+
+def find_words_of_length(n):
+    matching_words = [w for w in word_list if len(w) == n and w.isalpha()]
+    return matching_words[:10]
+
+if __name__ == "__main__":
+    while True:
+        try:
+            n = int(input("Enter the number of characters (or 0 to quit): "))
+            if n == 0:
+                break
+            selected_words = find_words_of_length(n)
+            if selected_words:
+                print("10 words with {} characters:".format(n))
+                for word in selected_words:
+                    print(word)
+            else:
+                print("No words found with {} characters.".format(n))
+            print()
+        except ValueError:
+            print("Please enter a valid integer.")

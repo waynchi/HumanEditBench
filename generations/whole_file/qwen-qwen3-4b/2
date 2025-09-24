@@ -1,0 +1,9 @@
+# verilog module body
+module_body = """
+    input a, b, d;
+    output c, sum, carry;
+    assign c = a ^ b;
+    assign sum = a & b;
+    assign carry = a & b;
+endmodule
+"""

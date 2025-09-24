@@ -1,0 +1,75 @@
+
+python
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import torch
+
+def visualize_token_map(image, original_maps, token_list, token_index=2, cmap="Greens"):
+    """
+    Visualize the raw image, raw map, and an overlay of the image with the resized map
+    for a specific token.
+
+    Args:
+        image (PIL.Image): The input image.
+        original_maps (list or tensor): A collection of maps to select from.
+        token_list (list): A list of tokens corresponding to the maps.
+        token_index (int, optional): The index of the token to visualize. Default is 2.
+        cmap (str, optional): The colormap to use for visualizing the map. Default is "Greens".
+    """
+    # Convert the image to a NumPy array
+    image_np = np.array(image)
+
+    # Select the map corresponding to the token
+    visual_map = original_maps[token_index]
+
+    # Convert visual_map to NumPy array if it's a tensor
+    if isinstance(visual_map, torch.Tensor):
+        visual_map = visual_map.cpu().to(dtype=torch.float32).numpy()
+    elif not isinstance(visual_map, np.ndarray):
+        visual_map = np.array(visual_map)
+
+    # Convert map to a PIL image
+    visual_map_pil = Image.fromarray(visual_map)
+
+    # Resize using NEAREST to keep "big pixels"
+    visual_map_pil = visual_map_pil.resize(
+        (image_np.shape[1], image_np.shape[0]),  # (width, height)
+        resample=Image.NEAREST
+    )
+
+    # Convert back to NumPy
+    resized_map = np.array(visual_map_pil)
+
+    # Create a figure with subplots
+    fig, axes = plt.subplots(1, 3, figsize=(15, 6))
+
+    # Display the raw image
+    axes[0].imshow(image_np)
+    axes[0].set_title("Raw Image")
+    axes[0].axis("off")
+
+    # Display the raw map
+    axes[1].imshow(visual_map, cmap=cmap)
+    # Add value annotations
+    for (i, j), value in np.ndenumerate(visual_map):
+        axes[1].text(j, i, f"{value:.2f}", ha="center", va="center", color="black", fontsize=4)
+    axes[1].set_title("Raw Map")
+    axes[1].axis("off")
+
+    # Display the overlay plot
+    axes[2].imshow(image_np, alpha=1)
+    axes[2].imshow(resized_map, cmap=cmap, alpha=0.6)
+    axes[2].set_title("Overlay: Image + Map")
+    axes[2].axis("off")
+
+    # Add a colorbar for the overlay
+    cbar = fig.colorbar(plt.cm.ScalarMappable(cmap=cmap), ax=axes[2], shrink=0.8, orientation="vertical")
+    cbar.set_label("Map Intensity")
+
+    # Add a title with the token name
+    plt.suptitle(f"Token: {token_list[token_index]}")
+
+    # Adjust layout and show
+    plt.tight_layout()
+    plt.show()

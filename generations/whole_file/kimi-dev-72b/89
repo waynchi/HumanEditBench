@@ -1,0 +1,15 @@
+
+python
+        # Replace interpolate with nearest neighbor upsampling
+        n_patches_x, n_patches_y = single_map_2d.shape[2], single_map_2d.shape[3]
+        scale_h = H // n_patches_x
+        scale_w = W // n_patches_y
+        single_map = single_map_2d.squeeze(0).squeeze(0)
+        upsampled = single_map.repeat_interleave(scale_h, dim=0).repeat_interleave(scale_w, dim=1)
+
+This change replaces the bilinear interpolation with a nearest-neighbor upsampling approach that:
+1. Calculates scaling factors based on the image dimensions and patch grid size
+2. Uses PyTorch's `repeat_interleave` method to expand each patch to its corresponding image area
+3. Removes the dependency on `F.interpolate` by directly manipulating tensor dimensions
+
+Note: This approach assumes the image dimensions are integer multiples of the patch grid size. For non-integer scaling factors, the original interpolation approach would be required.

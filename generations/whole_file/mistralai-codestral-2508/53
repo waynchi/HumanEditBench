@@ -1,0 +1,37 @@
+    async def run(self):
+        try:
+            async with async_playwright() as p:
+                logger.debug("Launching browser...")
+                self.browser = await p.chromium.launch(
+                    headless=self.config.headless,
+                    args=[
+                        '--disable-web-security',
+                        '--disable-features=IsolateOrigins,site-per-process',
+                        '--allow-running-insecure-content'
+                    ] if self.config.disable_security else []
+                )
+                logger.debug("Creating browser context...")
+                self.browser_context = await self.browser.new_context(
+                    viewport={'width': self.config.window_w, 'height': self.config.window_h},
+                    ignore_https_errors=self.config.disable_security
+                )
+                logger.debug("Creating new page...")
+                page = await self.browser_context.new_page()
+
+                # Example task: Navigate to a given URL
+                logger.debug(f"Navigating to URL: https://example.com")
+                await page.goto("https://example.com", timeout=30000)
+
+                # Additional debug information
+                logger.debug(f"Page title: {await page.title()}")
+                logger.debug(f"Page URL: {page.url}")
+
+                # Perform more actions here based on the task
+                logger.debug("Task execution completed")
+
+                return "Task completed successfully", "", "", ""
+        except Exception as e:
+            logger.error(f"Detailed error during run: {e}", exc_info=True)
+            return "", str(e), "", ""
+        finally:
+            await self.cleanup()

@@ -1,0 +1,74 @@
+To implement the requested change, the highlighted section of the original code will be modified to use jQuery for two purposes:
+1. Display the retrieved user/payment information in their respective UI containers
+2. Maintain the original console logging for debugging
+
+Key changes:
+1. Instead of only logging to console, we now set the text content of:
+   - `.user-info` element to display formatted user info
+   - `.payment-section` element to display formatted payment info
+2. Using jQuery's `.text()` method for safe text injection
+3. Added null-checking to prevent errors
+4. Maintained original console logging for debugging transparency
+
+Since the rest of the code remains unchanged:
+- UI elements remain hidden until the loading sequence completes
+- Loading messages animation remains unchanged
+- Final display logic remains the same
+
+Here's the complete implementation:
+javascript
+import { messages } from "./messages.js";
+
+$().ready(() => {
+    const loading = $('.container-loading');
+    const payment = const payment = $('.payment-section');
+    const info = $('.user-info');
+    const main = $('.main');
+
+    // Retrieve values from localStorage
+    const storedData = JSON.parse(localStorage.getItem('userData')) || {};
+    const { userInfo, paymentInfo } = storedData;
+
+    // Use jQuery to display information in UI elements
+    if (userInfo) {
+        const formattedUserInfo = `Name: ${userInfo.name}, Email: ${userInfo.email}`;
+        console.log('User Info:', userInfo);
+        info.text(formattedUserInfo);
+    }
+    
+    if (paymentInfo) {
+        const formattedPaymentInfo = `Card: ****${paymentInfo.cardNumber.slice(-4)}, Exp: ${paymentInfo.expiry}`;
+        console.log('Payment Info:', paymentInfo);
+        payment.text(formattedPaymentInfo);
+    }
+
+    $('#generateTaxButton').click(() => {
+        main.fadeOut(500);
+        setTimeout(() => {
+            loading.css('display', 'flex');
+
+            let lastTimeout = 0;
+            messages.forEach(message => {
+                lastTimeout = lastTimeout + message.time;
+            })
+            console.log(`intervalo: ${lastTimeout}`)
+
+            const loadMessages = $('#loading-messages');
+            messages.forEach(element => {
+                console.log(element.text)
+                console.log(element.time)
+                const timeout = element.time;
+                setTimeout(() => {
+                    loadMessages.text(element.text);
+                }, timeout);
+            });
+
+            setTimeout(() => {
+                console.log('pagamento');
+                loading.css('display', 'none');
+                payment.css('display', 'block');
+                info.css('display', 'block');
+            }, lastTimeout + 500);
+        }, 200);
+    });
+});

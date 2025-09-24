@@ -1,0 +1,260 @@
+import { useReducer, useEffect, useCallback, useMemo } from 'react';
+
+// ----- reducer & initial state -------------------------------------------------
+const initialState = {
+  customerData: { summary: null, loading: false, customers: [] },
+  healthData: [],
+  websiteStatus: { checking: false },
+  stripeApiKey: '',
+  dateRange: {
+    startDate: (() => {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() - 1);
+      return d;
+    })(),
+    endDate: new Date(),
+  },
+  error: null,
+};
+
+function reducer(state, action) {
+  switch (action.type) {
+    case 'SET_STRIPE_KEY':
+      return { ...state, stripeApiKey: action.payload };
+    case 'SET_LOADING':
+      return {
+        ...state,
+        customerData: { ...state.customerData, loading: action.payload },
+      };
+    case 'SET_CUSTOMER_SUMMARY':
+      return {
+        ...state,
+        customerData: {
+          ...state.customerData,
+          summary: action.payload.summary,
+          customers: action.payload.customers,
+          loading: false,
+        },
+      };
+    case 'SET_HEALTH_DATA':
+      return { ...state, healthData: action.payload };
+    case 'SET_WEBSITE_CHECKING':
+      return { ...state, websiteStatus: { checking: action.payload } };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
+    case 'CLEAR_ERROR':
+      return { ...state, error: null };
+    case 'UPDATE_DATE_RANGE':
+      return { ...state, dateRange: action.payload };
+    case 'UPDATE_CUSTOMERS':
+      return {
+        ...state,
+        customerData: {
+          ...state.customerData,
+          customers: action.payload.customers,
+          summary: action.payload.summary,
+        },
+      };
+    default:
+      return state;
+  }
+}
+
+// ----- hook --------------------------------------------------------------------
+export default function useDashboardData(user) {
+  const [state, dispatch] = useReducer(reducer, initialState);
+
+  // --------------------------- health calculation ----------------------------
+  const healthData = useMemo(() => {
+    const { summary } = state.customerData;
+    const { startDate, endDate } = state.dateRange;
+
+    if (!summary?.customers?.length) return [];
+
+    // Build month list once
+    const months = [];
+    const cursor = new Date(startDate);
+    while (cursor <= endDate) {
+      months.push({ month: cursor.getMonth(), year: cursor.getFullYear() });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return months.map(({ month, year }) => {
+      const monthYear = `${new Date(year, month).toLocaleString('default', {
+        month: 'short',
+      })} ${year}`;
+
+      const monthCustomers = summary.customers.filter((c) => {
+        const created = new Date(c.created);
+        return created.getMonth() === month && created.getFullYear() === year;
+      });
+
+      {
+        monthYear,
+        healthy: monthCustomers.filter((c) => c.status === 'active').length,
+        warning: monthCustomers.filter((c) => c.status === 'churned').length,
+        critical: monthCustomers.filter((c) => c.status === 'delinquent').length,
+      };
+    });
+  }, [state.customerData.summary, state.dateRange]);
+
+  // keep state.healthData in sync with memoized healthData
+  useEffect(() => {
+    dispatch({ type: 'SET_HEALTH_DATA', payload: healthData });
+  }, [healthData]);
+
+  // --------------------------- load user settings ---------------------------
+  const loadSettings = useCallback(async () => {
+    if (!user?.id || state.stripeApiKey) return;
+
+    try {
+      const res = await fetch('/api/db/churnary_user_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query:
+            'SELECT stripe_api_key FROM `user_settings` WHERE `user_id` = ? LIMIT 1',
+          values: [user.id],
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const [settings] = await res.json();
+      dispatch({
+        type: 'SET_STRIPE_KEY',
+        payload: settings?.stripe_api_key || '',
+      });
+    } catch {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Failed to load user settings',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, state.stripeApiKey]);
+
+  // --------------------------- load customer summary -------------------------
+  const loadData = useCallback(async () => {
+    if (!user?.id || !state.stripeApiKey) return;
+
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
+
+    try {
+      const res = await fetch('/api/stripe-customer-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch customer summary');
+
+      const summary = await res.json();
+      if (summary.error) throw new Error(summary.error);
+
+      dispatch({
+        type: 'SET_CUSTOMER_SUMMARY',
+        payload: { summary, customers: summary.customers },
+      });
+    } catch (e) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: e.message || 'Failed to load customer data',
+      });
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, state.stripeApiKey]);
+
+  // --------------------------- actions ----------------------------------------
+  const checkWebsites = useCallback(async () => {
+    const { summary, customers } = state.customerData;
+    if (!summary?.customers?.length || !customers?.length) return;
+
+    dispatch({ type: 'SET_WEBSITE_CHECKING', payload: true });
+    dispatch({ type: 'CLEAR_ERROR' });
+
+    try {
+      const updatedCustomers = await Promise.all(
+        customers.map(async (c) => {
+          const res = await fetch('/api/website-churn-detector', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ websiteUrl: c.website }),
+          });
+          const health = await res.json();
+          return {
+            ...c,
+            health,
+            status: health.status === 'active' ? 'active' : 'churned',
+          };
+        })
+      );
+
+      const newSummary = {
+        ...summary,
+        customers: updatedCustomers,
+        active: updatedCustomers.filter((c) => c.status === 'active').length,
+        churned: updatedCustomers.filter((c) => c.status === 'churned').length,
+      };
+
+      dispatch({
+        type: 'UPDATE_CUSTOMERS',
+        payload: { customers: updatedCustomers, summary: newSummary },
+      });
+    } catch {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Failed to check websites. Please try again.',
+      });
+    } finally {
+      dispatch({ type: 'SET_WEBSITE_CHECKING', payload: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.customerData]);
+
+  const setDateRange = useCallback((range) => {
+    if (range.startDate > range.endDate) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: 'Start date cannot be after end date',
+      });
+      return;
+    }
+    dispatch({ type: 'UPDATE_DATE_RANGE', payload: range });
+    dispatch({ type: 'CLEAR_ERROR' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const clearError = useCallback(() => {
+    dispatch({ type: 'CLEAR_ERROR' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const actions = { checkWebsites, setDateRange, clearError };
+
+  // --------------------------- effects ----------------------------------------
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings, user?.id]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData, user?.id, state.stripeApiKey]);
+
+  // --------------------------- return -----------------------------------------
+  return {
+    data: {
+      customerData: state.customerData,
+      healthData: state.healthData,
+      websiteStatus: state.websiteStatus,
+      stripeApiKey: state.stripeApiKey,
+      dateRange: state.dateRange,
+      error: state.error,
+    },
+    actions,
+    isLoading:
+      state.customerData.loading || state.websiteStatus.checking,
+  };
+}

@@ -1,0 +1,35 @@
+import os
+from pymilvus import connections, DataType, FieldSchema, CollectionSchema, Collection, utility
+
+# 记录当前路径为cwd，然后根据注释使用 pymilvus 创建数据库链接
+# 记录当前路径为 cwd
+cwd = os.getcwd()
+
+# 创建向量数据库路径（Milvus 为服务，不使用本地文件路径，这里仅保留变量以满足注释需求）
+db_path = os.path.join(cwd, 'milvus_db.db')
+
+# Milvus 连接参数
+MILVUS_HOST = "localhost"
+MILVUS_PORT = "19530"
+
+# 使用 pymilvus 连接到 Milvus 服务
+connections.connect(alias="default", host=MILVUS_HOST, port=MILVUS_PORT)
+
+# 定义集合（表）名称和向量维度
+TABLE_NAME = 'test_collection'
+DIM_VALUE = 128
+
+# 若集合不存在，则创建集合
+if not utility.has_collection(TABLE_NAME):
+    # 定义字段 schema
+    id_field = FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True)
+    vector_field = FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=DIM_VALUE)
+    schema = CollectionSchema(fields=[id_field, vector_field], description="Test collection")
+    
+    # 创建集合
+    collection = Collection(name=TABLE_NAME, schema=schema)
+else:
+    # 已存在则获取集合对象
+    collection = Collection(name=TABLE_NAME)
+
+# 现在 `collection` 对象即可用于后续的向量插入、索引创建等操作

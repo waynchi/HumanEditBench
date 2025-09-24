@@ -1,0 +1,55 @@
+
+python
+### code.py
+<<<<<<< SEARCH
+    def load_mscoco_dataset(self):
+        """Loads and preprocesses MSCOCO dataset with improved filtering"""
+        dataset = load_dataset(
+            "shunk031/MSCOCO",
+            year=2014,
+            coco_task="captions",
+            split='train',
+            streaming=True
+        )
+        dataset = dataset.take(self.sample_size)
+
+        image_text_pairs = []
+        for item in dataset:
+            # Select most descriptive caption based on length
+            best_caption = max(item["captions"], key=len)
+            if len(best_caption.split()) >= 5:  # Filter out too short captions
+                image_text_pairs.append((item["image"], best_caption))
+                
+        return image_text_pairs
+=======
+    def load_mscoco_dataset(self):
+        """Loads and preprocesses official COCO Captions dataset"""
+        dataset = load_dataset(
+            "coco",  # Official COCO dataset from Hugging Face
+            split='train',
+            year=2014,
+            task='captions',
+            streaming=True
+        )
+        dataset = dataset.take(self.sample_size)
+
+        image_text_pairs = []
+        for item in dataset:
+            # Extract captions from annotations
+            captions = [ann['caption'] for ann in item.get('annotations', [])]
+            if captions:
+                best_caption = max(captions, key=len)
+                if len(best_caption.split()) >= 5:  # Same filtering criteria
+                    image = item['image']
+                    image_text_pairs.append((image, best_caption))
+                
+        return image_text_pairs
+>>>>>>> REPLACE
+
+This change:
+1. Switches from the shunk031/MSCOCO dataset to the official Hugging Face COCO dataset
+2. Properly specifies the split, year and task parameters for COCOCaptions
+3. Extracts captions from the annotations structure used in the official dataset
+4. Maintains the same filtering logic for caption length
+
+The official COCO dataset implementation in Hugging Face Datasets Library handles automatic downloading and preprocessing of images, which should resolve the FileNotFoundError caused by invalid image paths. The code structure remains nearly identical but uses the well-maintained official dataset implementation instead of a potentially faulty custom one.

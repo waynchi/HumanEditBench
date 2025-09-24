@@ -1,0 +1,540 @@
+◁think▷Okay, let's tackle this problem. The user wants me to generate a revised version of the given Python code based on their instructions. The main code to focus on is the part that uses a while loop to find the minimum values from two lists and calculate the sums of their absolute differences.
+
+First, I need to analyze the current code structure. The original code reads lines from a file, splits them into columns, converts them into numpy arrays, and then pops the minimum elements from two lists repeatedly until they're empty. Each iteration finds the current minimum from list_1 and list_2, computes their absolute difference, and adds it to all_dists. Finally, it prints the sum of all distances.
+
+But wait, the user's instruction says to make improvements. Let me think about potential issues in the existing code. The use of list.pop(argmini) is inefficient because each pop requires shifting elements, and doing it in a loop would result in O(n^2) time complexity. Also, using numpy's argmin in each iteration might not be necessary. Another thing: since the lists are being modified in place, the code might not handle all cases correctly, especially if one list is longer than the other. Oh, right, the while loop runs until list_1 is empty. What if list_2 is longer? Then after list_1 is empty, list_2's remaining elements would have nothing to pair with. But according to the code, it stops when list_1 is empty. Wait, but the code's logic might assume both lists are of equal length. If not, that could be an issue. But maybe the input data has both lists same size. Hmm.
+
+So, the user wants to improve this code. Perhaps a better approach is to sort both lists first and then pair elements in order. Because popping the min each time is equivalent to sorting and then iterating. That would reduce the time complexity from O(n^2) to O(n log n) due to sorting. So, instead of popping elements one by one, sort both lists, zip them, and compute the absolute differences. Then sum those up. That would be more efficient and simpler.
+
+Looking at the original code:
+
+list_1 is created from cols[0], and list_2 from cols[1]. Then, in each iteration, the min of list_1 and list_2 are found, popped, and the distance added. But if the lists are sorted, then the first elements are the smallest. So instead of repeatedly finding the min, we can sort both lists once and then iterate over them. That way, we avoid the repeated argmin and popping.
+
+So the modification would be:
+
+1. Sort list_1 and list_2 in ascending order.
+2. Initialize total_sum as 0.
+3. Iterate through both lists, take the absolute difference of each pair, add to total_sum.
+4. Print the total_sum.
+
+This approach would be O(n log n) due to sorting, followed by O(n) iteration. Much better than the original loop which is O(n^2) because each pop after argmin is O(n) time.
+
+Now, let's check the code for how the lists are handled. The original code splits the lines into columns, transposes them into a numpy array, then converts each column to a list. So list_1 and list_2 are the first and second columns, respectively.
+
+So modifying the code:
+
+After obtaining list_1 and list_2:
+
+sort list_1 and list_2.
+
+Then, loop through both lists, compute the absolute difference for each pair, sum them up.
+
+But wait, in the original code, the loop continues until list_1 is empty. If the lists are of different lengths, this might cause an error. However, in the given code, since the input is parsed from columns (transposed), perhaps the two lists are of the same length. But if not, the pop would eventually make one list empty. So using zip and assuming they are same length would work.
+
+But the code as given uses list_1.pop and list_2.pop, which would reduce the length of the lists each time. So if the original lists are of equal length, it works. Otherwise, after the shorter list is empty, the loop stops, leaving the remaining elements in the longer list unprocessed. But according to the code's current logic, it just sums the distances for the pairs taken. So maybe the intended input is that both lists have the same number of elements. In that case, sorting both and pairing them in order would be correct.
+
+Therefore, replacing the while loop with a loop over sorted list_1 and sorted list_2 would be efficient and correct.
+
+So the revised code would:
+
+- Sort list_1 and list_2.
+- Calculate the sum of absolute differences between each pair.
+
+Now, let's look at the code in the original section:
+
+The code in the main function does:
+
+all_dists = []
+while len(list_1) > 0:
+    argmini_1 = np.argmin(list_1)
+    mini_1 = list_1.pop(argmini_1)
+    argmini_2 = np.argmin(list_2)
+    mini_2 = list_2.pop(argmini_2)
+    dist = abs(mini_1 - mini_2)
+    all_dists.append(dist)
+print(sum(all_dists))
+
+In this code, each pair consists of the current minimum from list1 and list2. By popping those minima, the next minima are found in the remaining lists. However, this approach is inefficient because each argmin and pop operation is O(n), leading to O(n^2) time.
+
+But perhaps the problem is that we need to pair each element from list_1 with the element from list_2 that is closest to it. Wait, no, the code is pairing the smallest remaining elements from each list. For example, the first mini_1 is the smallest in list_1, and the first mini_2 is the smallest in list_2. Then, after popping, the next smallest in each list are paired. So the sum is the sum of absolute differences between the sorted order of list_1 and list_2.
+
+Wait, but if we sort both lists, then the first elements are the smallest, and pairing them would give the same result as the original code. Because the original code is effectively sorting both lists (by repeatedly taking the minimas and popping) and then summing the absolute differences. However, sorting is more efficient.
+
+Wait, no. Let me think. Suppose list_1 is [5, 3, 8] and list_2 is [2, 6, 1]. The original code would first find the min of list_1 (3) and the min of list_2 (1), compute |3-1|=2, then pop them. Now list_1 is [5,8], list_2 is [2,6]. Next, min of list_1 is 5, min of list_2 is 2, |5-2|=3. Then pop, leaving list_1 as [8], list_2 as [6], difference 2. Total sum is 2+3+2=7.
+
+If instead, we sort list_1 and list_2. sorted list_1 is [3,5,8], sorted list_2 is [1,2,6]. Pairing them: |3-1| + |5-2| + |8-6| = 2 + 3 + 2 = 7. Which is the same as the original code's approach.
+
+Ah, so the original code's approach is equivalent to sorting both lists and then summing the absolute differences of corresponding elements. But doing it via popping minima each time is inefficient. So the improvement would be to sort both lists first, then compute the sum in linear time.
+
+Therefore, replacing the while loop with:
+
+sorted_1 = sorted(list_1)
+sorted_2 = sorted(list_2)
+total = sum(abs(a - b) for a, b in zip(sorted_1, sorted_2))
+print(total)
+
+This would achieve the same result but more efficiently.
+
+Now, applying this to the code. Let's look at the original section again.
+
+The original code in the main function has:
+
+all_dists=[]
+while len(list_1)>0:
+    argmini_1 = np.argmin(list_1)
+    mini_1 = list_1.pop(argmini_1)
+    
+    argmini_2 = np.argmin(list_2)
+    mini_2 = list_2.pop(argmini_2)
+    dist = abs(mini_1-mini_2)
+    all_dists.append(dist)
+print(sum(all_dists))
+
+So the modification would be to sort both lists, then iterate once.
+
+So the revised code should:
+
+Replace the while loop with:
+
+sorted_list_1 = sorted(list_1)
+sorted_list_2 = sorted(list_2)
+all_dists = [abs(a - b) for a, b in zip(sorted_list_1, sorted_list_2)]
+print(sum(all_dists))
+
+But also, since all_dists is a list being summed, perhaps we can calculate it directly without building the list. But the original code had a print statement for all_dists? Wait, no, in the original code, the print is for sum(all_dists). So maybe we can simplify the code by directly summing over the sorted lists.
+
+So, the code would become:
+
+total = sum(abs(a - b) for a, b in zip(sorted(list_1), sorted(list_2)))
+print(total)
+
+That's more efficient. Also, no need for numpy's argmin anymore. So the code can remove the numpy imports if they're not used elsewhere, but looking at the code, the original code imports numpy as np. But in the revised code, if we're no longer using np.argmin, then we can remove the import. Wait, but the user said to only change the highlighted section. Let me check the user's original code.
+
+The user's code starts with:
+
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+So the line after INPUT_FILE_PATH is another assignment to the same variable, which might be a typo. But that's part of the original code. The user didn't mention fixing that, but perhaps it's a test path switch. For example, maybe they have different input files. So that's probably intentional.
+
+Now, the user's instruction says to change the highlighted section. The highlighted section is the entire code provided. Wait, the user says "provide improvements to the following code" and "they highlighted this section to be changed" — which is the entire code block again. So the user wants to improve the entire code, but perhaps only certain parts. Wait, the user says "Please only change the highlighted section and leave the rest of the code unchanged." The highlighted section is the entire code from import numpy to the main function.
+
+But looking at the code provided again, the user's code (to be modified) is:
+
+The original code (to be modified):
+python
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    cols = [l.split("   ") for l in lines]
+    cols = np.array(cols).T.astype(int)
+    list_1 = list(cols[0])
+    list_2 = list(cols[1])
+
+    all_dists=[]
+    while len(list_1)>0:
+        argmini_1 = np.argmin(list_1)
+        mini_1 = list_1.pop(argmini_1)
+        
+        argmini_2 = np.argmin(list_2)
+        mini_2 = list_2.pop(argmini_2)
+        dist = abs(mini_1-mini_2)
+        all_dists.append(dist)
+    print(sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()
+
+The user's instruction is to improve the code. The user highlighted the entire code (since they included the entire code block as the section to be changed). Therefore, I can modify any part of the code, but probably focusing on the main loop.
+
+The key change is replacing the while loop with a more efficient approach.
+
+So, let me outline the steps:
+
+1. In the main function, after getting list_1 and list_2 from cols, sort both lists.
+2. Compute the sum of absolute differences between corresponding elements.
+
+But wait, the code uses numpy to transpose the columns. Maybe we can avoid using numpy if possible. For example, the code could parse the columns as lists without using numpy. But in the original code, the line is:
+
+cols = [l.split("   ") for l in lines]
+cols = np.array(cols).T.astype(int)
+list_1 = list(cols[0])
+list_2 = list(cols[1])
+
+So using numpy to transpose the array. Could we do this without numpy? For example, using zip.
+
+Alternatively, you can split each line into parts, then zip them to get columns.
+
+Like:
+
+lines = parse_input_file()
+cols = [l.split() for l in lines]  # But the code splits on "   ", perhaps multiple spaces.
+Wait, the code splits on "   ", which might be a triple space. But if the input uses different delimiters, maybe the splitting can be adjusted.
+
+But let's focus on improvements. The original code has:
+
+cols = [l.split("   ") for l in lines]
+cols = np.array(cols).T.astype(int)
+list_1 = list(cols[0])
+list_2 = list(cols[1])
+
+This converts the list of lines into a numpy array, transposes it, and then converts each column to a list. But perhaps this can be done using list comprehensions without numpy.
+
+Alternatively, after splitting each line into parts, we can zip to transpose:
+
+lines = parse_input_file()
+# Split each line into columns. The original code uses split("   "), which splits on exactly three spaces.
+# But maybe the split can be done with split(), which splits on any whitespace.
+# However, if the input uses three spaces as separators, then split() would split on any whitespace, which might not capture the correct structure.
+
+But according to the original code, each line is split by "   ", which is three spaces. So for example, a line like "1   2" would split into ["1", "2"]. So that's two columns. But maybe the split is correct.
+
+But using numpy's array and transpose is possible, but perhaps we can avoid numpy. However, the user's code already imports numpy, so maybe it's necessary. However, if the code can be made to work without numpy, that could be a possible improvement.
+
+But the user's code has already imported numpy, so maybe not necessary. But perhaps the transpose can be done with list(zip(...)).
+
+Wait, for example, if lines is a list of strings, each with two integers separated by three spaces. So each line after split("   ") is a list of two elements. So cols is a list of lists. Then, the code transposes this by converting to a numpy array and taking the transpose.
+
+But the same can be done with zip(*cols), which would transpose the rows into columns. So, after splitting each line into parts, we can do:
+
+cols = [l.split("   ") for l in lines]
+transposed = list(zip(*cols))
+list_1 = [int(x) for x in transposed[0]]
+list_2 = [int(x) for x in transposed[1]]
+
+But this would avoid using numpy. However, the original code uses np.array(cols).T.astype(int), which handles the conversion to integers. So perhaps the code can be modified to use list comprehensions instead.
+
+But maybe that's not necessary. The main focus is on the loop where the minima are popped. So the key change is to replace the while loop with a sorted-based approach.
+
+So modifying the code:
+
+In the main function:
+
+    cols = [l.split("   ") for l in lines]
+    # Convert to integers without numpy
+    cols = list(zip(*cols))  # Transpose
+    list_1 = [int(x) for x in cols[0]]
+    list_2 = [int(x) for x in cols[1]]
+
+Wait, no. Because each line after split("   ") is a list of strings. So when you zip(*cols), it would transpose the rows into columns. So for example, if cols is [[a, b], [c, d]], zip(*cols) gives (a, c) and (b, d). So for each transposed column, we need to convert the elements to integers.
+
+So perhaps the code can be modified to:
+
+lines = parse_input_file()
+cols = [line.split("   ") for line in lines]
+# Transpose the columns
+transposed = list(zip(*cols))
+list_1 = [int(x) for x in transposed[0]]
+list_2 = [int(x) for x in transposed[1]]
+
+But this would replace the numpy part. However, the original code uses numpy and then converts to lists. If we can do the same without numpy, that's an improvement. But perhaps that's part of the code that can be refactored.
+
+But the user's main instruction is to improve the code, so perhaps the code can be modified to avoid numpy where possible, but the key is the loop.
+
+So, the changes:
+
+1. Replace the numpy-based transpose with zip-based transpose.
+2. Convert the elements to integers using list comprehensions.
+3. Sort list_1 and list_2.
+4. Sum the absolute differences between sorted elements.
+
+So the code would look like:
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    # Split each line into columns, assuming two columns per line
+    cols = [line.split("   ") for line in lines]
+    # Transpose the columns without numpy
+    list_1, list_2 = list(zip(*cols))
+    # Convert to integers
+    list_1 = [int(x) for x in list_1]
+    list_2 = [int(x) for x in list_2]
+
+    # Sort both lists
+    sorted_1 = sorted(list_1)
+    sorted_2 = sorted(list_2)
+
+    # Compute the sum of absolute differences
+    total = sum(abs(a - b) for a, b in zip(sorted_1, sorted_2))
+    print(total)
+
+But wait, the zip will work if both lists have the same length. If not, the code would stop at the shorter list. But according to the original code, the loop continues until list_1 is empty. If list_2 is longer, the remaining elements in list_2 would not be processed. So the revised code should handle that.
+
+But if the input has two columns with the same number of elements, then this approach is correct.
+
+Another possible improvement is to handle the case where lines may have trailing empty strings. For example, if the input file has empty lines. The parse_input_file splits lines, but if a line is empty, it would be included as an empty string. So during processing, line.split("   ") would result in an empty list. So adding a check to skip empty lines.
+
+But this isn't part of the current code's problem. The original code's parse_input_file reads the lines and splits by "\n", but doesn't filter. So if there are empty lines, the code would process them. So to handle that, maybe:
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return [line for line in lines if line.strip()]  # Skip empty lines
+
+But this is a possible improvement.
+
+But the user's instruction says to modify the code provided, and the highlighted section includes the parse_input_file function. However, the user said to only change the highlighted section. The highlighted section is the entire code block. So the user's code includes the parse_input_file. So if we want to make the code better, we can add line stripping.
+
+But perhaps that's not necessary. Let's focus on the main part.
+
+Putting it all together, the revised code would:
+
+- Remove the numpy dependency in the main function.
+- Use zip to transpose instead of np.array().T.
+- Convert to integers without numpy.
+- Sort both lists and zip them to compute the sum.
+
+So the modified code for the main function would be:
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    # Split each line into parts, assuming two columns per line
+    cols = [line.split("   ") for line in lines]
+    # Transpose to get the two columns
+    list_1, list_2 = zip(*cols)
+    # Convert strings to integers
+    list_1 = [int(x) for x in list_1]
+    list_2 = [int(x) for x in list_2]
+
+    # Sort both lists
+    sorted_list_1 = sorted(list_1)
+    sorted_list_2 = sorted(list_2)
+
+    # Compute the sum of absolute differences
+    total = sum(abs(a - b) for a, b in zip(sorted_list_1, sorted_list_2))
+    print(total)
+
+But wait, the original code had:
+
+cols = [l.split("   ") for l in lines]
+cols = np.array(cols).T.astype(int)
+list_1 = list(cols[0])
+list_2 = list(cols[1])
+
+The numpy code converts each element to an integer. So in the revised code, after splitting into cols, which is a list of lists of strings. Then zip(*cols) would give tuples of strings. So converting them to integers using list comprehensions.
+
+But the code must ensure that all elements can be converted to integers.
+
+Another possible issue: the input lines may have more or less than two elements per line. But the original code's use of np.array(cols).T.astype(int) assumes that each line has the same number of elements, and that they can be converted to integers.
+
+So the revised code should handle the same assumptions.
+
+Now, let's put all the pieces together.
+
+The original code has:
+
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    cols = [l.split("   ") for l in lines]
+    cols = np.array(cols).T.astype(int)
+    list_1 = list(cols[0])
+    list_2 = list(cols[1])
+
+    all_dists=[]
+    while len(list_1)>0:
+        argmini_1 = np.argmin(list_1)
+        mini_1 = list_1.pop(argmini_1)
+        
+        argmini_2 = np.argmin(list_2)
+        mini_2 = list_2.pop(argmini_2)
+        dist = abs(mini_1-mini_2)
+        all_dists.append(dist)
+    print(sum(all_dists))
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()
+
+The revised code would:
+
+- Remove the numpy import, since it's not used anymore.
+- Replace the numpy-based transpose with zip.
+- Convert the columns to integers using list comprehensions.
+- Sort both lists.
+- Sum the absolute differences.
+
+But the user's instruction says "provide improvements to the following code" and "they highlighted this section to be changed" which is the entire code block. So the user wants the entire code to be improved. But the user also says "Please only change the highlighted section and leave the rest of the code unchanged." Wait, no. The user says "the user instruction is: provide improvements to the following code" and "they highlighted this section to be changed" which is the entire code. So their instruction is to improve the entire code.
+
+But the user says "Please only change the highlighted section and leave the rest of the code unchanged." But in this case, the highlighted section is the entire code. So I can change the entire code as needed.
+
+But wait, the user says "The user instruction is: provide improvements to the following code" and then provides the code block to be modified. The user is the one who wants to change the code. The assistant is to generate the improved code.
+
+So the assistant needs to take the code block provided and improve it.
+
+So the answer should replace the entire original code with the improved version.
+
+But the user's code has a line where INPUT_FILE_PATH is assigned twice. This is probably a typo. The first assignment is overridden by the second. So perhaps that's intended for switching between input and example files. The assistant can leave that as is unless there's a way to improve it. But since it's part of the code, perhaps it's a test path. So no change needed there.
+
+In summary, the key improvements are:
+
+1. Remove numpy dependency by using zip to transpose the lists and list comprehensions for integers.
+2. Replace the while loop with sorting and zipping.
+
+So the revised code would be:
+python
+def main():
+    lines = parse_input_file()
+    #print(lines)  # Removed for simplicity, but keep for debugging
+    # Split lines into parts
+    cols = [line.split("   ") for line in lines]
+    # Transpose to get columns using zip
+    list_1, list_2 = zip(*cols)
+    # Convert to integers
+    list_1 = [int(x) for x in list_1]
+    list_2 = [int(x) for x in list_2]
+
+    # Sort both lists
+    sorted_list_1 = sorted(list_1)
+    sorted_list_2 = sorted(list_2)
+    
+    # Calculate sum of absolute differences
+    total = sum(abs(a - b) for a, b in zip(sorted_list_1, sorted_list_2))
+    print(total)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    # Filter out empty lines
+    return [line for line in lines if line.strip()]
+
+if __name__ == "__main__":
+    main()
+
+But wait, I removed the import numpy line. However, in the original code, it's present. But according to the user's instruction, the code is to be modified. Since the new code no longer requires numpy, it's better to remove the import. But should we remove the import? Or leave it, assuming other parts of the code may need it in the future. But according to the user's instruction, they want the provided code to be improved. Since the improved code doesn't use numpy, we can remove the import.
+
+But the user's code includes:
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+But the first assignment is overridden. So the code as is uses the example_in.txt. But maybe that's intended. For testing, the user changes the path. So no need to modify that.
+
+So putting it all together, the final code would be:
+python
+# Remove the numpy import since it's not used now
+# import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # print(lines)  # Optional, remove if not needed
+    cols = [line.split("   ") for line in lines]
+    # Transpose using zip
+    list_1, list_2 = zip(*cols)
+    # Convert to integers
+    list_1 = [int(x) for x in list_1]
+    list_2 = [int(x) for x in list_2]
+
+    # Sort both lists
+    sorted_list_1 = sorted(list_1)
+    sorted_list_2 = sorted(list_2)
+
+    # Sum absolute differences
+    total = sum(abs(a - b) for a, b in zip(sorted_list_1, sorted_list_2))
+    print(total)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    # Filter out empty lines
+    return [line for line in lines if line.strip()]
+
+if __name__ == "__main__":
+    main()
+
+But wait, if the parse_input_file function is modified to include the filter, but the original code does not have it. The original code returns all lines, including empty ones. So adding the filter is an improvement.
+
+Another possible improvement is handling cases where the split on "   " results in multiple parts. For example, if a line has more than two elements separated by triple spaces. The code may not handle that. But the original code's use of np.array(cols).T.astype(int) would fail if there are more than two columns. So the code is based on the assumption that each line has exactly two elements. So the revised code's use of zip(*cols) would split into two columns only if that's the case. So this is a valid assumption based on the original code.
+
+Finally, the print(lines) was in the original code. It's there for debugging, but perhaps it's better to comment it out or remove it. But since the user's original code has it, maybe they want to keep it. But in the revised code, perhaps it's not necessary. But since the user's code has print(lines), which outputs the parsed lines, maybe it's part of the debug, but in the final version, it's not needed. So I can comment it out or remove it. But according to the user's original code, it's there. So to match the output but prevent it from printing unnecessary lines, perhaps comment it out. But the user's original code has print(lines), which might be part of the test. But since the problem is about the sum of distances, the lines may not need to be printed. So in the revised code, remove the print(lines).
+
+But in the original code, the print is present. The user may have it there to see the input. But if the code is working, maybe it's not needed. So in the revised code, remove it.
+
+So putting it all together, the final code would be:
+python
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # Split into columns
+    cols = [line.split("   ") for line in lines]
+    # Transpose columns
+    list_1, list_2 = zip(*cols)
+    # Convert to integers
+    list_1 = [int(x) for x in list_1]
+    list_2 = [int(x) for x in list_2]
+
+    # Sort both lists
+    sorted_1 = sorted(list_1)
+    sorted_2 = sorted(list_2)
+
+    # Calculate total distance
+    total = sum(abs(a - b) for a, b in zip(sorted_1, sorted_2))
+    print(total)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return [line.strip() for line in lines if line.strip()]
+
+if __name__ == "__main__":
+    main()
+
+This code removes the dependency on numpy, uses list comprehensions and zip to process the data, sorts both lists to ensure efficient processing, and directly computes the sum of absolute differences. The parse_input_file function now also strips whitespace from lines and skips empty lines. The import numpy statement is removed as it's no longer needed. This should be more efficient, readable, and maintainable.
+◁/think▷
+python
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    # Split into columns
+    cols = [line.split("   ") for line in lines]
+    # Transpose columns
+    list_1, list_2 = zip(*cols)
+    # Convert to integers
+    list_1 = [int(x) for x in list_1]
+    list_2 = [int(x) for x in list_2]
+
+    # Sort both lists
+    sorted_1 = sorted(list_1)
+    sorted_2 = sorted(list_2)
+
+    # Calculate total distance
+    total = sum(abs(a - b) for a, b in zip(sorted_1, sorted_2))
+    print(total)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return [line.strip() for line in lines if line.strip()]
+
+if __name__ == "__main__":
+    main()

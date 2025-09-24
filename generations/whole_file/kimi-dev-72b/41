@@ -1,0 +1,42 @@
+
+python
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+import requests
+
+# Crear una sesión Spark
+spark = SparkSession.builder.appName("EscrituraParquetADL2").getOrCreate()
+
+# Reemplazar ejemplo de datos con datos de API
+api_url = "https://api.example.com/data"
+
+try:
+    response = requests.get(api_url)
+    response.raise_for_status()
+    data = response.json()  # Asumiendo la API responde con una lista de dicts
+except requests.RequestException as e:
+    print(f"Error fetching data from API: {e}")
+    spark.stop()
+    exit(1)
+
+# Crear DataFrame a partir de los datos
+df = spark.createDataFrame(data)
+
+# Configurar la conexión a ADL2 usando la identidad de Microsoft ID
+# No es necesario proporcionar credenciales explícitamente en un notebook de Synapse
+# Spark utilizará la identidad administrada del notebook para autenticarse.
+
+# Especificar la ruta al contenedor y la carpeta en ADL2
+container_name = "<your_container_name>"  # Reemplazar con el nombre de tu contenedor
+folder_path = "<your_folder_path>"  # Reemplazar con la ruta a la carpeta dentro del contenedor
+adl2_path = f"abfss://{container_name}@{<your_storage_account_name>}.dfs.core.windows.net/{folder_path}"
+
+# Escribir el DataFrame en formato parquet en ADL2
+df.write.parquet(adl2_path, mode="overwrite")
+
+# Opcional: leer el archivo parquet para verificar
+df_leido = spark.read.parquet(adl2_path)
+df_leido.show()
+
+# Detener la sesión Spark
+spark.stop()

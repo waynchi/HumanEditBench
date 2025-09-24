@@ -1,0 +1,959 @@
+◁think▷Okay, I need to modify the code to add model_names as an argument. Let's look at the user's instruction and the highlighted section.
+
+The original code in the main function has a parameter called model_names which defaults to a list of four model names. The user wants to make this an argument that can be passed via the command line. 
+
+First, I need to adjust the argparse part. In the highlighted section, there are existing arguments like --host_model_name and --vanilla_model_name. I should add a new argument for model_names here.
+
+Wait, but in the main function, model_names is a list. So how do I pass a list via command line? The user might want to allow specifying which models to run. For example, maybe they want to run only ('Tuned Model', 'Final Model') instead of all four.
+
+So I need to add an argument for model_names in the parser. Let's check the existing code. The main function's parameters include model_names=["Tuned Model", ...]. The user wants to make this an argument. 
+
+Looking at the argparse section, after the existing --host_model_name and --vanilla_model_name, I need to add a new argument. The user probably wants to pass a comma-separated list of model names. For example, the user could run the script with --model_names "Tuned Model,Final Model".
+
+But how to parse that in Python. The argparse can take a type that splits the string into a list. Alternatively, use nargs='+' to allow multiple arguments. Wait, but the model names have spaces. Hmm.
+
+Alternatively, perhaps the user can pass the model names as a list of strings. For example, using nargs='+' would allow multiple arguments. Like --model_names Tuned_Model Final_Model, but then we need to replace underscores with spaces. Or maybe the user will pass them as quoted strings with spaces. That might be tricky.
+
+Wait, in the main function, the model_names default is ["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"]. Each model name is a string with a space. So the command line argument needs to accept a list of such strings.
+
+But how to pass a list of strings with spaces via command line. One way is to use a list where each model name is an argument. For example:
+
+--model_names "Tuned Model" "Transformed Model"
+
+But with argparse, if the argument has nargs='+', then it will collect all the values. However, spaces in the names might complicate things unless they are properly quoted.
+
+Alternatively, the user could use underscores in the model names when passing via the command line, and then replace them with spaces. For example, pass 'Tuned_Model' and then in the code, replace '_' with ' '.
+
+But looking at the code, there's already a part where sanitized_name is created by replacing spaces with underscores. So maybe the code can handle underscores in the command line and then replace them with spaces.
+
+Alternatively, the code can split the input by commas. For example, the user could pass --model_names "Tuned Model,Transformed Model". Then, in the code, split by commas and strip any whitespace.
+
+But how to handle this in argparse. Let's see. The user can add an argument like:
+
+parser.add_argument(
+    "--model_names",
+    type=lambda value: [x.strip() for x in value.split(',')],
+    default=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+    help="List of model names to process",
+)
+
+But wait, the default is a list. However, in argparse, the default is a single string unless nargs is specified. Wait, no. The type function is called once per argument. Wait, maybe using nargs='+' would allow passing multiple model names as separate arguments. Let me think.
+
+Alternatively, maybe use the nargs='+' option. For example:
+
+parser.add_argument(
+    "--model_names",
+    nargs='+',
+    default=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+    help="List of model names to process",
+)
+
+But then each model name is a separate argument. But model names have spaces, so each would need to be quoted. For example:
+
+python script.py --model_names "Tuned Model" "Transformed Model"
+
+But if the user runs that, then the command line would pass each as a separate element. However, in some shells, quotes are needed to preserve spaces. So this could work.
+
+But perhaps the user could pass the model names as a comma-separated list. Then, in the code, split by commas. For example, the argument would be:
+
+--model_names "Tuned Model,Transformed Model,Vanilla Model,Final Model"
+
+Then, in the code, split by commas and strip whitespace.
+
+So the argparse line could be:
+
+parser.add_argument(
+    "--model_names",
+    type=lambda s: [name.strip() for name in s.split(',')],
+    default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+    help="Comma-separated list of model names",
+)
+
+Wait, but the default is a string, and then when parsed, it's split into a list. That way, the default is a list. Wait, no. The default is a string, and when the code runs, if the user doesn't specify --model_names, then the default is the string, which is then split into a list. So that would work.
+
+But in the main function, the model_names parameter is expected to be a list. So by splitting the argument into a list, that would correctly pass the list to main.
+
+So modifying the argparse part to add the --model_names argument, which takes a comma-separated list. Then, in the main call, pass args.model_names.
+
+Now, looking at the exist code, in the main function, the model_names is a list. So in the code, we need to remove the default from the main function's parameters and instead pass it from the command line. Wait, no. Wait, the user's instruction says to add model_names as an argument. So in the code, the main function's parameters should include model_names, and that should be passed from the argparse.
+
+Wait, looking at the original code, the main function's parameters already include model_names. The user's instruction is to add model_names as an argument. Wait, perhaps the user wants to make model_names a command line argument instead of a default in the main function. So the main function's model_names parameter should not have a default, and instead, the argparse will pass it in.
+
+Wait, but in the original code, the main function has model_names as a parameter with a default. The user wants to make this configurable via the command line. So the user needs to add the model_names as a command line argument, and then in the main call, pass that argument.
+
+Wait, the original code's main function has model_names as a parameter with a default. The user instruction is to add model_names as an argument. But in the code, the main function is called with model_names being passed from the arguments. Wait, no. Wait, the code as it stands, the main function's parameters include model_names, but when it's called in the code (the part the user highlighted), the parameters passed include model_names=["Tuned Model", ...].
+
+Wait, no. In the original code, the main function is called with model_names as part of the main() call. But the parameters passed are model_names=["Tuned Model", ...]. The user wants to make this parameter come from the command line.
+
+So the steps are:
+
+1. In the argparse, add a new argument for model_names.
+2. In the main function call, pass model_names=args.model_names.
+
+But the original code's main function already has model_names as a parameter. So the code needs to be modified to include model_names as an argument.
+
+Wait, looking at the code, the main function is defined as:
+
+def main(
+    models_path,
+    save_dir,
+    model_size,
+    block_list,
+    evaluate_option,
+    n_samples_modadd=10000,
+    batch_size_modadd=400,
+    n_sampled_fineweb=10000,
+    batch_size_fineweb=32,
+    save_dir_graft="GRAFT",
+    save_dir_fine_tune="Fine_tune",
+    verbose=True,
+    vanilla_model_name=None,
+    host_model_name=None,
+    model_names=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+):
+
+So model_names is a parameter with a default. The user wants to make this an argument that can be passed via the command line. So the default should be removed, and instead, the value is passed from the argparse.
+
+But how. The code currently passes model_names in the main call. Wait, no. Looking at the code where main is called:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+Wait, the original code does not pass model_names in the main call. Wait, looking at the code again:
+
+In the original code, the main function is called with these parameters:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+But the main function's parameters include model_names as the last parameter. However, in the call, model_names is not included. So the code is using the default value for model_names. The user wants to make model_names a command line argument. So the code needs to be modified to add model_names as an argument in the main call, and the default should be removed from the main function's parameters.
+
+Wait, but the user's instruction says to add model_names as an argument. So the user wants the model_names to be passed from the command line, not using the default. So:
+
+1. In the main function's parameters, remove the default for model_names.
+2. Add a new argparse argument for model_names.
+3. Pass model_names=args.model_names in the main call.
+
+But looking at the code, the main function's parameters have model_names with a default. So in the code, the user needs to remove the default from the main function's parameters and instead pass it via the arguments.
+
+So modifying the main function's definition. However, the user's instruction says to only change the highlighted section. The highlighted section is the part where the argparse is defined and the main function is called. So the code in the main function's parameters cannot be changed. Wait, but that's part of the code that the user provided. Wait, the user's instruction says to only change the highlighted section, which is:
+python
+    parser.add_argument(
+        "--host_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M-deduped",
+        help="host_model_name",
+    )
+    parser.add_argument(
+        "--vanilla_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M",
+        help="vanilla_model_name",
+    )
+    args = parser.parse_args()
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+So the user wants to modify this part to add model_names as an argument. So in the argparse, add a new argument for model_names, then pass it to the main function.
+
+But in the main function's call, the parameters must include model_names=args.model_names. However, the original code's main function does not have this parameter passed. So the main function's parameters need to be adjusted. But according to the user's instruction, they want to modify only the highlighted section. So perhaps the user wants to add model_names as a new parameter to the main function call, and include it in the argparse.
+
+Wait, but the main function's parameters already include model_names. Wait, looking at the original code's main function definition:
+
+def main(
+    models_path,
+    save_dir,
+    model_size,
+    block_list,
+    evaluate_option,
+    n_samples_modadd=10000,
+    batch_size_modadd=400,
+    n_sampled_fineweb=10000,
+    batch_size_fineweb=32,
+    save_dir_graft="GRAFT",
+    save_dir_fine_tune="Fine_tune",
+    verbose=True,
+    vanilla_model_name=None,
+    host_model_name=None,
+    model_names=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+):
+
+So model_names is the last parameter, with a default. The user wants to make this parameter come from the command line. So in the main function call, we need to pass model_names=args.model_names. Therefore, the code in the main call must include model_names as one of the parameters.
+
+But in the original code's main call, the parameters passed are:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+So the parameters are in a certain order. The save_dir_graft and save_dir_fine_tune are part of the parameters but are passed. The model_names parameter is after host_model_name and vanilla_model_name. So in the main call, we need to add model_names=args.model_names.
+
+But how to do that? We need to add the model_names argument to the main call.
+
+But according to the user's instruction, the code to modify is the highlighted section. So in the highlighted code, we need to:
+
+1. Add the --model_names argument to the parser.
+2. Pass model_names=args.model_names in the main call.
+
+So the code would be:
+
+Add the new argument:
+
+    parser.add_argument(
+        "--model_names",
+        type=lambda s: [x.strip() for x in s.split(',')],
+        default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+        help="Comma-separated list of model names",
+    )
+
+Then, in the main call, add model_names=args.model_names.
+
+But wait, in the original code, the default for model_names is set in the main function's parameters. Now, the user wants to set it via the command line. But the argparse's default for --model_names is the string, which when parsed becomes the list. So this way, the default is maintained, but users can override it via the command line.
+
+So modifying the code:
+
+In the highlighted section, first add the new argument:
+
+    parser.add_argument(
+        "--model_names",
+        type=lambda s: [x.strip() for x in s.split(',')],
+        default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+        help="Comma-separated list of model names to process",
+    )
+
+Then, in the main function call, add:
+
+        model_names=args.model_names,
+
+But wait, the parameters in the main call must be in the correct order. Looking at the original main function's parameters:
+
+The parameters are:
+
+models_path,
+save_dir,
+model_size,
+block_list,
+evaluate_option,
+n_samples_modadd=10000,
+batch_size_modadd=400,
+n_sampled_fineweb=10000,
+batch_size_fineweb=32,
+save_dir_graft="GRAFT",
+save_dir_fine_tune="Fine_tune",
+verbose=True,
+vanilla_model_name=None,
+host_model_name=None,
+model_names=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+
+So in the main call, the parameters are passed as:
+
+main(
+    models_path=args.models_path,
+    save_dir=args.save_dir,
+    save_dir_graft=args.save_dir_graft,
+    save_dir_fine_tune=args.save_dir_fine_tune,
+    n_samples_modadd=args.max_samples_modadd,
+    batch_size_modadd=args.batch_size_modadd,
+    n_sampled_fineweb=args.max_samples_fineweb,
+    batch_size_fineweb=args.batch_size_fineweb,
+    model_size=args.model_size,
+    block_list=args.block_list,
+    evaluate_option=args.evaluate,
+    host_model_name=args.host_model_name,
+    vanilla_model_name=args.vanilla_model_name,
+    model_names=args.model_names,
+)
+
+So we need to add the model_names argument as the last parameter.
+
+But in the original code's main call, the last parameters are host_model_name and vanilla_model_name. Then, model_names is the next parameter. So adding model_names=args.model_names as the last argument.
+
+Therefore, the code should be:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+        model_names=args.model_names,
+    )
+
+But wait, the order of the parameters in the main function's definition may not match the order in the call. Let's check.
+
+The main function's parameters are (in order):
+
+1. models_path
+2. save_dir
+3. model_size
+4. block_list
+5. evaluate_option
+6. n_samples_modadd
+7. batch_size_modadd
+8. n_sampled_fineweb
+9. batch_size_fineweb
+10. save_dir_graft
+11. save_dir_fine_tune
+12. verbose
+13. vanilla_model_name
+14. host_model_name
+15. model_names
+
+But in the code's main call, the parameters are passed as:
+
+main(
+    models_path=args.models_path,
+    save_dir=args.save_dir,
+    save_dir_graft=args.save_dir_graft,
+    save_dir_fine_tune=args.save_dir_fine_tune,
+    n_samples_modadd=args.max_samples_modadd,
+    batch_size_modadd=args.batch_size_modadd,
+    n_sampled_fineweb=args.max_samples_fineweb,
+    batch_size_fineweb=args.batch_size_fineweb,
+    model_size=args.model_size,
+    block_list=args.block_list,
+    evaluate_option=args.evaluate,
+    host_model_name=args.host_model_name,
+    vanilla_model_name=args.vanilla_model_name,
+    model_names=args.model_names,
+)
+
+Wait, the order of parameters passed is:
+
+1. models_path
+2. save_dir
+3. save_dir_graft
+4. save_dir_fine_tune
+5. n_samples_modadd
+6. batch_size_modadd
+7. n_sampled_fineweb
+8. batch_size_fineweb
+9. model_size
+10. block_list
+11. evaluate_option
+12. host_model_name
+13. vanilla_model_name
+14. model_names
+
+But the main function's parameters are:
+
+def main(
+    models_path,
+    save_dir,
+    model_size,
+    block_list,
+    evaluate_option,
+    n_samples_modadd=10000,
+    batch_size_modadd=400,
+    n_sampled_fineweb=10000,
+    batch_size_fineweb=32,
+    save_dir_graft="GRAFT",
+    save_dir_fine_tune="Fine_tune",
+    verbose=True,
+    vanilla_model_name=None,
+    host_model_name=None,
+    model_names=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+):
+
+So the order is:
+
+1. models_path
+2. save_dir
+3. model_size
+4. block_list
+5. evaluate_option
+6. n_samples_modadd
+7. batch_size_modadd
+8. n_sampled_fineweb
+9. batch_size_fineweb
+10. save_dir_graft
+11. save_dir_fine_tune
+12. verbose
+13. vanilla_model_name
+14. host_model_name
+15. model_names
+
+Wait, the code's main call passes save_dir_graft and save_dir_fine_tune before the other parameters. But in the main function, save_dir_graft and save_dir_fine_tune are parameters 10 and 11. So in the main call, the parameters are passed out of order. That would cause errors because positional arguments are required.
+
+Wait, no. The parameters in the main call are passed as keyword arguments. Wait, no, looking at the code:
+
+The main function is called with parameters in this order:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+So these are positional arguments, not keyword. Wait, no. If they are written with =, but the function call is using positional parameters. Wait, in Python, when you call a function with arguments like func(a, b, c), they are positional. But if you call func(a, b, c=3), then c is a keyword argument. But in the code's main call, all the parameters are passed as positional. So the code is relying on the order of the parameters in the main function's definition. For example, models_path is first, then save_dir, then model_size, etc.
+
+But looking at the main function's parameters:
+
+The first five parameters are models_path, save_dir, model_size, block_list, evaluate_option. Then follow the parameters with defaults. So in the code's main call, the order of the parameters must match the function's definition.
+
+Wait, in the code's main call, after models_path and save_dir, the next parameters are save_dir_graft and save_dir_fine_tune. But in the main function's parameters, after save_dir comes model_size, then block_list, then evaluate_option. So this is incorrect. Wait, this is a problem. The original code's main call is incorrect.
+
+Wait, no. Wait, the code's main call:
+
+main(
+    models_path=args.models_path,
+    save_dir=args.save_dir,
+    save_dir_graft=args.save_dir_graft,
+    save_dir_fine_tune=args.save_dir_fine_tune,
+    n_samples_modadd=args.max_samples_modadd,
+    batch_size_modadd=args.batch_size_modadd,
+    n_sampled_fineweb=args.max_samples_fineweb,
+    batch_size_fineweb=args.batch_size_fineweb,
+    model_size=args.model_size,
+    block_list=args.block_list,
+    evaluate_option=args.evaluate,
+    host_model_name=args.host_model_name,
+    vanilla_model_name=args.vanilla_model_name,
+)
+
+But how do these parameters correspond to the main function's parameters?
+
+The main function's parameters are:
+
+def main(
+    models_path,
+    save_dir,
+    model_size,
+    block_list,
+    evaluate_option,
+    n_samples_modadd=10000,
+    batch_size_modadd=400,
+    n_sampled_fineweb=10000,
+    batch_size_fineweb=32,
+    save_dir_graft="GRAFT",
+    save_dir_fine_tune="Fine_tune",
+    verbose=True,
+    vanilla_model_name=None,
+    host_model_name=None,
+    model_names=["Tuned Model", ...],
+):
+
+So the first five positional parameters are models_path, save_dir, model_size, block_list, evaluate_option. Then the next four are n_samples_modadd, batch_size_modadd, n_sampled_fineweb, batch_size_fineweb. Then save_dir_graft, save_dir_fine_tune, verbose, vanilla_model_name, host_model_name, model_names.
+
+But in the code's main call, after save_dir, we have save_dir_graft, save_dir_fine_tune, etc. Wait, that's not matching. For example, the third parameter in the main function is model_size, but in the code's call, the third argument is save_dir_graft. That would be a problem. But the code must have been working, so maybe the parameters are passed as keyword arguments.
+
+Wait, no, because the code uses positional arguments. For example, models_path is the first argument, then save_dir is the second, then save_dir_graft which is the third. But the main function's third parameter is model_size. So this would be a mismatch. Therefore, the code must have a mistake here. Wait, but how is the code working?
+
+No, perhaps the code is written with keyword arguments. Wait, let's check. For example, in Python, if you call a function with positional arguments beyond the number of parameters, it's an error. So looking at the code, the main function's parameters are:
+
+1. models_path
+2. save_dir
+3. model_size
+4. block_list
+5. evaluate_option
+6. n_samples_modadd=10000
+7. batch_size_modadd=400
+8. n_sampled_fineweb=10000
+9. batch_size_fineweb=32
+10. save_dir_graft="GRAFT"
+11. save_dir_fine_tune="Fine_tune"
+12. verbose=True
+13. vanilla_model_name=None
+14. host_model_name=None
+15. model_names=["..."]
+
+So the main function expects 5 positional parameters (models_path to evaluate_option), then the rest are optional. But in the code's main call, the arguments are passed as:
+
+models_path=args.models_path,
+save_dir=args.save_dir,
+save_dir_graft=args.save_dir_graft,
+save_dir_fine_tune=args.save_dir_fine_tune,
+n_samples_modadd=args.max_samples_modadd,
+batch_size_modadd=args.batch_size_modadd,
+n_sampled_fineweb=args.max_samples_fineweb,
+batch_size_fineweb=args.batch_size_fineweb,
+model_size=args.model_size,
+block_list=args.block_list,
+evaluate_option=args.evaluate,
+host_model_name=args.host_model_name,
+vanilla_model_name=args.vanilla_model_name,
+
+So the code is passing 13 positional arguments (models_path to vanilla_model_name). But the main function's parameters up to vanilla_model_name are 13 parameters (1-13 in the list above). But the code is passing these in the wrong order. For example, save_dir_graft is the third argument in the call, but the third parameter is model_size. This is a mismatch, which would cause an error. Therefore, this code must be incorrect. However, the user has not reported an error, so perhaps there is a misunderstanding.
+
+Wait, looking back at the code in the user's original code, in the main call (the code under # if __name__ == "__main__": ), the code passes:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+But the parameters for main are:
+
+def main(
+    models_path,
+    save_dir,
+    model_size,
+    block_list,
+    evaluate_option,
+    n_samples_modadd=10000,
+    batch_size_modadd=400,
+    n_sampled_fineweb=10000,
+    batch_size_fineweb=32,
+    save_dir_graft="GRAFT",
+    save_dir_fine_tune="Fine_tune",
+    verbose=True,
+    vanilla_model_name=None,
+    host_model_name=None,
+    model_names=["Tuned Model", "Transformed Model", "Vanilla Model", "Final Model"],
+):
+
+So the parameters in the main call are passed as:
+
+1. models_path
+2. save_dir
+3. save_dir_graft
+4. save_dir_fine_tune
+5. n_samples_modadd
+6. batch_size_modadd
+7. n_sampled_fineweb
+8. batch_size_fineweb
+9. model_size
+10. block_list
+11. evaluate_option
+12. host_model_name
+13. vanilla_model_name
+
+But the main function's parameters in order are:
+
+1. models_path
+2. save_dir
+3. model_size
+4. block_list
+5. evaluate_option
+6. n_samples_modadd
+7. batch_size_modadd
+8. n_sampled_fineweb
+9. batch_size_fineweb
+10. save_dir_graft
+11. save_dir_fine_tune
+12. verbose
+13. vanilla_model_name
+14. host_model_name
+15. model_names
+
+So there is a mismatch in the order. For example, the third argument in the call is save_dir_graft, but the third parameter in main is model_size. This would lead to model_size being set to the value of save_dir_graft, which is incorrect. Therefore, this code must have a bug. But why hasn't the user mentioned it? Perhaps it's a typo in the code provided to us, but the original code may have used keyword arguments.
+
+Wait, in the code's main call, the parameters are passed as keyword arguments. Wait, no, the code uses positional arguments. For example, models_path is passed as the first argument, save_dir as the second, then save_dir_graft as the third. So the third argument is being passed to model_size, which is incorrect. Therefore, the code must be incorrect, but perhaps there is a misunderstanding.
+
+Alternatively, maybe the code uses positional parameters, but the parameters passed are meant to be assigned to the function's parameters. For example, the code's main call passes:
+
+models_path, save_dir, save_dir_graft, save_dir_fine_tune, n_samples_modadd, batch_size_modadd, n_sampled_fineweb, batch_size_fineweb, model_size, block_list, evaluate_option, host_model_name, vanilla_model_name.
+
+But the function's parameters expect:
+
+models_path, save_dir, model_size, block_list, evaluate_option, n_samples_modadd, batch_size_modadd, n_sampled_fineweb, batch_size_fineweb, save_dir_graft, save_dir_fine_tune, verbose, vanilla_model_name, host_model_name, model_names.
+
+But the code's call passes save_dir_graft as the third argument, which would be model_size in the function. This is a problem. Therefore, it's clear that the code's main call is passing parameters in the wrong order. Therefore, the code provided by the user must be incorrect, but perhaps the code in their actual project is different. This is aلكنَّ发动机了一种混乱的情况, but perhaps that's beyond the current issue.
+
+Assuming that the code is written with the parameters passed in the correct order, perhaps the code uses keyword arguments. But looking at the code, the parameters are not written with keyword arguments. For example, the main call is written as:
+
+main(
+    args.models_path,
+    args.save_dir,
+    args.save_dir_graft,
+    ...,
+)
+
+But without the parameter names.
+
+Wait, no. Let me re-examine the code.
+
+In the user's code, under # if __name__ == "__main__":, the code is:
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+Ah, here the parameters are being passed as keyword arguments. So models_path is assigned to the models_path parameter of main(), save_dir to save_dir, etc., regardless of their position in the function's definition. Therefore, even if the parameters are out of order in the code, the keyword arguments ensure that they are assigned correctly.
+
+Not sure. Wait, no. The parameters are passed as positional arguments, not keyword. For example:
+
+main(a, b) is positional, whereas main(a, b, models_path=c) is invalid. Wait, the code as written passes the parameters as positional. For example, models_path=args.models_path is passed as the first argument. But in Python, when you call a function, the order of the arguments must match the parameters unless you use keyword arguments.
+
+Wait, no. In Python, when you call a function as:
+
+main(
+    models_path=args.models_path,
+    save_dir=args.save_dir,
+    save_dir_graft=args.save_dir_graft,
+    ...,
+)
+
+The first argument is assigned to the first parameter (models_path), the second to save_dir, the third to save_dir_graft, etc. But this would only work if the function's parameters are named exactly the same as the parameters being passed. However, the function's parameters are not in the same order. For example, the third parameter is model_size, but the code passes save_dir_graft as the third argument. This would cause model_size to be set to the value of save_dir_graft, which is incorrect.
+
+Therefore, the code must have a mistake here. But the user hasn't mentioned it. Perhaps the code provided is a simplified version, and the actual code in the main call uses keyword arguments correctly. For example, the code might have:
+
+main(
+    models_path=args.models_path,
+    save_dir=args.save_dir,
+    model_size=args.model_size,
+    block_list=args.block_list,
+    evaluate_option=args.evaluate,
+    n_samples_modadd=args.max_samples_modadd,
+    batch_size_modadd=args.batch_size_modadd,
+    n_sampled_fineweb=args.max_samples_fineweb,
+    batch_size_fineweb=args.batch_size_fineweb,
+    save_dir_graft=args.save_dir_graft,
+    save_dir_fine_tune=args.save_dir_fine_tune,
+    verbose=True,
+    vanilla_model_name=args.vanilla_model_name,
+    host_model_name=args.host_model_name,
+    model_names=args.model_names,
+)
+
+But in the code as provided, the main call's parameters are passed in an incorrect order. This indicates that the code may not be correct. But perhaps the user's code has a different main call that is correct. For example, in the original code, the main call may have parameters passed in the correct order, but in the code provided to us, they are out of order. This is possible. But regardless, we need to proceed with the user's instruction to add model_names as an argument.
+
+So, in the user's provided code, the main call's parameters include model_names as part of the default in the function. To add model_names as a command line argument, we need to:
+
+1. In the argparse, add a new argument --model_names that takes a comma-separated list of model names.
+2. In the main call, pass model_names=args.model_names.
+
+Assuming that the main function's parameters already have model_names as a parameter, then the code needs to add the argparse argument and pass it to the main function.
+
+So, modifying the code:
+
+In the argparse section, add the new argument:
+
+parser.add_argument(
+    "--model_names",
+    type=lambda s: [x.strip() for x in s.split(',')],
+    default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+    help="Comma-separated list of model names to process",
+)
+
+Then, in the main call, add the parameter:
+
+        model_names=args.model_names,
+
+But wait, the main function's parameters already have model_names as the last parameter. So adding this parameter to the main call would require that it's passed. But in the original code, the main call does not include this parameter, relying on the default. So adding it would override the default.
+
+But according to the user's instruction, they want to add model_names as an argument. Therefore, the code should now use the argparse value for model_names instead of the default.
+
+So the final code would have:
+
+    parser.add_argument(
+        "--host_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M-deduped",
+        help="host_model_name",
+    )
+    parser.add_argument(
+        "--vanilla_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M",
+        help="vanilla_model_name",
+    )
+    parser.add_argument(
+        "--model_names",
+        type=lambda s: [x.strip() for x in s.split(',')],
+        default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+        help="Comma-separated list of model names to process",
+    )
+    args = parser.parse_args()
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+        model_names=args.model_names,
+    )
+
+But wait, the code's main call parameters are passed as positional, but the parameters in the main function may be expecting them in a certain order. However, in the original code's main call, the parameters are passed as positional, so adding model_names as the last positional parameter would require that the main function expects it in that position, which it does (as the last parameter).
+
+But in the original code's main function, the model_names parameter is the last one. So adding it to the main call as the last argument would be correct.
+
+Therefore, the code changes would be:
+
+1. Add the --model_names argument to the parser.
+2. Pass model_names=args.model_names in the main call.
+
+But how to include this in the highlighted section. The highlighted section is the part where the argparse is defined and the main function is called. So the code in the highlighted section would now include the new --model_names argument.
+
+So, modifying the code in the highlighted section:
+
+The original code had:
+
+    parser.add_argument(
+        "--host_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M-deduped",
+        help="host_model_name",
+    )
+    parser.add_argument(
+        "--vanilla_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M",
+        help="vanilla_model_name",
+    )
+    args = parser.parse_args()
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+    )
+
+So we need to add the new argument for model_names, then add the model_names parameter to the main call.
+
+Here's the modified code:
+
+    parser.add_argument(
+        "--host_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M-deduped",
+        help="host_model_name",
+    )
+    parser.add_argument(
+        "--vanilla_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M",
+        help="vanilla_model_name",
+    )
+    parser.add_argument(
+        "--model_names",
+        type=lambda s: [x.strip() for x in s.split(',')],
+        default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+        help="Comma-separated list of model names to process",
+    )
+    args = parser.parse_args()
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+        model_names=args.model_names,
+    )
+
+But wait, in the original code, the main function's parameters include model_names, but it's not passed in the main call. Therefore, adding the model_names parameter to the main call would require that the main function's parameters are adjusted to accept it. But according to the original code, the main function's parameters already have model_names as a parameter. However, in the original code's main call, the parameter is not passed. Therefore, in the code provided, the user's code may have a missing parameter. But adding it here would fix that.
+
+But how can we know that the main function's parameters are expecting model_names? Because in the original code, the main function's parameters include model_names as the last parameter. So adding it to the main call would pass it, overriding the default. Therefore, the code changes are correct.
+
+Thus, the final code should be:
+
+The code in the highlighted section is modified to include the new argument and the parameter in the main call.
+◁/think▷
+python
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(
+        description="Script to manage model merging and grafting."
+    )
+    parser.add_argument(
+        "--models_path", type=str, default=MODEL_PATH, help="Model_path"
+    )
+    parser.add_argument(
+        "--save_dir",
+        type=str,
+        default="samples_generated",
+        help="Directory to save results generated by each model.",
+    )
+    parser.add_argument(
+        "--save_dir_graft",
+        type=str,
+        default="GRAFT",
+        help="Directory to save grafted models.",
+    )
+    parser.add_argument(
+        "--save_dir_fine_tune",
+        type=str,
+        default="Fine_tune",
+        help="Directory to save finetuned models.",
+    )
+    parser.add_argument(
+        "--max_samples_modadd",
+        type=int,
+        default=1024,
+        help="Maximum samples per grafting.",
+    )
+    parser.add_argument(
+        "--max_samples_fineweb",
+        type=int,
+        default=50,
+        help="Maximum samples per grafting.",
+    )
+    parser.add_argument(
+        "--batch_size_modadd", type=int, default=30, help="Batch size for grafting."
+    )
+    parser.add_argument(
+        "--batch_size_fineweb", type=int, default="70", help="Size of the Pythia model."
+    )
+    parser.add_argument(
+        "--model_size", type=int, default="70", help="Size of the Pythia model."
+    )
+    parser.add_argument(
+        "--block_list",
+        type=lambda value: [int(x) for x in value.split(",")],
+        default=[3],
+        help="Number of layers",
+    )
+    parser.add_argument(
+        "--evaluate",
+        type=str,
+        choices=["modular_addition", "fineweb", "both"],
+        default="both",
+        help="Specify which evaluation to perform: 'modular_addition', 'fineweb', or 'both'.",
+    )
+    parser.add_argument(
+        "--host_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M-deduped",
+        help="host_model_name",
+    )
+    parser.add_argument(
+        "--vanilla_model_name",
+        type=str,
+        default=f"EleutherAI/pythia-70M",
+        help="vanilla_model_name",
+    )
+    parser.add_argument(
+        "--model_names",
+        type=lambda s: [x.strip() for x in s.split(',')],
+        default="Tuned Model,Transformed Model,Vanilla Model,Final Model",
+        help="Comma-separated list of model names to process",
+    )
+    args = parser.parse_args()
+
+    main(
+        models_path=args.models_path,
+        save_dir=args.save_dir,
+        save_dir_graft=args.save_dir_graft,
+        save_dir_fine_tune=args.save_dir_fine_tune,
+        n_samples_modadd=args.max_samples_modadd,
+        batch_size_modadd=args.batch_size_modadd,
+        n_sampled_fineweb=args.max_samples_fineweb,
+        batch_size_fineweb=args.batch_size_fineweb,
+        model_size=args.model_size,
+        block_list=args.block_list,
+        evaluate_option=args.evaluate,
+        host_model_name=args.host_model_name,
+        vanilla_model_name=args.vanilla_model_name,
+        model_names=args.model_names,
+    )

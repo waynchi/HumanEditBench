@@ -1,0 +1,27 @@
+import numpy as np
+
+INPUT_FILE_PATH = './input.txt'
+INPUT_FILE_PATH = './example_in.txt'
+
+def main():
+    lines = parse_input_file()
+    print(lines)
+    list_1 = []
+    list_2 = []
+    for line in lines:
+        if line:
+            a, b = map(int, line.split())
+            list_1.append(a)
+            list_2.append(b)
+    list_1.sort()
+    list_2.sort()
+    total = sum(abs(x - y) for x, y in zip(list_1, list_2))
+    print(total)
+
+def parse_input_file():
+    with open(INPUT_FILE_PATH, 'r') as f:
+        lines = f.read().split("\n")
+    return lines
+
+if __name__ == "__main__":
+    main()

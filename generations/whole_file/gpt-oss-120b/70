@@ -1,0 +1,32 @@
+from main13 import knn, mlp
+import pandas as pd
+
+# Initialize a DataFrame with a MultiIndex column to store predictions for each model and class
+np_df = pd.DataFrame(
+    index=range(10, 200, 10),
+    columns=pd.MultiIndex.from_product([['knn', 'mlp'], [1, 2, 3]])
+)
+
+for pclass in [1, 2, 3]:
+    for fare in range(10, 200, 10):
+        my_df = pd.DataFrame({
+            "Pclass": [pclass] * 3,
+            "Name": [24] * 3,
+            "Sex": [0] * 3,
+            "Age": [19] * 3,
+            "SibSp": [0] * 3,
+            "Parch": [0] * 3,
+            "Fare": [fare] * 3,
+            "Embarked": ["S", "Q", "C"]
+        })
+        my_df = pd.get_dummies(my_df, columns=["Embarked"], prefix="Embarked")  # one‑hot encoding
+        # Ensure the dummy columns contain 0/1 (get_dummies already does this, but we keep the mapping for safety)
+        my_df["Embarked_S"] = my_df["Embarked_S"].map({True: 1, False: 0})
+        my_df["Embarked_C"] = my_df["Embarked_C"].map({True: 1, False: 0})
+        my_df["Embarked_Q"] = my_df["Embarked_Q"].map({True: 1, False: 0})
+
+        # Store predictions for each model in the appropriate column of np_df
+        np_df.loc[fare, ('knn', pclass)] = knn.predict(my_df)
+        np_df.loc[fare, ('mlp', pclass)] = mlp.predict(my_df)
+
+print(np_df)

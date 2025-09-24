@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""
+Word length picker.
+
+The program loads an English word list (preferring the system dictionary
+`/usr/share/dict/words` if available) and lets the user request a word
+length *N*. It then prints up to ten random words that have exactly *N*
+characters.
+
+If the system dictionary cannot be found, a small built‑in fallback list
+is used instead.
+"""
+
+import random
+import sys
+from pathlib import Path
+
+# ----------------------------------------------------------------------
+# Load a word list
+# ----------------------------------------------------------------------
+def load_word_list() -> list[str]:
+    """
+    Return a list of English words (lower‑cased, no punctuation).
+
+    Tries to read the system dictionary at `/usr/share/dict/words`. If that
+    file is missing or unreadable, falls back to a small hard‑coded list.
+    """
+    dict_path = Path("/usr/share/dict/words")
+    words: list[str] = []
+
+    if dict_path.is_file():
+        try:
+            with dict_path.open(encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    w = line.strip().lower()
+                    # Keep only alphabetic words (ignore hyphens, apostrophes, etc.)
+                    if w.isalpha():
+                        words.append(w)
+            if words:
+                return words
+        except OSError as e:
+            print(f"Warning: could not read {dict_path}: {e}", file=sys.stderr)
+
+    # Fallback list – a few common English words covering a range of lengths
+    fallback = """
+    apple banana cherry date elderberry fig grapefruit honeydew kiwi lemon mango nectarine
+    orange papaya quince raspberry strawberry tangerine ugli fruit vanilla watermelon
+    zest
+    """.split()
+    return [w.lower() for w in fallback if w.isalpha()]
+
+# ----------------------------------------------------------------------
+# Main logic
+# ----------------------------------------------------------------------
+def main() -> None:
+    word_list = load_word_list()
+    if not word_list:
+        print("Error: No words available to search.", file=sys.stderr)
+        sys.exit(1)
+
+    while True:
+        try:
+            n = int(input("Enter the desired word length (or 0 to exit): ").strip())
+            if n == 0:
+                print("Good‑bye!")
+                break
+            if n < 0:
+                print("Please enter a positive integer.")
+                continue
+        except ValueError:
+            print("Invalid input – please type an integer.")
+            continue
+
+        # Filter words that have exactly n characters
+        matches = [w for w in word_list if len(w) == n]
+
+        if not matches:
+            print(f"No words found with {n} characters.")
+            continue
+
+        # Choose up to 10 distinct random words
+        sample = random.sample(matches, min(10, len(matches)))
+
+        print(f"\n{len(sample)} word(s) with {n} characters:")
+        for word in sample:
+            print(f"  - {word}")
+        print()  # blank line before next prompt
+
+
+if __name__ == "__main__":
+    main()
