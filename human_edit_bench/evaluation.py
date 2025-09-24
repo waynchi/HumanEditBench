@@ -6,6 +6,7 @@ import shutil
 import sys
 import re
 
+import traceback
 from os import getenv
 from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 from datasets import load_dataset
@@ -95,7 +96,8 @@ def generate_single_file(generation_function, prompt_template, question, output_
         original_code=question["original_code"],
         highlighted_code=question["highlighted_code"],
         instruction=question["instruction"],
-        lang=question["programming_language"]
+        lang=question["programming_language"],
+        cursor_pos=question["cursor_position"]
     )
     
     try:
@@ -125,6 +127,7 @@ def generate_files(generation_function, prompt_file, js_only=False, max_workers=
     
     futures_dict = {}
     errored_out = []
+    err_reason = []
     skipped = []
     successful = []
     
@@ -156,12 +159,14 @@ def generate_files(generation_function, prompt_file, js_only=False, max_workers=
                 result = future.result()
                 if result["status"] == "error":
                     errored_out.append(problem_id)
+                    err_reason.append(result.get("error", "CANT GET REASON"))
                 elif result["status"] == "skipped":
                     skipped.append(problem_id)
                 elif result["status"] == "success":
                     successful.append(problem_id)
             except Exception as exc:
                 errored_out.append(problem_id)
+                err_reason.append(traceback.format_exc(exc))
     
     # Print summary
     print(f"Generation complete:")
@@ -173,6 +178,9 @@ def generate_files(generation_function, prompt_file, js_only=False, max_workers=
             print(f"    - {problem_id}")
         if len(errored_out) > 5:
             print(f"    - ... and {len(errored_out) - 5} more")
+        for reason in err_reason[:5]:  # Show first 5 errors
+            print(f"    - {reason}")  # Print first 100 chars of error
+
 # def generate_files(generation_function, prompt_file, js_only=False):
 #     output_dir = Path(getenv("WORKDIR"), "generations", getenv("EVAL_MODEL"))
 #     output_dir.mkdir(parents=True, exist_ok=True)
